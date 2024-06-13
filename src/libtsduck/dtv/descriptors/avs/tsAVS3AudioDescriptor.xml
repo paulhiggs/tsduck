@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tsduck>
+  <_descriptors>
+
+    <AVS3_audio_descriptor
+        sampling_frequency_index="uint4, required"
+        resolution="8 bits|16 bits|24 bits, required">
+      
+      <!-- required for audio_codec_id==0 -->
+      <general_coding
+        coding_profile="basic|object|HOA, required"
+        bitrate_index="uint4, required"
+        bitstream_type="uniform|variable, required"
+        channel_number_index="uint7, required"
+        raw_frame_length="uint16, required">
+
+        <!-- optional 0..15 allowed  (same as below and AVS2AudioDescriptor) -->
+        <anc_data_block>
+          <!-- one object_extension_meta_block or loudness_metadata_block element per anc_data_block -->
+          <object_extension_metadata_block
+            maxObjChannelNum="uint8, required"
+            objChannelLock_maxDist="uint4, optional"
+            objDiffuse="uint7, required"
+            objGain="uint8, required"
+            objDivergence="uint4, required"
+            objDivergencePosRange="uint4, optional (required if objDivergence > 0)"/>
+
+          <loudness_metadata_block
+            samplePeakLevel="uint12, optional"
+            truePeakLevel="uint12, required"
+            loudnessMeasure="uint4, required">
+
+            <!-- up to 15 loudness values -->
+            <loudnessValue
+              loudnessValDef="uint4, reqiured"
+              loudnessVal="uint8, required"/>
+          </loudness_metadata_block>
+        </anc_data_block>
+
+      </general_coding>
+
+      <!-- required for audio_codec_id==1 -->
+      <lossless_coding
+        sampling_frequency="uint24, optional"
+        coding_profile="basic|object|HOA, required"
+        channel_number="uint8, required">
+
+        <!-- optional 0..15 allowed  (same as above and AVS2AudioDescriptor) -->
+        <anc_data_block>
+          <!-- one object_extension_meta_block or loudness_metadata_block element per anc_data_block -->
+          <object_extension_metadata_block
+            maxObjChannelNum="uint8, required"
+            objChannelLock_maxDist="uint4, optional"
+            objDiffuse="uint7, required"
+            objGain="uint8, required"
+            objDivergence="uint4, required"
+            objDivergencePosRange="uint4, optional (required if objDivergence > 0)"/>
+
+          <loudness_metadata_block
+            samplePeakLevel="uint12, optional"
+            truePeakLevel="uint12, required"
+            loudnessMeasure="uint4, required">
+
+            <!-- up to 15 loudness values -->
+            <loudnessValue
+              loudnessValDef="uint4, reqiured"
+              loudnessVal="uint8, required"/>
+          </loudness_metadata_block>
+        </anc_data_block>
+
+      </lossless_coding>
+
+      <!-- required for audio_codec_id==2 -->
+      <fullrate_coding
+        nn_type="uint3, required"
+        channel_num_index="uint7, optional"
+        num_objects="uint7, optional"
+        hoa_order="uint4, optional"
+        total_bitrate="uint16, required"/>
+
+      <additional_info>
+        Hexadecimal content
+      </additional_info>
+      
+    </AVS3_audio_descriptor>
+
+  </_descriptors>
+</tsduck>

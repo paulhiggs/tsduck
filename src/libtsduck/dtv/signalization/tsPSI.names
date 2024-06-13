@@ -718,6 +718,8 @@ Bits = 8
 # With PDS for AVS.
 # Descriptors are defined by the AVS Working Group of China.
 0x41565356_D1 = AVS3 Video (T/AI 109.6)
+0x41565356_D2 = AVS3 Audio (T/AI 109.7)
+0x41565356_D3 = AVS2 Audio (T/AI 109.7)
 # ISDB descriptors, using the fake PDS for ISDB.
 # 0x67 = ISDB Material Information (WARNING: conflict with DVB)
 # 0x68 = ISDB Hybrid Information (WARNING: conflict with DVB)

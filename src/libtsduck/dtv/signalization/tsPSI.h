@@ -660,6 +660,8 @@ namespace ts {
         // Valid in DVB context after PDS_AVS private_data_specifier
 
         DID_AVS3_VIDEO          = 0xD1, //!< DID for AVS3 video descriptor, as defined in T/AI 109.6
+        DID_AVS3_AUDIO          = 0xD2, //!< DID for AVS3 audio descriptor, as defined in T/AI 109.7
+        DID_AVS2_AUDIO          = 0xD3, //!< DID for AVS2 audio descriptor, as defined in T/AI 109.7 
 
         // Valid in DVB context after PDS_CUVV private_data_specifier
 
