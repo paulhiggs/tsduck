@@ -9,15 +9,7 @@
 [#chap-maintenance]
 == Maintaining TSDuck Code
 
-[#testing]
-=== Testing TSDuck
-
-TBS
-
-=== Automation
-
-TBS
-
-=== Adding PSI/SI tables or descriptors
-
-TBS
+include::104-01-testing.adoc[]
+include::104-02-automation.adoc[]
+include::104-03-tsp-design.adoc[]
+include::104-04-new-signalization.adoc[]

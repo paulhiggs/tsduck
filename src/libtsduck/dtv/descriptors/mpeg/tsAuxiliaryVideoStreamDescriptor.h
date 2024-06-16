@@ -18,7 +18,7 @@
 namespace ts {
     //!
     //! Representation of an Auxiliary_video_stream_descriptor.
-    //! @see SISO/IEC 13818-1 | ITU-T H.222.0 clause 2.6.74 and ISO/IEC 23002-3
+    //! @see ISO/IEC 13818-1 | ITU-T H.222.0 clause 2.6.74 and ISO/IEC 23002-3
     //! @ingroup descriptor
     //!
     class TSDUCKDLL AuxiliaryVideoStreamDescriptor : public AbstractDescriptor
@@ -72,8 +72,6 @@ namespace ts {
                 void clear() { numFF_bytes = 0; last_byte = 0; }
                 void serialize(PSIBuffer&) const;
                 void deserialize(PSIBuffer&);
-                void toXML(xml::Element*) const;
-                bool fromXML(const xml::Element*, const UString&);
                 //! @endcond
             };
 
@@ -113,8 +111,13 @@ namespace ts {
                 //!
                 generic_params_type(PSIBuffer& buf) : generic_params_type() { deserialize(buf); }
 
+                //!
+                //! Get the size, in bytes, of this generic_parameters() structure
+                //! @return Size, in bytes, of this generic_parameters() structure
+                //!
+                uint32_t get_size() const { return 3; }
+
                 //! @cond nodoxygen
-                void clear();
                 void serialize(PSIBuffer&) const;
                 void deserialize(PSIBuffer&);
                 void toXML(xml::Element*) const;
@@ -147,8 +150,13 @@ namespace ts {
                 //!
                 depth_params_type(PSIBuffer& buf) { deserialize(buf); }
 
+                //!
+                //! Get the size, in bytes, of this depth_parameters() structure
+                //! @return Size, in bytes, of this depth_parameters() structure
+                //!
+                uint32_t get_size() const { return 2; }
+
                 //! @cond nodoxygen
-                void clear();
                 void serialize(PSIBuffer&) const;
                 void deserialize(PSIBuffer&);
                 void toXML(xml::Element*) const;
@@ -179,8 +187,13 @@ namespace ts {
                 //!
                 parallax_params_type(PSIBuffer& buf) { deserialize(buf); }
 
+                //!
+                //! Get the size, in bytes, of this parallax_parameters() structure
+                //! @return Size, in bytes, of this parallax_parameters() structure
+                //!
+                uint32_t get_size() const { return 8; }
+
                 //! @cond nodoxygen
-                void clear();
                 void serialize(PSIBuffer&) const;
                 void deserialize(PSIBuffer&);
                 void toXML(xml::Element*) const;
@@ -207,8 +220,13 @@ namespace ts {
             //!
             si_message_type(PSIBuffer& buf) : si_message_type() { deserialize(buf); }
 
+            //!
+            //! Get the size, in bytes, of this SI message
+            //! @return Size, in bytes, of this SI message
+            //!
+            uint32_t get_message_size() const;
+
             //! @cond nodoxygen
-            void clear();
             void serialize(PSIBuffer&) const;
             void deserialize(PSIBuffer&);
             void toXML(xml::Element*) const;
@@ -218,7 +236,7 @@ namespace ts {
         };
 
         // AuxiliaryVideoStreamDescriptor public members:
-        uint8_t aux_video_codestreamtype = 0;  //!< 8 bits, compression coding type
+        uint8_t aux_video_codedstreamtype = 0;  //!< 8 bits, compression coding type
         //!
         //! From ISO/IEC 13818-1, clause 2.6.75
         //! si_rbsp() - Supplemental information RBSP as defined in ISO/IEC 23002-3. It shall contain
