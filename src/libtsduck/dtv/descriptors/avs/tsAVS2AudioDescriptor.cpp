@@ -21,7 +21,7 @@
 #define MY_XML_NAME u"AVS2_audio_descriptor"
 #define MY_CLASS ts::AVS2AudioDescriptor
 #define MY_DID ts::DID_AVS2_AUDIO
-#define MY_PDS ts::PDS_AVS
+#define MY_PDS ts::PDS_AVSA
 #define MY_STD ts::Standards::DVB
 
 TS_REGISTER_DESCRIPTOR(MY_CLASS, ts::EDID::Private(MY_DID, MY_PDS), MY_XML_NAME, MY_CLASS::DisplayDescriptor);

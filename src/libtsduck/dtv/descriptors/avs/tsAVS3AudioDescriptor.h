@@ -70,7 +70,7 @@ namespace ts {
         class TSDUCKDLL lossless_coding_type
         {
         public:
-            uint32_t                           sampling_frequency = 0;  //!< 24 bits. Ths sampling frequency (in Hz) when lookup table cannot be used/
+            uint32_t                           sampling_frequency = 0;  //!< 24 bits. Ths sampling frequency (in Hz) when lookup table cannot be used
             int                                coding_profile = 0;      //!< 3 bits. The coding type used in the bitstream.
             uint8_t                            channel_number = 0;      //!< indicates the number of channels
             std::optional<anc_data_block_type> anc_data_block {};       //!< anciliary audio data
@@ -105,7 +105,7 @@ namespace ts {
         public:
             uint8_t                 nn_type = 0;            //!< 3 bits. Indicates the configuration of the neural network (basic or low complexity).
             std::optional<uint8_t>  channel_num_index {};   //!< 7 bits. Index to the channel configuration table (A.*) in T/AI 109.3
-            std::optional<uint8_t>  num_objects {};         //!< 4 bits. The number of audio objects used in the audio sequence
+            std::optional<uint8_t>  num_objects {};         //!< 7 bits. The number of audio objects used in the audio sequence
             std::optional<uint8_t>  hoa_order {};           //!< 4 bits. The HOA signal order (value + 1)
             uint16_t                total_bitrate = 0;      //!< The total bit rate, in kbit/s, according to the value of content_type
 

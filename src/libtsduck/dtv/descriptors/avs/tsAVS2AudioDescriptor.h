@@ -44,6 +44,7 @@ namespace ts {
             uint8_t  resolution = 0;           //!< 2 bits. the number of bits per sample 0=8, 1=16, 3=24
 
             std::optional<anc_data_block_type> anc_data_block {};   //!< anciliary audio data
+
             //!
             //! Default constructor
             //!
