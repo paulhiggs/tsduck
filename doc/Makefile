@@ -21,7 +21,6 @@ doxygen:
 IMAGESDIR  = $(ROOTDIR)/images
 DOCROOT    = $(ROOTDIR)/doc
 ADOCDIR    = $(DOCROOT)/adoc
-TOCBOTDIR  = $(DOCROOT)/tocbot
 USERDOCDIR = $(DOCROOT)/user
 DEVDOCDIR  = $(DOCROOT)/developer
 
@@ -40,8 +39,8 @@ ROUGE_PDF  = github
 
 # Documentation tools.
 
-ASCIIDOCTOR     = asciidoctor
-ASCIIDOCTOR_PDF = asciidoctor-pdf
+ASCIIDOCTOR     ?= asciidoctor
+ASCIIDOCTOR_PDF ?= asciidoctor-pdf
 
 # Documentation generation flags.
 
@@ -55,28 +54,34 @@ ADOCFLAGS_PDF  = $(ADOCFLAGS) -a pdf-themesdir="$(ADOCDIR)" -a pdf-theme="$(THEM
 # Not really all .png images are used, but the exact list may vary while the documents are edited.
 # So, better rebuild if an image was added or updated.
 
-COMMON_INPUTS      = $(ADOCDIR)/attributes.adoc $(wildcard $(IMAGESDIR)/*.png)
+COMMON_INPUTS      = $(ADOCDIR)/attributes.adoc $(wildcard $(IMAGESDIR)/*.png) $(LIBTSDUCKDIR)/tsVersion.h
 COMMON_INPUTS_HTML = $(COMMON_INPUTS) $(CSSFILE) $(BINDOCINFO)/docinfo.html $(BINDOCINFO)/docinfo-footer.html
 COMMON_INPUTS_PDF  = $(COMMON_INPUTS) $(THEMEFILE)
+
+# Asciidoctor creates huge PDF. They need to be compressed afterward.
+# The size is typically divided by 4.
+
+$(BINDOC)/%.pdf: $(BINDOC)/%.bigpdf
+	$(call LOG,[COMPRESS] $@) qpdf --compress-streams=y --recompress-flate --optimize-images $< $@
 
 #-----------------------------------------------------------------------------
 # Docinfo files, for asciidoctor.
 # This setup creates an expandable table of content inside the left side bar.
 #-----------------------------------------------------------------------------
 
-$(BINDOCINFO)/docinfo.html: $(TOCBOTDIR)/docinfo.html
+$(BINDOCINFO)/docinfo.html: $(ADOCDIR)/docinfo.html
 	$(call LOG,[GEN] $@) \
 	mkdir -p $(dir $@); \
 	cp $< $@
 
-$(BINDOCINFO)/docinfo-footer.html: $(TOCBOTDIR)/docinfo-footer.in.html $(TOCBOTDIR)/tocbot.min.js
+$(BINDOCINFO)/docinfo-footer.html: $(ADOCDIR)/docinfo-footer.in.html $(ADOCDIR)/tocbot.min.js
 	$(call LOG,[GEN] $@) \
 	mkdir -p $(dir $@); \
 	echo "<script>" >$@; \
-	cat $(TOCBOTDIR)/tocbot.min.js >>$@; \
+	cat $(ADOCDIR)/tocbot.min.js >>$@; \
 	echo "" >>$@; \
 	echo "</script>" >>$@; \
-	cat $(TOCBOTDIR)/docinfo-footer.in.html >>$@
+	cat $(ADOCDIR)/docinfo-footer.in.html >>$@
 
 #-----------------------------------------------------------------------------
 # User's guide
@@ -117,7 +122,7 @@ $(BINDOC)/tsduck.html: $(USERGUIDE_INPUTS) $(COMMON_INPUTS_HTML)
 	mkdir -p $(dir $@); \
 	$(ASCIIDOCTOR) $(ADOCFLAGS_HTML) $(USERDOCDIR)/tsduck.adoc -D $(dir $@) -o $(notdir $@)
 
-$(BINDOC)/tsduck.pdf: $(USERGUIDE_INPUTS) $(COMMON_INPUTS_PDF)
+$(BINDOC)/tsduck.bigpdf: $(USERGUIDE_INPUTS) $(COMMON_INPUTS_PDF)
 	$(call LOG,[ASCIIDOC] $@) \
 	mkdir -p $(dir $@); \
 	$(ASCIIDOCTOR_PDF) $(ADOCFLAGS_PDF) $(USERDOCDIR)/tsduck.adoc -D $(dir $@) -o $(notdir $@)
@@ -159,7 +164,7 @@ $(BINDOC)/tsduck-dev.html: $(DEVGUIDE_INPUTS) $(COMMON_INPUTS_HTML)
 	mkdir -p $(dir $@); \
 	$(ASCIIDOCTOR) $(ADOCFLAGS_HTML) $(DEVDOCDIR)/tsduck-dev.adoc -D $(dir $@) -o $(notdir $@)
 
-$(BINDOC)/tsduck-dev.pdf: $(DEVGUIDE_INPUTS) $(COMMON_INPUTS_PDF)
+$(BINDOC)/tsduck-dev.bigpdf: $(DEVGUIDE_INPUTS) $(COMMON_INPUTS_PDF)
 	$(call LOG,[ASCIIDOC] $@) \
 	mkdir -p $(dir $@); \
 	$(ASCIIDOCTOR_PDF) $(ADOCFLAGS_PDF) $(DEVDOCDIR)/tsduck-dev.adoc -D $(dir $@) -o $(notdir $@)
@@ -171,13 +176,11 @@ $(BINDOC)/tsduck-dev.pdf: $(DEVGUIDE_INPUTS) $(COMMON_INPUTS_PDF)
 .PHONY: install install-tools install-devel
 install: install-tools install-devel
 
-install-tools: userguide
+install-tools: $(BINDOC)/tsduck.html
 	install -d -m 755 $(SYSROOT)$(SYSPREFIX)/share/doc/tsduck
-	install -m 644 \
-	    $(ROOTDIR)/CHANGELOG.txt $(ROOTDIR)/LICENSE.txt $(ROOTDIR)/OTHERS.txt \
-	    $(BINDOC)/tsduck.html $(BINDOC)/tsduck.pdf \
+	install -m 644 $^ $(ROOTDIR)/CHANGELOG.txt $(ROOTDIR)/LICENSE.txt $(ROOTDIR)/OTHERS.txt \
 	    $(SYSROOT)$(SYSPREFIX)/share/doc/tsduck
 
-install-devel: devguide
+install-devel: $(BINDOC)/tsduck-dev.html
 	install -d -m 755 $(SYSROOT)$(SYSPREFIX)/share/doc/tsduck
-	install -m 644 $(BINDOC)/tsduck-dev.html $(BINDOC)/tsduck-dev.pdf $(SYSROOT)$(SYSPREFIX)/share/doc/tsduck
+	install -m 644 $^ $(SYSROOT)$(SYSPREFIX)/share/doc/tsduck

@@ -1,0 +1,46 @@
+<script>
+  /* prepend logo in document title */
+  var h1 = document.getElementsByTagName('h1')[0];
+  h1.innerHTML = '&nbsp;&nbsp;&nbsp;' + h1.innerHTML;
+  var img = document.createElement('img');
+  img.setAttribute('class', 'tsduck-48');
+  img.setAttribute('style', 'vertical-align:middle');
+  h1.prepend(img);
+  /* prepend logo in ToC title */  
+  var toctitle = document.getElementById('toctitle');
+  toctitle.innerHTML = '&nbsp;&nbsp;' + toctitle.innerHTML;
+  img = document.createElement('img');
+  img.setAttribute('class', 'tsduck-32');
+  img.setAttribute('style', 'vertical-align:middle;width:20px;height:20px');
+  toctitle.prepend(img);
+  /* replace the ToC using tocbot */
+  var oldtoc = toctitle.nextElementSibling;
+  var newtoc = document.createElement('div');
+  newtoc.setAttribute('id', 'tocbot');
+  newtoc.setAttribute('class', 'js-toc');
+  oldtoc.parentNode.replaceChild(newtoc, oldtoc);
+  tocbot.init({ contentSelector: '#content',
+                orderedList: false,
+                headingSelector: 'h1, h2, h3, h4, h5',
+                smoothScroll: false });
+  var handleTocOnResize = function() {
+      var width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+      if (width < 768) {
+          tocbot.refresh({ contentSelector: '#content',
+                           headingSelector: 'h1, h2, h3, h4, h5',
+                           collapseDepth: 6,
+                           orderedList: false,
+                           activeLinkClass: 'ignoreactive',
+                           throttleTimeout: 1000,
+                           smoothScroll: false });
+        }
+      else {
+          tocbot.refresh({ contentSelector: '#content',
+                           headingSelector: 'h1, h2, h3, h4, h5',
+                           orderedList: false,
+                           smoothScroll: false });
+      }
+  };
+  window.addEventListener('resize', handleTocOnResize);
+  handleTocOnResize();
+</script>
