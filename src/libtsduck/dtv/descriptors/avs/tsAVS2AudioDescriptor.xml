@@ -15,30 +15,6 @@
         bitstream_type="uniform|variable, optional (required if audio_codec_id=0)"
         raw_frame_length="uint16, optional (required if audio_codec_id=0)"
         resolution="8 bits|16 bits|24 bits, required">
-           
-        <!-- optional 0..15 allowed  (same as AVS3AudioDescriptor) -->
-        <anc_data_block>
-          <!-- one object_extension_meta_block or loudness_metadata_block element per anc_data_block -->
-          <object_extension_metadata_block
-              maxObjChannelNum="uint8, required"
-              objChannelLock_maxDist="uint4, optional"
-              objDiffuse="uint7, required"
-              objGain="uint8, required"
-              objDivergence="uint4, required"
-              objDivergencePosRange="uint4, optional (required if objDivergence > 0)"/>
-
-            <loudness_metadata_block
-                samplePeakLevel="uint12, optional"
-                truePeakLevel="uint12, required"
-                loudnessMeasure="uint4, required">
-
-              <!-- up to 15 loudness values -->
-              <loudnessValue
-                  loudnessValDef="uint4, reqiured"
-                  loudnessVal="uint8, required"/>
-            </loudness_metadata_block>
-          </anc_data_block>
-
       </version_info>
 
       <additional_info>

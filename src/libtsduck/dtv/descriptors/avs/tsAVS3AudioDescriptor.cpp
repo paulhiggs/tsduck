@@ -72,28 +72,22 @@ uint8_t ts::AVS3AudioDescriptor::fullrate_coding_type::content_type() const
 
 void ts::AVS3AudioDescriptor::general_coding_type::serialize(PSIBuffer& buf) const
 {
-    buf.putBit(anc_data_block.has_value());
+    buf.putBit(0);  // anc_data_index
     buf.putBits(coding_profile, 3);
     buf.putBits(bitrate_index, 4);
     buf.putBits(bitstream_type, 1);
     buf.putBits(channel_number_index, 7);
     buf.putUInt16(raw_frame_length);
-    if (anc_data_block.has_value()) {
-        anc_data_block.value().serialize(buf);
-    }
 }
 void ts::AVS3AudioDescriptor::lossless_coding_type::serialize(PSIBuffer& buf, uint8_t _sampling_frequency_index) const
 {
     if (_sampling_frequency_index == 0x0F) {
         buf.putUInt24(sampling_frequency);
     }
-    buf.putBit(anc_data_block.has_value());
+    buf.putBit(0);  // anc_data_index
     buf.putBits(coding_profile, 3);
     buf.putBits(0xFF, 4);
     buf.putUInt8(channel_number);
-    if (anc_data_block.has_value()) {
-        anc_data_block.value().serialize(buf);
-    }
 }
 
 void ts::AVS3AudioDescriptor::fullrate_coding_type::serialize(PSIBuffer& buf) const
@@ -162,16 +156,12 @@ void ts::AVS3AudioDescriptor::serializePayload(PSIBuffer& buf) const
 
 void ts::AVS3AudioDescriptor::general_coding_type::deserialize(PSIBuffer& buf)
 {
-    const bool anc_data_index = buf.getBool();
+    buf.skipBits(1);  // anc_data_index
     buf.getBits(coding_profile, 3);
     buf.getBits(bitrate_index, 4);
     buf.getBits(bitstream_type, 1);
     buf.getBits(channel_number_index, 7);
     raw_frame_length = buf.getUInt16();
-    if (anc_data_index) {
-        anc_data_block_type tmp(buf);
-        anc_data_block = tmp;
-    }
 }
 
 void ts::AVS3AudioDescriptor::lossless_coding_type::deserialize(PSIBuffer& buf, uint8_t _sampling_frequency_index)
@@ -179,14 +169,10 @@ void ts::AVS3AudioDescriptor::lossless_coding_type::deserialize(PSIBuffer& buf, 
     if (_sampling_frequency_index == 0x0F) {
         sampling_frequency = buf.getUInt24();
     }
-    const bool anc_data_index = buf.getBool();
+    buf.skipBits(1);  // anc_data_index
     buf.getBits(coding_profile, 3);
     buf.skipBits(4);
     channel_number = buf.getUInt8();
-    if (anc_data_index) {
-        anc_data_block_type tmp(buf);
-        anc_data_block = tmp;
-    }
 }
 
 void ts::AVS3AudioDescriptor::fullrate_coding_type::deserialize(PSIBuffer& buf)
@@ -251,13 +237,10 @@ void ts::AVS3AudioDescriptor::deserializePayload(PSIBuffer& buf)
 
 void ts::AVS3AudioDescriptor::general_coding_type::display(TablesDisplay& disp, const UString& margin)
 {
-    disp << margin << "General Coding. Coding Profile: " << DataName(MY_XML_NAME, u"coding_profile", coding_profile, NamesFlags::VALUE);
+    disp << margin << "General High-rate Coding. Coding Profile: " << DataName(MY_XML_NAME, u"coding_profile", coding_profile, NamesFlags::VALUE);
     disp << ", Bitstream Type: " << GeneralBitstreamTypes.name(bitstream_type, true) << std::endl;
     disp << margin << "Bitrate: " << DataName(MY_XML_NAME, u"channel_bitrate", (channel_number_index << 8) | bitrate_index, NamesFlags::VALUE)
          << ", Raw Frame Length: " << raw_frame_length << std::endl;
-    if (anc_data_block.has_value()) {
-        anc_data_block.value().display(disp, margin);
-    }
 }
 
 void ts::AVS3AudioDescriptor::lossless_coding_type::display(TablesDisplay& disp, const UString& margin, uint8_t _sampling_frequency_index)
@@ -268,13 +251,15 @@ void ts::AVS3AudioDescriptor::lossless_coding_type::display(TablesDisplay& disp,
     else {
         disp << ", Sampling Frequency (index): " << DataName(MY_XML_NAME, u"sampling_frequency_index", _sampling_frequency_index, NamesFlags::VALUE) << std::endl;
     }
+    disp << margin << "Lossless Coding. Coding Profile: " << DataName(MY_XML_NAME, u"coding_profile", coding_profile, NamesFlags::VALUE);
+    disp << ", channel number: " << int(channel_number) << std::endl;
 }
 
 void ts::AVS3AudioDescriptor::fullrate_coding_type::display(TablesDisplay& disp, const UString& margin)
 {
     const UString err_msg = u"**ERROR**";
     bool ok = true;
-    disp << margin << "NN Type: " << DataName(MY_XML_NAME, u"nn_type", nn_type, NamesFlags::VALUE);
+    disp << margin << "General Full-rate Coding. NN Type: " << DataName(MY_XML_NAME, u"nn_type", nn_type, NamesFlags::VALUE);
     switch (content_type()) {
         case Channel_signal:
             disp << ", Channel Signal - "
@@ -371,9 +356,6 @@ void ts::AVS3AudioDescriptor::general_coding_type::toXML(xml::Element* root) con
     root->setEnumAttribute(GeneralBitstreamTypes, u"bitstream_type", bitstream_type);
     root->setIntAttribute(u"channel_number_index", channel_number_index, true);
     root->setIntAttribute(u"raw_frame_length", raw_frame_length);
-    if (anc_data_block.has_value()) {
-        anc_data_block.value().toXML(root);
-    }
 }
 
 void ts::AVS3AudioDescriptor::lossless_coding_type::toXML(xml::Element* root, uint8_t _sampling_frequency_index) const
@@ -383,9 +365,6 @@ void ts::AVS3AudioDescriptor::lossless_coding_type::toXML(xml::Element* root, ui
     }
     root->setEnumAttribute(CodingProfiles, u"coding_profile", coding_profile);
     root->setIntAttribute(u"channel_number", channel_number);
-    if (anc_data_block.has_value()) {
-        anc_data_block.value().toXML(root);
-    }
 }
 
 void ts::AVS3AudioDescriptor::fullrate_coding_type::toXML(xml::Element* root) const
@@ -421,23 +400,11 @@ void ts::AVS3AudioDescriptor::buildXML(DuckContext& duck, xml::Element* root) co
 
 bool ts::AVS3AudioDescriptor::general_coding_type::fromXML(const xml::Element* element)
 {
-    xml::ElementVector anc_blocks;
-    bool ok = element->getEnumAttribute(coding_profile, CodingProfiles, u"coding_profile", true) &&
-              element->getIntAttribute(bitrate_index, u"bitrate_index", true, 0, 0, 15) &&
-              element->getEnumAttribute(bitstream_type, GeneralBitstreamTypes, u"bitstream_type", true, 0) &&
-              element->getIntAttribute(channel_number_index, u"channel_number_index", true, 0, 0, 127) &&
-              element->getIntAttribute(raw_frame_length, u"raw_frame_length", true) &&
-              element->getChildren(anc_blocks, u"anc_data_block", 0, 16);
-    if (!anc_blocks.empty()) {
-        anc_data_block_type ancb;
-        if (ancb.fromXML(anc_blocks)) {
-            anc_data_block = ancb;
-        }
-        else {
-            ok = false;
-        }
-    }
-    return ok;
+    return element->getEnumAttribute(coding_profile, CodingProfiles, u"coding_profile", true) &&
+           element->getIntAttribute(bitrate_index, u"bitrate_index", true, 0, 0, 15) &&
+           element->getEnumAttribute(bitstream_type, GeneralBitstreamTypes, u"bitstream_type", true, 0) &&
+           element->getIntAttribute(channel_number_index, u"channel_number_index", true, 0, 0, 127) &&
+           element->getIntAttribute(raw_frame_length, u"raw_frame_length", true);
 }
 
 bool ts::AVS3AudioDescriptor::lossless_coding_type::fromXML(const xml::Element* element, uint8_t _sampling_frequency_index)
@@ -446,19 +413,9 @@ bool ts::AVS3AudioDescriptor::lossless_coding_type::fromXML(const xml::Element* 
     bool ok = element->getEnumAttribute(coding_profile, CodingProfiles, u"coding_profile", true) &&
               element->getIntAttribute(channel_number, u"channel_number", true) &&
               element->getIntAttribute(sampling_frequency, u"sampling_frequency", (_sampling_frequency_index == 0xF), 0, 0, 0x00FFFFFF);
-              element->getChildren(anc_blocks, u"anc_data_block", 0, 1);
 
     if (ok && (element->hasAttribute(u"sampling_frequency")) && (_sampling_frequency_index != 0xF)) {
         element->report().warning(u"sampling_frequency is ignored when sampling_frequency_index != 0xF in <%s>, line %d", element->name(), element->lineNumber());
-    }
-    if (!anc_blocks.empty()) {
-        anc_data_block_type ancb;
-        if (ancb.fromXML(anc_blocks)) {
-            anc_data_block = ancb;
-        }
-        else {
-            ok = false;
-        }
     }
     return ok;
 }

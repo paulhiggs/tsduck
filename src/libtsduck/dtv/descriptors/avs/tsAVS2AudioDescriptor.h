@@ -17,7 +17,6 @@
 #include "tsTablesDisplay.h"
 #include "tsxmlElement.h"
 #include "tsByteBlock.h"
-#include "tsAVSANCDataBlockType.h"
 
 namespace ts {
     //!
@@ -42,8 +41,6 @@ namespace ts {
             int      bitstream_type = 0;       //!< 1 bit.  the bitsream type : 0 = uniform, 1 = variable
             uint16_t raw_frame_length = 0;     //!< according to Appendix A.2 of GB/T33475.3
             uint8_t  resolution = 0;           //!< 2 bits. the number of bits per sample 0=8, 1=16, 3=24
-
-            std::optional<anc_data_block_type> anc_data_block {};   //!< anciliary audio data
 
             //!
             //! Default constructor

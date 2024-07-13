@@ -31,7 +31,6 @@ Bits = 2
 [AVS2_audio_descriptor.resolution]
 Inherit = AVS3_audio_descriptor.resolution
 
-
 [AVS2_audio_descriptor.bitrate_index]
 Bits = 8
 # GB/T 33475.3, tables A.11 - A.13
@@ -72,7 +71,6 @@ Bits = 8
 0x026 = 640
 0x027 = 720
 0x28-0x3f = Reserved
-
 
 [AVS2_audio_descriptor.bitstream_type]
 Inherit = AVS3_audio_descriptor.bitstream_type

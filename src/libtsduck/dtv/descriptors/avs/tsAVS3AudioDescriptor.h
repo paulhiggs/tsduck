@@ -18,7 +18,6 @@
 #include "tsTablesDisplay.h"
 #include "tsxmlElement.h"
 #include "tsByteBlock.h"
-#include "tsAVSANCDataBlockType.h"
 #include "tsAVS2AudioDescriptor.h"
 
 namespace ts {
@@ -42,7 +41,6 @@ namespace ts {
             int                                bitstream_type = 0;        //!< 1 bit. Indicates whether the bitstream coding is uniform or non-uniform.
             uint8_t                            channel_number_index = 0;  //!< 7 bits. Index to the channel configuration table (A.*) in T/AI 109.3
             uint16_t                           raw_frame_length = 0;      //!< Total length of the current frame in the bitstream.
-            std::optional<anc_data_block_type> anc_data_block {};         //!< anciliary audio data
 
             //!
             //! Default constructor.
@@ -73,7 +71,6 @@ namespace ts {
             uint32_t                           sampling_frequency = 0;  //!< 24 bits. Ths sampling frequency (in Hz) when lookup table cannot be used
             int                                coding_profile = 0;      //!< 3 bits. The coding type used in the bitstream.
             uint8_t                            channel_number = 0;      //!< indicates the number of channels
-            std::optional<anc_data_block_type> anc_data_block {};       //!< anciliary audio data
 
             //!
             //! Default constructor.

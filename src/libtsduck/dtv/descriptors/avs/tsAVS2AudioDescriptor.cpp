@@ -54,7 +54,7 @@ void ts::AVS2AudioDescriptor::clearContent()
 void ts::AVS2AudioDescriptor::avs_version_info::serialize(PSIBuffer& buf) const
 {
     buf.putBits(audio_codec_id, 4);
-    buf.putBit(anc_data_block.has_value());  // anc_data_index
+    buf.putBit(0);  // anc_data_index
     buf.putBits(coding_profile, 3);
     if (audio_codec_id == 0) {
         buf.putBits(bitrate_index, 4);
@@ -64,9 +64,6 @@ void ts::AVS2AudioDescriptor::avs_version_info::serialize(PSIBuffer& buf) const
     }
     buf.putBits(resolution, 2);
     buf.putBits(0xFF, 6);
-    if (anc_data_block.has_value()) {
-        anc_data_block.value().serialize(buf);
-    }
 }
 
 void ts::AVS2AudioDescriptor::serializePayload(PSIBuffer& buf) const
@@ -97,7 +94,7 @@ void ts::AVS2AudioDescriptor::serializePayload(PSIBuffer& buf) const
 void ts::AVS2AudioDescriptor::avs_version_info::deserialize(PSIBuffer& buf)
 {
     audio_codec_id = buf.getBits<uint8_t>(4);
-    const bool anc_data_index = buf.getBool();
+    buf.skipBits(1);   // anc_data_index
     coding_profile = buf.getBits<uint8_t>(3);
     if (audio_codec_id == 0) {
         bitrate_index = buf.getBits<uint8_t>(4);
@@ -107,10 +104,6 @@ void ts::AVS2AudioDescriptor::avs_version_info::deserialize(PSIBuffer& buf)
     }
     resolution = buf.getBits<uint8_t>(2);
     buf.skipBits(6);
-    if (anc_data_index) {
-        anc_data_block_type anc(buf);
-        anc_data_block = anc;
-    }
 }
 
 void ts::AVS2AudioDescriptor::deserializePayload(PSIBuffer& buf)
@@ -159,10 +152,6 @@ void ts::AVS2AudioDescriptor::avs_version_info::display(TablesDisplay& disp, PSI
         disp << margin << "Bitrate: " << DataName(MY_XML_NAME, u"bitrate_index", _bitrate_index, NamesFlags::VALUE);
         disp << ", Bitstream type: " << DataName(MY_XML_NAME, u"bitstream_type", _bitstream_type, NamesFlags::VALUE | NamesFlags::DECIMAL);
         disp << ", Raw frame length: " << _raw_frame_length << std::endl;
-    }
-    if (_anc_data_index) {
-        anc_data_block_type anc(buf);
-        anc.display(disp, margin);
     }
 }
 
@@ -214,9 +203,6 @@ void ts::AVS2AudioDescriptor::avs_version_info::toXML(xml::Element* root) const
         root->setEnumAttribute(AVS3AudioDescriptor::GeneralBitstreamTypes, u"bitstream_type", bitstream_type);
         root->setIntAttribute(u"raw_frame_length", raw_frame_length);
     }
-    if (anc_data_block.has_value()) {
-        anc_data_block.value().toXML(root);
-    }
 }
 
 void ts::AVS2AudioDescriptor::buildXML(DuckContext& duck, xml::Element* root) const
@@ -252,17 +238,8 @@ bool ts::AVS2AudioDescriptor::avs_version_info::fromXML(const xml::Element* elem
              element->getEnumAttribute(bitstream_type, AVS3AudioDescriptor::GeneralBitstreamTypes, u"bitstream_type", true) &&
              element->getIntAttribute(raw_frame_length, u"raw_frame_length", true);
     }
-    if ((audio_codec_id == AVS3AudioDescriptor::General_Coding) && (element->hasAttribute(u"bitrate_index") || element->hasAttribute(u"bitstream_type") || element->hasAttribute(u"raw_frame_length"))) {
+    if ((audio_codec_id != AVS3AudioDescriptor::General_Coding) && (element->hasAttribute(u"bitrate_index") || element->hasAttribute(u"bitstream_type") || element->hasAttribute(u"raw_frame_length"))) {
         element->report().warning(u"bitrate_index, bitstream_type and raw_frame_length attributes are only applicable for audio_codec_id=0, in <%s>, line %d", element->name(), element->lineNumber());
-    }
-    if (!anc_blocks.empty()) {
-        anc_data_block_type ancb;
-        if (ancb.fromXML(anc_blocks)) {
-            anc_data_block = ancb;
-        }
-        else {
-            ok = false;
-        }
     }
     return ok;
 }
