@@ -136,7 +136,7 @@ void ts::AVS2AudioDescriptor::avs_version_info::display(TablesDisplay& disp, PSI
 {
     uint8_t _audio_codec_id = buf.getBits<uint8_t>(4);
     disp << margin << "Codec id: " << DataName(MY_XML_NAME, u"audio_codec_id", _audio_codec_id, NamesFlags::VALUE | NamesFlags::DECIMAL);
-    bool _anc_data_index = buf.getBool();
+    buf.skipBits(1);   // anc_data_index
     disp << ", Coding profile: " << DataName(MY_XML_NAME, u"coding_profile", buf.getBits<uint8_t>(3), NamesFlags::VALUE | NamesFlags::DECIMAL); 
     uint8_t _bitrate_index = 0, _bitstream_type = 0;
     uint16_t _raw_frame_length = 0;
@@ -228,11 +228,9 @@ void ts::AVS2AudioDescriptor::buildXML(DuckContext& duck, xml::Element* root) co
 
 bool ts::AVS2AudioDescriptor::avs_version_info::fromXML(const xml::Element* element)
 {
-    xml::ElementVector anc_blocks;
     bool ok = element->getIntAttribute(audio_codec_id, u"audio_codec_id", true, 0, 0, 15) &&
               element->getIntEnumAttribute(coding_profile, AVS2AudioDescriptor::CodingProfiles, u"coding_profile", true) &&
-              element->getIntEnumAttribute(resolution, AVS3AudioDescriptor::Resolutions, u"resolution", true) &&
-              element->getChildren(anc_blocks, u"anc_data_block", 0, 1);
+              element->getIntEnumAttribute(resolution, AVS3AudioDescriptor::Resolutions, u"resolution", true);
     if (ok && (audio_codec_id == AVS3AudioDescriptor::General_Coding)) {
         ok = element->getIntAttribute(bitrate_index, u"bitrate_index", true, 0, 0, 0x0f) &&
              element->getEnumAttribute(bitstream_type, AVS3AudioDescriptor::GeneralBitstreamTypes, u"bitstream_type", true) &&
