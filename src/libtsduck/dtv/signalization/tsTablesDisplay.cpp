@@ -865,14 +865,14 @@ void ts::TablesDisplay::displayVector(const UString& title, const std::vector<ui
 // items on each line
 //----------------------------------------------------------------------------
 
-void ts::TablesDisplay::displayVector(const UString& title, const std::vector<uint16_t>& values, const UString& margin, bool space_first, size_t num_per_line)
+void ts::TablesDisplay::displayVector(const UString& title, const std::vector<uint16_t>& values, const UString& margin, bool space_first, size_t num_per_line, bool hexa)
 {
     if (!values.empty()) {
         std::ostream& strm(_duck.out());
         UString myMargin(margin.length() + title.length(), ' ');
         strm << margin << title;
         for (size_t j = 0; j < values.size(); j++) {
-            strm << (space_first ? " " : "") << UString::Format(u"%04X",  values[j] );
+            strm << (space_first ? " " : "") << UString::Format(hexa ? u"%04X" : u"%5d", values[j]);
             if ((j + 1) % num_per_line == 0) {
                 strm << std::endl;
                 if (j != (values.size() - 1)) {
@@ -892,14 +892,14 @@ void ts::TablesDisplay::displayVector(const UString& title, const std::vector<ui
 // items on each line
 //----------------------------------------------------------------------------
 
-void ts::TablesDisplay::displayVector(const UString& title, const std::vector<uint8_t>& values, const UString& margin, bool space_first, size_t num_per_line)
+void ts::TablesDisplay::displayVector(const UString& title, const std::vector<uint8_t>& values, const UString& margin, bool space_first, size_t num_per_line, bool hexa)
 {
     if (!values.empty()) {
         std::ostream& strm(_duck.out());
         UString myMargin(margin.length() + title.length(), ' ');
         strm << margin << title;
         for (size_t j = 0; j < values.size(); j++) {
-            strm << (space_first ? " " : "") << UString::Format(u"%02X",  values[j] );
+            strm << (space_first ? " " : "") << UString::Format(hexa ? u"%02X" : u"%3d", values[j]);
             if ((j + 1) % num_per_line == 0) {
                 strm << std::endl;
                 if (j != (values.size() - 1)) {

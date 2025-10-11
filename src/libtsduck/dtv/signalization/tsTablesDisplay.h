@@ -381,12 +381,14 @@ namespace ts {
         //! @param [in] margin  Left margin content (default: "").
         //! @param [in] space_first  When set, inserts a space character before the hexadecimal value (default: true)
         //! @param [in] num_per_line  Number of values to be output on a single line (default: 6)
+        //! @param [in] hexa  Present values hexadecimal  (default: true)
         //!
         void displayVector(const UString& title,
                            const std::vector<uint16_t>& values,
                            const UString& margin = UString(),
                            bool space_first = true,
-                           size_t num_per_line = 6);
+                           size_t num_per_line = 6,
+                           bool hexa = true);
 
         //!
         //! Display the 8-bit values in a structured manner with specified number of items on each line
@@ -396,12 +398,14 @@ namespace ts {
         //! @param [in] margin  Left margin content (default: "").
         //! @param [in] space_first  When set, inserts a space character before the hexadecimal value (default: true)
         //! @param [in] num_per_line  Number of values to be output on a single line (default: 8)
+        //! @param [in] hexa  Present values hexadecimal  (default: true)
         //!
         void displayVector(const UString& title,
                            const std::vector<uint8_t>& values,
                            const UString& margin = UString(),
                            bool space_first = true,
-                           size_t num_per_line = 8);
+                           size_t num_per_line = 8,
+                           bool hexa = true);
 
         //!
         //! Display the signed 8-bit values in a structured manner with specified number of items on each line
