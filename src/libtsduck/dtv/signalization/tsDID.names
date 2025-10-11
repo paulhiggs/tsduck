@@ -167,6 +167,7 @@ Extended = true
 0x0001_02_FFFFFF_17_3F = LCEVC video
 0x0001_02_FFFFFF_18_3F = LCEVC linkage
 0x0001_02_FFFFFF_19_3F = Media Service Kind
+0x0001_02_FFFFFF_1A_3F = Media Authenticity
 #
 # MPEG private descriptors with "CUEI" registration id (SCTE-defined).
 #

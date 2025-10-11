@@ -539,6 +539,7 @@ namespace ts {
         XDID_MPEG_LCEVC_VIDEO        = 0x17,  //!< Ext.DID for LCEVC_video_descriptor.
         XDID_MPEG_LCEVC_LINKAGE      = 0x18,  //!< Ext.DID for LCEVC_linkage_descriptor.
         XDID_MPEG_MEDIA_SVC_KIND     = 0x19,  //!< Ext.DID for Media_service_kind_descriptor
+        XDID_MPEG_MEDIA_AUTHENTICITY = 0x1A,  //!< Ext.DID for media_authenticity_descriptor
 
         // In DVB-defined extension_descriptor:
 

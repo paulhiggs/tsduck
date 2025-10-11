@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tsduck>
+  <_descriptors>
+
+    <media_authenticity_descriptor
+      uuid="string, optional"
+      uri="string, optional"
+      register_index="uint10, optional">
+
+      <authenticated_stream
+        stream_type="uint8, optional"
+        authenticated_stream_ids="string"/>
+        <!-- authenticaed_stream_ids should be an XML list if up to 32 unsigned byte values-->
+
+    </media_authenticity_descriptor>
+
+  </_descriptors>
+</tsduck>
