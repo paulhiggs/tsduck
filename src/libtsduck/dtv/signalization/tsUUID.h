@@ -43,6 +43,7 @@ namespace ts {
 
         //!
         //! Bitstream deserialising constructor
+        //! @param [in,out] buf Deserialization buffer. See definition in AbstractDescriptor::serializePayload
         //! 
         UUID(PSIBuffer& buf);
 
@@ -67,6 +68,7 @@ namespace ts {
         //!
         //! Read the hyphen seperated UUID format into the binary (128-bit) representation
         //! @param [in] uuid String representation of a UUID, hyphen seperated string from RFC 4122
+        //! @return True if the provided UUID is in the correct format and has been parsed into the object, otherwise false
         //! 
         bool parse(UString uuid);
     };
