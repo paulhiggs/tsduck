@@ -34,7 +34,15 @@ namespace ts {
         public:
             stream_information_type() = default;    //!< Constructor
             uint8_t authenticated_stream_type = 0;  //!< 8 bits, stream_type for the list of stream_ids
-            std::vector<uint16_t> stream_id {};     //!< 8 bits, stream_id that contains media authenticity information  
+            std::vector<uint8_t> stream_ids {};     //!< 8 bits, stream_id that contains media authenticity information
+
+            //!
+            //!
+            //! @param [in] stream_id The stream identifier, read from the XML element, to be inserted into the \p stream_ids vector
+            //! @param [in,out] element The XML element containing the \p stream_id value
+            //! @return True if the value is in the correct format and was inserted into the stream_ids vector, false otherwise with an error recorded against \p element
+            //! 
+            bool insert_stream_id(std::string stream_id, const ts::xml::Element* element);
         };
 
         // Public members:

@@ -66,8 +66,8 @@ void ts::MediaAuthenticityDescriptor::serializePayload(PSIBuffer& buf) const
         for (const auto& si : siv) {
             buf.putUInt8(si.authenticated_stream_type);
             buf.putBits(0xFF, 3);
-            buf.putBits(si.stream_id.size(), 5);
-            for (const auto& sid : si.stream_id) {
+            buf.putBits(si.stream_ids.size(), 5);
+            for (const auto& sid : si.stream_ids) {
                 buf.putBits(sid, 8);
             }
         }
@@ -111,7 +111,7 @@ void ts::MediaAuthenticityDescriptor::deserializePayload(PSIBuffer& buf)
             buf.skipBits(3);
             uint8_t _authenticated_streams_count = buf.getBits<uint8_t>(5);
             for (uint8_t j = 0; j < _authenticated_streams_count; j++) {
-                si.stream_id.push_back(buf.getUInt8());
+                si.stream_ids.push_back(buf.getUInt8());
             }
             newSI.push_back(si);
         }
@@ -216,7 +216,7 @@ void ts::MediaAuthenticityDescriptor::buildXML(DuckContext& duck, xml::Element* 
         for (const auto& si : streams) {
             ts::xml::Element* element = root->addElement(u"authenticated_stream");
             element->setIntAttribute(u"stream_type", si.authenticated_stream_type, true);
-            element->setAttribute(u"authenticated_stream_ids", join(si.stream_id, ' '));
+            element->setAttribute(u"authenticated_stream_ids", join(si.stream_ids, ' '));
         }
     }
 }
@@ -226,22 +226,22 @@ void ts::MediaAuthenticityDescriptor::buildXML(DuckContext& duck, xml::Element* 
 // XML deserialization
 //----------------------------------------------------------------------------
 
-bool insert(std::string val, std::vector<uint16_t>& ids, const ts::xml::Element* element)
+bool ts::MediaAuthenticityDescriptor::stream_information_type::insert_stream_id(std::string stream_id, const ts::xml::Element* element)
 {
     bool ok = true;
-    if (val.length() == 0)
+    if (stream_id.length() == 0)
         return true;
     try {
-        if (std::stol(val) > 255) {
-            element->report().error(u"stream_id must be less than 255 (got '%d') is not a valid level_id in <%s>, line %d", std::stol(val), element->name(), element->lineNumber());
+        if (std::stol(stream_id) > 255) {
+            element->report().error(u"stream_id must be less than 255 (got '%d') is not a valid level_id in <%s>, line %d", std::stol(stream_id), element->name(), element->lineNumber());
             ok = false;
         }
         else {
-            ids.push_back(uint8_t(std::stol(val)));
+            stream_ids.push_back(uint8_t(std::stol(stream_id)));
         }
     }
     catch (std::invalid_argument const& ex) {
-        element->report().error(u"'%s' is not a valid stream_id (%s) in <%s>, line %d", val, ex.what(), element->name(), element->lineNumber());
+        element->report().error(u"'%s' is not a valid stream_id (%s) in <%s>, line %d", stream_id, ex.what(), element->name(), element->lineNumber());
         ok = false;
     }
     return ok;
@@ -278,13 +278,13 @@ bool ts::MediaAuthenticityDescriptor::analyzeXML(DuckContext& duck, const xml::E
                 auto pos = stream_ids.find(delim);
                 while (ok && pos != UString::npos) {
                     std::string val = stream_ids.substr(0, pos).toUTF8();
-                    ok = insert(val, sit.stream_id, element);
+                    ok = sit.insert_stream_id(val, element);
                     stream_ids.erase(0, pos + sizeof(delim));
                     pos = stream_ids.find(delim);
                 }
-                ok = insert(stream_ids.toUTF8(), sit.stream_id, element);
+                ok = sit.insert_stream_id(stream_ids.toUTF8(), element);
 
-                if (sit.stream_id.size() > 32) {
+                if (sit.stream_ids.size() > 32) {
                     element->report().error(u"a maximum of 32 stream_ids can be specified for a given stream_type in <%s>, line %d", element->name(), element->lineNumber());   
                     ok = false;
                 }
