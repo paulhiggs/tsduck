@@ -1,28 +1,18 @@
-==== Media_service_kind_descriptor
+==== media_authenticity_descriptor
 
 Defined by MPEG in <<ISO-13818-1>>.
 
 [source,xml]
 ----
-<Media_service_kind_descriptor>
+<media_authenticity_descriptor
+    uuid="string, optional"
+    uri="string, optional"
+    register_index="uint10, optional">
 
-  <media_service_kind
-      media_description="self|associate, required"
-      media_type="unknown|video|audio|text/data, required"
-      ID_length_code="uint3, optional"
-      ID_type="uint13, optional"
-      ID_len="uint8, optional"
-      media_ID="string, optional">
+    <authenticated_stream
+        stream_type="uint8, optional"
+        authenticated_stream_ids="string"/>
+        <!-- authenticaed_stream_ids should be an XML list if up to 32 unsigned byte values-->
 
-    <language_media_pair
-        configuration_type="uint2, required"
-        lang_len_idc="uint2, required"
-        lang_len="uint8, optional"
-        BCP47_language_code="string, required">
-
-      <media_service_type purpose="uint8, required"/>
-
-    </language_media_pair>
-  </Media_service_kind>
-</Media_service_kind_descriptor>
+</media_authenticity_descriptor>
 ----

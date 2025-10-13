@@ -5,11 +5,6 @@
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
-//!
-//!  @file
-//!  A specialized subclass of ts::Buffer for PSI serialization.
-//!
-//----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------
 // Constructors
@@ -18,9 +13,13 @@
 #include "tsUUID.h"
 #include "tsUString.h"
 
+//----------------------------------------------------------------------------
+// Constructors
+//----------------------------------------------------------------------------
+
 ts::UUID::UUID(uint64_t _hi, uint64_t _lo)
 {
-    hi = _hi,
+    hi = _hi;
     lo = _lo;
 }
 
@@ -34,11 +33,17 @@ void ts::UUID::deserialize(PSIBuffer& buf)
     hi = buf.getUInt64();
     lo = buf.getUInt64();
 }
+
 void ts::UUID::serialize(PSIBuffer& buf)
 {
     buf.putUInt64(hi);
     buf.putUInt64(lo);
 };
+
+
+//----------------------------------------------------------------------------
+// Formatter
+//----------------------------------------------------------------------------
 
 // UUID formats
 // aabbccdd-eeff-0011-2233-66778899aabb
@@ -47,8 +52,8 @@ void ts::UUID::serialize(PSIBuffer& buf)
 
 ts::UString ts::UUID::format()
 {
-    char buf[128];
-    sprintf(buf, "%08X-%04X-%04X-%04X-%04X%08X",
+    char buf[48];
+    snprintf(buf, 128, "%08X-%04X-%04X-%04X-%04X%08X",
             uint32_t((hi & 0xffffffff00000000) >> 32),
             uint16_t((hi & 0x00000000ffff0000) >> 16),
             uint16_t((hi & 0x000000000000ffff)),
@@ -57,6 +62,10 @@ ts::UString ts::UUID::format()
             uint32_t((lo & 0x00000000ffffffff)));
     return UString(buf);
 }
+
+//----------------------------------------------------------------------------
+// Parser
+//----------------------------------------------------------------------------
 
 bool ts::UUID::parse(UString uuid)
 {

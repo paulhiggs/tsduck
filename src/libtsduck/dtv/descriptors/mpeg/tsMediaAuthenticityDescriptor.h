@@ -7,7 +7,7 @@
 //----------------------------------------------------------------------------
 //!
 //!  @file
-//!  Representation of an Media_authenticity_descriptor
+//!  Representation of an media_authenticity_descriptor
 //!
 //----------------------------------------------------------------------------
 
@@ -17,7 +17,7 @@
 
 namespace ts {
     //!
-    //! Representation of an Media_authenticity_descriptor.
+    //! Representation of a media_authenticity_descriptor.
     //!
     //! @see ISO/IEC 13818-1 2.6.xxx
     //! @ingroup libtsduck descriptor
@@ -33,15 +33,15 @@ namespace ts {
         {
         public:
             stream_information_type() = default;    //!< Constructor
-            uint8_t authenticated_stream_type = 0;  //!< 8 bits, stream_types carried in the program to which the descriptor applies which include authenticity information
-            std::vector<uint16_t> stream_id {};
+            uint8_t authenticated_stream_type = 0;  //!< 8 bits, stream_type for the list of stream_ids
+            std::vector<uint16_t> stream_id {};     //!< 8 bits, stream_id that contains media authenticity information  
         };
 
         // Public members:
-        std::optional<std::vector<stream_information_type>> stream_information {};
-        std::optional<UUID> content_uuid {};
-        std::optional<UString> uri {};
-        std::optional<uint16_t> register_idx {};
+        std::optional<std::vector<stream_information_type>> stream_information {};  //!< list of stream identifiers (grouped by stream type) that have authenticity information
+        std::optional<UUID> content_uuid {};                        //!< identifier if the authenticity scheme used
+        std::optional<UString> uri {};                              //!< URL to certificate of the content provider or register of certificates
+        std::optional<uint16_t> register_idx {};                    //!< 10 bits, certificate of the content provider, in the certificate register indicated in uri
 
         //!
         //! Default constructor.

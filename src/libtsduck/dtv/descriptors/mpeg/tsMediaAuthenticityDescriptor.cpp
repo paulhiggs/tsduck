@@ -57,12 +57,12 @@ void ts::MediaAuthenticityDescriptor::serializePayload(PSIBuffer& buf) const
     buf.putBit(uri.has_value());
     buf.putBit(register_idx.has_value());
 
-    buf.putBits(0xFF, 4); // PH padding
+    buf.putBits(0xFF, 4); // PH padding not included in draft contribution
 
     if (stream_information.has_value()) {
         std::vector<stream_information_type> siv = stream_information.value();
         buf.putBits(siv.size(), 4);
-        buf.putBits(0xFF, 4);  // PH padding
+        buf.putBits(0xFF, 4);  // PH padding not included in draft contribution
         for (const auto& si : siv) {
             buf.putUInt8(si.authenticated_stream_type);
             buf.putBits(0xFF, 3);
@@ -99,12 +99,12 @@ void ts::MediaAuthenticityDescriptor::deserializePayload(PSIBuffer& buf)
     bool _content_uuid_present_flag = buf.getBool();
     bool _key_source_uri_present_flag = buf.getBool();
     bool _register_idx_present_flag = buf.getBool();
-    buf.skipBits(4); // PH padding
+    buf.skipBits(4); // PH padding not included in draft contribution
 
     if (_stream_information_present_flag) {
         std::vector<stream_information_type> newSI;
         uint8_t _authenticated_stream_types_count = buf.getBits<uint8_t>(4);
-        buf.skipBits(4);  // PH padding
+        buf.skipBits(4);  // PH padding not included in draft contribution
         for (uint8_t i = 0; i < _authenticated_stream_types_count; i++) {
             stream_information_type si;
             si.authenticated_stream_type = buf.getUInt8();
@@ -145,11 +145,11 @@ void ts::MediaAuthenticityDescriptor::DisplayDescriptor(TablesDisplay& disp, con
     bool _content_uuid_present_flag = buf.getBool();
     bool _key_source_uri_present_flag = buf.getBool();
     bool _register_idx_present_flag = buf.getBool();
-    buf.skipBits(4);  // PH padding
+    buf.skipBits(4);  // PH padding not included in draft contribution
     
     if (_stream_information_present_flag) {
         uint8_t _authenticated_stream_types_count = buf.getBits<uint8_t>(4);
-        buf.skipBits(4);  // PH padding
+        buf.skipBits(4);  // PH padding not included in draft contribution
         for (uint8_t i = 0; i < _authenticated_stream_types_count; i++) {
             uint8_t _authenticated_stream_type = buf.getUInt8();
             buf.skipBits(3);
@@ -240,13 +240,10 @@ bool insert(std::string val, std::vector<uint16_t>& ids, const ts::xml::Element*
             ids.push_back(uint8_t(std::stol(val)));
         }
     }
-#pragma warning(push)
-#pragma warning(disable : 4101)
     catch (std::invalid_argument const& ex) {
-        element->report().error(u"'%s' is not a valid stream_id in <%s>, line %d", val, element->name(), element->lineNumber());
+        element->report().error(u"'%s' is not a valid stream_id (%s) in <%s>, line %d", val, ex.what(), element->name(), element->lineNumber());
         ok = false;
     }
-#pragma warning(pop)
     return ok;
 }
 
