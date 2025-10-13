@@ -25,8 +25,8 @@ namespace ts {
     class UUID
     {
     private:
-        uint64_t hi = 0;  //!< most significant bits of the UUID
-        uint64_t lo = 0;  //!< least significant bits of the UUID
+        uint64_t hi_bits = 0;  //!< most significant bits of the UUID
+        uint64_t lo_bits = 0;  //!< least significant bits of the UUID
 
     public:
         //!
@@ -36,24 +36,37 @@ namespace ts {
 
         //!
         //! Initialising constructor
+        //! @param [in] hi Most significant bits of the UUID
+        //! @param [in] lo Least significant order 
         //! 
-        UUID(uint64_t _hi, uint64_t _lo);
+        UUID(uint64_t hi, uint64_t lo);
 
         //!
         //! Bitstream deserialising constructor
         //! 
         UUID(PSIBuffer& buf);
 
+        //!
+        //! Deserialize (read) the UUID from the buffer
+        //! @param [in,out] buf Deserialization buffer. See definition in AbstractDescriptor::serializePayload
+        //!
         void deserialize(PSIBuffer& buf);
+
+        //!
+        //! Serialize (write) the UUID to the buffer
+        //! @param [in,out] buf Serialization buffer. See definition in AbstractDescriptor::serializePayload
+        //! 
         void serialize(PSIBuffer& buf);
 
         //!
         //! Convert the binary (128-bit) representation to the hyphen seperated UUID format
+        //! @return A string representation (per RFC 4122) of the UUID
         //! 
         UString format();
 
         //!
         //! Read the hyphen seperated UUID format into the binary (128-bit) representation
+        //! @param [in] uuid String representation of a UUID, hyphen seperated string from RFC 4122
         //! 
         bool parse(UString uuid);
     };
