@@ -68,7 +68,7 @@ void ts::MediaAuthenticityDescriptor::serializePayload(PSIBuffer& buf) const
             buf.putBits(0xFF, 3);
             buf.putBits(si.stream_ids.size(), 5);
             for (const auto& sid : si.stream_ids) {
-                buf.putBits(sid.value, 8);
+                buf.putBits(sid, 8);
             }
         }
     }
@@ -111,8 +111,7 @@ void ts::MediaAuthenticityDescriptor::deserializePayload(PSIBuffer& buf)
             buf.skipBits(3);
             uint8_t _authenticated_streams_count = buf.getBits<uint8_t>(5);
             for (uint8_t j = 0; j < _authenticated_streams_count; j++) {
-                stream_information_type::stream_id_type new_sid(buf.getUInt8());
-                si.stream_ids.push_back(new_sid);
+                si.stream_ids.push_back(buf.getUInt8());
             }
             newSI.push_back(si);
         }
@@ -182,12 +181,6 @@ void ts::MediaAuthenticityDescriptor::DisplayDescriptor(TablesDisplay& disp, con
 // XML serialization
 //----------------------------------------------------------------------------
 
-ostream& operator<<(ostream& os, const ts::MediaAuthenticityDescriptor::stream_information_type::stream_id_type& is)
-{
-    os << uint16_t(is.value);
-    return os;
-}
-
 template <typename Iterator, typename Separator>
 std::string join(Iterator begin, Iterator end, Separator&& separator = '.')
 {
@@ -243,8 +236,7 @@ bool ts::MediaAuthenticityDescriptor::stream_information_type::insert_stream_id(
             ok = false;
         }
         else {
-            stream_id_type new_sid(uint8_t(std::stol(stream_id)));
-            stream_ids.push_back(new_sid);
+            stream_ids.push_back(uint8_t(std::stol(stream_id)));
         }
     }
     catch (std::invalid_argument const& ex) {
