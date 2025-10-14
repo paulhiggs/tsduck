@@ -15,6 +15,8 @@
 #include "tsAbstractDescriptor.h"
 #include "tsUUID.h"
 
+using namespace std;
+
 namespace ts {
     //!
     //! Representation of a media_authenticity_descriptor.
@@ -23,7 +25,7 @@ namespace ts {
     //! @ingroup libtsduck descriptor
     //!
     //!
-    class TSDUCKDLL MediaAuthenticityDescriptor: public AbstractDescriptor
+    class TSDUCKDLL MediaAuthenticityDescriptor : public AbstractDescriptor
     {
     public:
         //!
@@ -32,11 +34,25 @@ namespace ts {
         class stream_information_type
         {
         public:
-            stream_information_type() = default;    //!< Constructor
-            uint8_t authenticated_stream_type = 0;  //!< 8 bits, stream_type for the list of stream_ids
-            std::vector<uint8_t> stream_ids {};     //!< 8 bits, stream_id that contains media authenticity information
-
             //!
+            //! Description of stream identifier
+            //! Sinple class wrapper to ensure that the 8 bit value is written to the output stream as an integer
+            //! 
+            class stream_id_type
+            {
+            public:
+                stream_id_type() = default;     //!< Default constructor
+                stream_id_type(uint8_t id) :    //!< Initial value constructor
+                    stream_id_type() { value = id; }  
+
+                uint8_t value = 0;  //!< 8 bits. stream_id
+            };
+
+        public:
+            stream_information_type() = default;    //!< Default constructor
+
+            uint8_t authenticated_stream_type = 0;      //!< 8 bits, stream_type for the list of stream_ids
+            std::vector<stream_id_type> stream_ids {};  //!< 8 bits, stream_id that contains media authenticity information
             //!
             //! @param [in] stream_id The stream identifier, read from the XML element, to be inserted into the \p stream_ids vector
             //! @param [in,out] element The XML element containing the \p stream_id value
