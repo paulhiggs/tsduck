@@ -38,7 +38,7 @@ $ tsp -P influx [options]
 ----
 
 [.usage]
-Timing options
+General options
 
 [.opt]
 *-i* _seconds_ +
@@ -51,37 +51,11 @@ Interval in seconds between metrics reports to InfluxDB.
 The default is 5 seconds. This is usually the minimal update interval in Grafana.
 
 [.opt]
-*--local-time*
+*--max-metrics* _count_
 
 [.optdoc]
-Transmit timestamps as local time, based on the current system configuration.
-
-[.optdoc]
-By default, timestamps are transmitted as UTC time.
-
-[.opt]
-*--pcr-based*
-
-[.optdoc]
-Use playout time based on PCR values.
-By default, the time is based on the wall-clock time (real time).
-
-[.opt]
-*--start-time* _year/month/day:hour:minute:second_
-
-[.optdoc]
-With `--pcr-based` or `--timestamp-based`, specify the initial date and time reference.
-
-[.optdoc]
-By default, with `--pcr-based` or `--timestamp-based`, the activity starts at the first UTC time which is found in a DVB TDT or ATSC STT.
-
-[.opt]
-*--timestamp-based*
-
-[.optdoc]
-Use playout time based on timestamp values from the input plugin.
-When input timestamps are not available or not monotonic, fallback to `--pcr-based`.
-By default, the time is based on the wall-clock time (real time).
+Terminate `tsp` after sending the specified number of metrics.
+This is a test option. The processing is never stopped by default.
 
 [.usage]
 Monitored information options
@@ -175,16 +149,6 @@ Send metrics data for services.
 The services are identified in InfluxDB by their id in decimal.
 
 [.opt]
-*--tag* _name=value_
-
-[.optdoc]
-Add the specified tag `name`, with the specified `value`, to all metrics which are sent to InfluxDB.
-This can be used to identify a source of metrics and filter it using Flux queries.
-
-[.optdoc]
-Several `--tag` options may be specified.
-
-[.opt]
 *--tr-101-290*
 
 [.optdoc]
@@ -208,41 +172,8 @@ See more details below.
 Send bitrate metrics data by type of PID's (audio, video, subtitles, PSI, etc.)
 See more details below.
 
-include::{docdir}/opt/group-influx.adoc[tags=!*]
-
-[.usage]
-Tuning options
-
-[.opt]
-*--max-metrics* _count_
-
-[.optdoc]
-Terminate `tsp` after sending the specified number of metrics.
-This is a test option. The processing is never stopped by default.
-
-[.opt]
-*--queue-size* _count_
-
-[.optdoc]
-Maximum number of queued metrics between the plugin thread and the communication thread with InfluxDB.
-
-[.optdoc]
-Sending metrics data to the InfluxDB server means calling the Web API of the server and posting data through HTTP.
-Depending on the response time of the server, this may introduce some delay in real-time streams.
-To avoid this, the communication with the InfluxDB server is asynchronously performed in an independent thread.
-The metrics data are queued between the plugin thread and the communication thread, without delaying the plugin thread.
-The number of messages in that queue is limited to avoid memory exhaustion in case of communication problem.
-When the queue becomes full, additional metrics are dropped.
-
-[.optdoc]
-On real-time streams, where metrics data are sent every few seconds, there is never more than one message in that queue.
-However, with `--pcr-based` or `--timestamp-based`, on off-line streams which are processed at high speed (files for instance),
-the metrics may be generated faster than they can be sent and the queue may grow.
-Increase the queue size if some metrics are lost.
-
-[.optdoc]
-The default queue size is 10 messages.
-
+include::{docdir}/opt/group-clock.adoc[tags=!*]
+include::{docdir}/opt/group-influx.adoc[tags=!*;short]
 include::{docdir}/opt/group-common-plugins.adoc[tags=!*]
 
 ==== Building Flux queries for Grafana
@@ -254,19 +185,19 @@ The provided information shall be used to build Flux queries.
 
 At each specified interval (option `--interval`), this plugin sends a list of metrics entries.
 
-A time stamp is always provided with each data entry.
+A timestamp is always provided with each data entry.
 Depending on the plugin options, this can be a local time or a UTC time,
 a wall-clock time or a time which is extracted from the stream.
 
-The following table lists the possible types of the field `_measurement` and the semantics of the corresponding field `_value`.
-The `_value` type is `float` (in practice, an integer value is provided).
+The following table lists the possible types of the field `_measurement` and the semantics of the corresponding field `value`.
+The `value` type is `float` (in practice, an integer value is provided).
 The tags are present for all occurrences of the corresponding `_measurement`.
 The presence of the secondary tags depend on the `scope` tag.
 
 .InfluxDB measurements and values
 [cols="<1m,<1,<1m,<1m",stripes=none,options="autowidth"]
 |===
-|_measurement |_value |Tags |Secondary tags
+|_measurement |value |Tags |Secondary tags
 
 |bitrate
 |bitrate in bits/second
@@ -337,7 +268,7 @@ Each entry contains the following information:
 
 [.compact-list]
 * Field `_measurement`: `bitrate`.
-* Field `_value`: the bitrate in bits/second during the measurement period.
+* Field `value`: the bitrate in bits/second during the measurement period.
 * Tag `scope`: an identifier defining the scope of the bitrate value.
   The possible values are `ts` (total bitrate of the transport stream),
   `service` (accumulated bitrate of all PID's in a service), `pid` (bitrate of one PID),
@@ -397,7 +328,7 @@ Each entry contains the following information:
 
 [.compact-list]
 * Field `_measurement`: one of `pcr`, `pts`, `dts`, depending on the type of timestamp.
-* Field `_value`: the raw value of the last timestamp of that type in the measurement period.
+* Field `value`: the raw value of the last timestamp of that type in the measurement period.
 * Tag `scope`: an identifier defining the scope of the bitrate value.
   The possible values are `service` (last timestamp in any PID of a service), `pid` (last timestamp in one PID).
 * Tag `tsid`: this is the transport stream id as an integer.
