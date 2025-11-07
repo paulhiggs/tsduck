@@ -16,6 +16,7 @@
 #include "tsBeforeStandardHeaders.h"
 #include <errors.h>
 #include <shellapi.h>
+#include <psapi.h>
 #include <setupapi.h>
 #include <wininet.h>
 #include <dshowasf.h>
@@ -60,35 +61,33 @@ ts::UString ts::ToString(const ::WCHAR* str)
 // Format a Windows error message (Windows-specific).
 //-----------------------------------------------------------------------------
 
-ts::UString ts::WinErrorMessage(::DWORD code, const UString& moduleName, ::DWORD minModuleCode, ::DWORD maxModuleCode)
+ts::UString ts::WinErrorMessage(::DWORD code)
 {
-    UString message;
+    // Try system message first.
+    UString message(2048, CHAR_NULL);
+    ::DWORD length = ::FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, code, 0, message.wc_str(), DWORD(message.size()), nullptr);
 
-    // Start with module-specific error codes.
-    if (!moduleName.empty() && code >= minModuleCode && code <= maxModuleCode) {
-        // Get a handle to the module. Fail if the module is not loaded in memory.
-        // This kind of handle does not need to be closed.
-        const ::HMODULE hmod = ::GetModuleHandleW(moduleName.wc_str());
-        if (hmod != 0) {
-            message.resize(1024);
-            ::DWORD length = ::FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE, hmod, code, 0, message.wc_str(), ::DWORD(message.size()), nullptr);
-            message.trimLength(length, true);
+    // If message is empty, try all loaded modules in the process.
+    if (length <= 0) {
+        // Get a list of handles for all loaded modules. These handles shall not be closed here.
+        ::DWORD retsize = 0;
+        std::vector<::HMODULE> hmods(512);
+        if (::EnumProcessModules(::GetCurrentProcess(), hmods.data(), ::DWORD(hmods.size() * sizeof(::HMODULE)), &retsize)) {
+            hmods.resize(std::min<size_t>(hmods.size(), retsize / sizeof(::HMODULE)));
+            // Try all all modules, one by one, until a non-empty message is returned.
+            for (size_t i = 0; length <= 0 && i < hmods.size(); ++i) {
+                length = ::FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE, hmods[i], code, 0, message.wc_str(), DWORD(message.size()), nullptr);
+            }
         }
     }
-
-    // If no message was found from a specific module, search in the system base.
-    if (message.empty()) {
-        message.resize(1024);
-        ::DWORD length = ::FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, code, 0, message.wc_str(), ::DWORD(message.size()), nullptr);
-        message.trimLength(length, true);
-    }
+    message.trimLength(length);
 
     // Get additional information for some special code.
     if (code == ERROR_INTERNET_EXTENDED_ERROR) {
         ::DWORD code2 = 0;
-        ::DWORD length = 0;
+        length = 0;
         // First call without output buffer, to get the required size.
-        ::InternetGetLastResponseInfoW(&code2, 0, &length);
+        ::InternetGetLastResponseInfoW(&code2, nullptr, &length);
         if (length > 0) {
             // Now, we know the required size. Retry with a correctly-sized buffer.
             UString info(size_t(length), CHAR_NULL);
@@ -242,7 +241,7 @@ bool ts::ComSuccess(::HRESULT hr, const UChar* message, Report& report)
 bool ts::ComExpose(::IUnknown* object, const ::IID& iid)
 {
     ::IUnknown* iface;
-    if (object != 0 && SUCCEEDED(object->QueryInterface(iid, (void**)&iface))) {
+    if (object != nullptr && SUCCEEDED(object->QueryInterface(iid, (void**)&iface))) {
         iface->Release();
         return true;
     }
@@ -255,6 +254,10 @@ bool ts::ComExpose(::IUnknown* object, const ::IID& iid)
 //-----------------------------------------------------------------------------
 // Get the handle of a COM object.
 //-----------------------------------------------------------------------------
+
+TS_PUSH_WARNING()
+TS_GCC_NOWARNING(non-virtual-dtor)
+TS_LLVM_NOWARNING(non-virtual-dtor)
 
 // WARNING: We are doing something weird here...
 // The IKsObject interface is supposedly declared in ksproxy.h.
@@ -270,6 +273,8 @@ public:
     virtual HANDLE STDMETHODCALLTYPE KsGetObjectHandle();
 };
 
+TS_POP_WARNING()
+
 ::HANDLE ts::GetHandleFromObject(::IUnknown* obj, Report& report)
 {
     // Query IKsObject interface on the object.
@@ -284,7 +289,7 @@ public:
     report.log(2, u"WinUtils.GetHandleFromObject: IKsObject found, calling KsGetObjectHandle");
     const ::HANDLE h = ks->KsGetObjectHandle();
     report.log(2, u"WinUtils.GetHandleFromObject: handle: 0x%X", uintptr_t(h));
-    return h == 0 ? INVALID_HANDLE_VALUE : h;
+    return h == nullptr ? INVALID_HANDLE_VALUE : h;
 }
 
 
@@ -297,8 +302,8 @@ ts::UString ts::GetStringPropertyBag(::IMoniker* object_moniker, const ::OLECHAR
 {
     // Bind to the object's storage, get the "property bag" interface
     ComPtr <::IPropertyBag> pbag;
-    ::HRESULT hr = object_moniker->BindToStorage(0,                       // No cached context
-                                                 0,                       // Not part of a composite
+    ::HRESULT hr = object_moniker->BindToStorage(nullptr,                 // No cached context
+                                                 nullptr,                 // Not part of a composite
                                                  ::IID_IPropertyBag,      // ID of requested interface
                                                  (void**)pbag.creator()); // Returned interface
     if (!ComSuccess(hr, u"IMoniker::BindToStorage", report)) {
@@ -309,8 +314,8 @@ ts::UString ts::GetStringPropertyBag(::IMoniker* object_moniker, const ::OLECHAR
     UString value;
     ::VARIANT var;
     ::VariantInit(&var);
-    hr = pbag->Read(property_name, &var, 0);
-    if (hr != ERROR_KEY_DOES_NOT_EXIST && ComSuccess(hr, u"IPropertyBag::Read", report)) {
+    hr = pbag->Read(property_name, &var, nullptr);
+    if (hr != HRESULT_FROM_WIN32(ERROR_KEY_DOES_NOT_EXIST) && ComSuccess(hr, u"IPropertyBag::Read", report)) {
         value = ToString(var);
     }
     ::VariantClear(&var);
@@ -390,11 +395,11 @@ ts::UString ts::NameGUID(const ::GUID& guid)
         {u"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class\\", u"System.Class:"},
         {u"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\MediaCategories\\", u"System.MediaCategory:"},
         {u"HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\MediaInterfaces\\", u"System.MediaInterfaces:"},
-        {0, 0}
+        {nullptr, nullptr}
     };
 
     // Check if the GUID is stored in the registry.
-    for (const RegistryLocation* p = registryLocations; p->key != 0; ++p) {
+    for (const RegistryLocation* p = registryLocations; p->key != nullptr; ++p) {
         UString name;
         if (!(name = Registry::GetValue(p->key + fmt)).empty() ||
             !(name = Registry::GetValue(p->key + fmt0)).empty() ||
@@ -822,10 +827,10 @@ ts::UString ts::NameGUID(const ::GUID& guid)
         _N_(TIME_FORMAT_NONE)
         _N_(TIME_FORMAT_SAMPLE)
 #undef  _N_
-        {0, 0}
+        {nullptr, nullptr}
     };
 
-    for (const KnownValue* p = knownValues; p->id != 0; ++p) {
+    for (const KnownValue* p = knownValues; p->id != nullptr; ++p) {
         if (*(p->id) == guid) {
             return p->name;
         }

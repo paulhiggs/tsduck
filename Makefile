@@ -132,18 +132,9 @@ install install-tools install-devel:
 
 # Build installer packages.
 
-.PHONY: installer install-installer
-installer install-installer:
+.PHONY: installer install-installer installer-tarball
+installer install-installer installer-tarball:
 	@$(MAKE) -C pkg $@
-
-# Count lines of code: Run cloc on the source code tree starting at current directory.
-
-CLOC         = cloc
-CLOC_SOURCES = src
-CLOC_FLAGS   = --skip-uniqueness --quiet --exclude-ext=.tgz,.tar.gz,.tar,.pdf,.pptx,.docx
-.PHONY: cloc
-cloc:
-	@$(CLOC) $(CLOC_FLAGS) $(CLOC_SOURCES)
 
 # Static code analysis: Run Coverity.
 
@@ -174,8 +165,8 @@ cppcheck-xml:
 # Static code analysis: Run flawfinder on the source code tree.
 
 FLAWFINDER         = flawfinder
-FLAWFINDER_SOURCES = src
-FLAWFINDER_FLAGS   = --quiet --dataonly
+FLAWFINDER_SOURCES = $(wildcard src/lib* src/tstools src/tsplugins)
+FLAWFINDER_FLAGS   = --quiet --dataonly --minlevel=3
 .PHONY: flawfinder
 flawfinder:
 	$(FLAWFINDER) $(FLAWFINDER_FLAGS) $(FLAWFINDER_SOURCES)

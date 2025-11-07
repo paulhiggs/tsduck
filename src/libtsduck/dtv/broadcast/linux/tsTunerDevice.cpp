@@ -216,6 +216,7 @@ bool ts::TunerDevice::open(const UString& device_name, bool info_only)
     }
 
     _info_only = info_only;
+    _voltage_on = false;
 
     // Check if this system uses flat or directory DVB naming.
     // Old flat naming: /dev/dvb0.frontend0
@@ -423,6 +424,11 @@ void ts::TunerDevice::hardClose(Report* report)
         _demux_fd = -1;
     }
     if (_frontend_fd >= 0) {
+        // Attempt to turn off the LNB power. Do this on satellite tuners only.
+        if (_voltage_on) {
+            ioctl_fe_set_voltage(_frontend_fd, SEC_VOLTAGE_OFF);
+            _voltage_on = false;
+        }
         ::close(_frontend_fd);
         _frontend_fd = -1;
     }
@@ -1018,22 +1024,21 @@ bool ts::TunerDevice::dishControl(const ModulationArgs& params, const LNB::Trans
     // Extracted from DVB/doc/HOWTO-use-the-frontend-api:
     //
     // Before you set the frontend parameters you have to setup DiSEqC switches
-    // and the LNB. Modern LNB's switch their polarisation depending of the DC
+    // and the LNB. Modern LNB's switch their polarisation depending on the DC
     // component of their input (13V for vertical polarisation, 18V for
     // horizontal). When they see a 22kHz signal at their input they switch
     // into the high band and use a somewhat higher intermediate frequency
     // to downconvert the signal.
     //
     // When your satellite equipment contains a DiSEqC switch device to switch
-    // between different satellites you have to send the according DiSEqC
-    // commands, usually command 0x38. Take a look into the DiSEqC spec
-    // available at http://www.eutelsat.org/ for the complete list of commands.
+    // between different satellites you have to send the according DiSEqC command(s).
+    // For the complete list of commands, take a look into the DiSEqC spec at:
+    // https://www.eutelsat.com/files/PDF/DiSEqC-documentation.zip
     //
-    // The burst signal is used in old equipments and by cheap satellite A/B
-    // switches.
+    // The burst signal is used in old equipments and by cheap satellite A/B switches.
     //
-    // Voltage, burst and 22kHz tone have to be consistent to the values
-    // encoded in the DiSEqC commands.
+    // Voltage burst and 22kHz tone have to be consistent to the values
+    // encoded in the DiSEqC 1.0 commands (EN61319-1 table ZB.1).
 
     // Setup structure for precise 15ms
     ::timespec delay;
@@ -1052,32 +1057,62 @@ bool ts::TunerDevice::dishControl(const ModulationArgs& params, const LNB::Trans
         return false;
     }
 
+    // Remember to turn it off later.
+    _voltage_on = true;
+
     // Wait at least 15ms.
     ::nanosleep(&delay, nullptr);
 
-    // Send tone burst: A for satellite 0, B for satellite 1.
-    // Notes:
-    //   1) DiSEqC switches may address up to 4 dishes (satellite number 0 to 3)
-    //      while non-DiSEqC switches can address only 2 (satellite number 0 to 1).
-    //      This is why the DiSEqC command has space for 2 bits (4 states) while
-    //      the "send tone burst" command is binary (A or B).
-    //   2) The Linux DVB API is not specific about FE_DISEQC_SEND_BURST. Reading
-    //      szap or szap-s2 source code, the code would be (satellite_number & 0x04) ? SEC_MINI_B : SEC_MINI_A.
-    //      However, this does not seem logical. Secondly, a report from 2007 in linux-dvb
-    //      mailing list suggests that the szap code should be (satellite_number & 0x01).
-    //      In reply to this report, the answer was "thanks, committed" but it does
-    //      not appear to be committed. Here, we use the "probably correct" code.
-    if (ioctl_fe_diseqc_send_burst(_frontend_fd, params.satellite_number == 0 ? SEC_MINI_A : SEC_MINI_B) < 0) {
-        _duck.report().error(u"DVB frontend FE_DISEQC_SEND_BURST error on %s: %s", _frontend_name, SysErrorCodeMessage());
+    // The following code will set up:
+    // * A DiSEqC 1.1 switch using satellite-number & 0x3c, for 16 available ports
+    // * A DiSEqC 1.0 switch using satellite-number & 0x03, for 4 available ports
+    // * A DiSEqC tone-burst switch, using satellite-number 0x01, for two
+    //   available ports.
+    // Note:
+    // 1. All of these are optional.
+    // 2. If you have an installation with cascading switches, it is assumed that
+    //    the DisEqC 1.1 switch will be installed nearest to the receiver.
+    // 3. It is possible to select between 64 dishes, by cascade a 16-port
+    //    DiSEqC 1.1 switch and then 16 4 port DiSEqC 1.0 switches.
+    // 4. As they overlap in terms of the bits of satellite-number they use,
+    //    there is no point cascading a tone-burst switch and a DiSEqC 1.0
+    //    switch.
+
+    // Send a DiSEqC 1.1 command to setup uncommitted switch ports.
+    // Use satellite-number & 0x3c, so that if you cascade DiSEqC 1.0
+    // switches after the DisEqC 1.1 switch you can achieve
+    // selecting between 64 dishes.
+    // Note: The use of (satellite_number & 0x3c) aliases:
+    //       0,1,2,3 to port 0;
+    //       4,5,6,7 to port 1;
+    //       ...
+    //       60, 61, 62, 63 to port 15.
+    // This permits seamless cascading of following DiSEqC 1.0 switches.
+    ::dvb_diseqc_master_cmd cmd;
+    cmd.msg_len = 4;    // Message size (meaningful bytes in msg)
+    cmd.msg[0] = 0xE0;  // Command from master, no reply expected, first transmission
+    cmd.msg[1] = 0x10;  // Any LNB or switcher (master to all)
+    cmd.msg[2] = 0x39;  // Write to port group 1
+    cmd.msg[3] = 0xF0 | // Clear all 4 flags first, then set according to next 4 bits
+        ((uint8_t(params.satellite_number.value()) >> 2) & 0x0F);
+    cmd.msg[4] = 0x00;  // Unused
+    cmd.msg[5] = 0x00;  // Unused
+
+    if (::ioctl(_frontend_fd, ioctl_request_t(FE_DISEQC_SEND_MASTER_CMD), &cmd) < 0) {
+        _duck.report().error(u"DVB frontend FE_DISEQC_SEND_MASTER_CMD error on %s: %s", _frontend_name, SysErrorCodeMessage());
         return false;
     }
 
-    // Wait 15ms
+    // Wait 100ms: This give any cascaded bus powered DiSEqC 1.0 switches a
+    // chance to power on (DiSEqC spec v4.2 section 5.4).
+    delay.tv_nsec = 100000000; // 100 ms
     ::nanosleep(&delay, nullptr);
 
-    // Send DiSEqC commands. See DiSEqC spec ...
+    // Reset the delay to 15ms.
+    delay.tv_nsec = 15000000; // 15 ms
+
+    // Send DiSEqC 1.0 command.
     const bool high_band = trans.band_index > 0;
-    ::dvb_diseqc_master_cmd cmd;
     cmd.msg_len = 4;    // Message size (meaningful bytes in msg)
     cmd.msg[0] = 0xE0;  // Command from master, no reply expected, first transmission
     cmd.msg[1] = 0x10;  // Any LNB or switcher (master to all)
@@ -1097,9 +1132,141 @@ bool ts::TunerDevice::dishControl(const ModulationArgs& params, const LNB::Trans
     // Wait 15ms
     ::nanosleep(&delay, nullptr);
 
+    // Send tone burst: A for satellite 0, B for satellite 1.
+    // Notes:
+    //   1) The DiSEqC bus specification v4.2, in section 5.3 explicitly sends the tone burst
+    //      after the DisEqC commands.
+    //   2) There are two tone burst commands, "A" and "B", giving one bit of selection.
+    //   3) The DiSEqC specification says little about how to number combinations of
+    //      DiSEqC switches, however CEI EN 61319-1:1999 in table ZB.1 recommends
+    //      (satellite-number & 0x01).
+    if (ioctl_fe_diseqc_send_burst(_frontend_fd, params.satellite_number == 0 ? SEC_MINI_A : SEC_MINI_B) < 0) {
+        _duck.report().error(u"DVB frontend FE_DISEQC_SEND_BURST error on %s: %s", _frontend_name, SysErrorCodeMessage());
+        return false;
+    }
+
+    // Wait 15ms
+    ::nanosleep(&delay, nullptr);
+
     // Start the 22kHz continuous tone when tuning to a transponder in the high band
     if (::ioctl_fe_set_tone(_frontend_fd, high_band ? SEC_TONE_ON : SEC_TONE_OFF) < 0) {
         _duck.report().error(u"DVB frontend FE_SET_TONE error on %s: %s", _frontend_name, SysErrorCodeMessage());
+        return false;
+    }
+    return true;
+}
+
+
+//-----------------------------------------------------------------------------
+// Setup the Unicable multiswitch for satellite.
+// See more details on Unicable in tsUnicable.h.
+// (contribution from Matthew Sweet)
+//-----------------------------------------------------------------------------
+
+bool ts::TunerDevice::configUnicableSwitch(const ModulationArgs& params)
+{
+    if (!params.unicable->isValid()) {
+        _duck.report().error(u"invalid Unicable description: %s", params.unicable.value());
+        return false;
+    }
+    _duck.report().debug(u"using Unicable %s", params.unicable.value());
+
+    // Setup structure for precise 15ms
+    ::timespec delay;
+    delay.tv_sec = 0;
+    delay.tv_nsec = 15000000; // 15 ms
+
+    // Stop 22 kHz continuous tone (should not be on for Unicable).
+    if (ioctl_fe_set_tone(_frontend_fd, SEC_TONE_OFF) < 0) {
+        _duck.report().error(u"DVB frontend FE_SET_TONE error: %s", SysErrorCodeMessage());
+        return false;
+    }
+
+    // Set output voltage to 18V to signal that we're going to send a command.
+    // When not sending commands, but interested in receiving should be 13V, to indicate the receiver is on.
+    if (ioctl_fe_set_voltage(_frontend_fd, SEC_VOLTAGE_18) < 0) {
+        _duck.report().error(u"DVB frontend FE_SET_VOLTAGE error: %s", SysErrorCodeMessage());
+        return false;
+    }
+
+    // Remember to turn it off later.
+    _voltage_on = true;
+
+    // Wait at least 15ms.
+    ::nanosleep(&delay, nullptr);
+
+    // Compute transposition information from the default LNB.
+    LNB lnb;
+    LNB::Transposition trans;
+    if (!Unicable::GetDefaultLNB(lnb, _duck.report()) || !lnb.transpose(trans, params.frequency.value(), params.polarity.value_or(POL_NONE), _duck.report())) {
+        return false;
+    }
+
+    // The Unicable switch uses the intermediate frequency in MHz.
+    const uint32_t intermediate_frequency_mhz = uint32_t(trans.intermediate_frequency / 1'000'000);
+    const uint32_t user_band_frequency_mhz = uint32_t(params.unicable->user_band_frequency / 1'000'000);
+    _duck.report().debug(u"intermediate frequency: %d MHz, user band: %d MHz", intermediate_frequency_mhz, user_band_frequency_mhz);
+
+    const bool is_horizontal = (params.polarity == POL_HORIZONTAL);
+    const bool is_high_band = trans.band_index > 0;
+
+    // Build Unicable command.
+    ::dvb_diseqc_master_cmd cmd;
+    switch (params.unicable->version) {
+        case 1: {
+            // EN50494 defines the tuning word T as:
+            // T = round((abs(Ft-Fo)+Fub)/S)-350
+            // where:
+            // Ft is transponder frequency in MHz
+            // Fo is oscillator frequency in Mhz
+            // Fub is user-band-frequency in Mhz
+            // S is step-size in MHz (4)
+            const uint32_t tuning_word = (((Unicable::EN50494_STEP_SIZE / 2) + // rounds
+                                           + intermediate_frequency_mhz // always +ve for a universal LNB
+                                           + user_band_frequency_mhz) / Unicable::EN50494_STEP_SIZE) - 350;
+            cmd.msg_len = 5;    // Message size (meaningful bytes in msg)
+            cmd.msg[0] = 0xE0;  // Framing
+            cmd.msg[1] = 0x00;  // Address: Master to any
+            cmd.msg[2] = 0x5a;  // Channel change message ID.
+            cmd.msg[3] = uint8_t(((params.unicable->user_band_slot - 1) & 0x07) << 5) |
+                uint8_t((params.satellite_number.value_or(0) & 1) << 4) |
+                (is_horizontal ? 0x08 : 0) |
+                (is_high_band ? 0x04 : 0) |
+                (tuning_word & 0x0300 >> 8);
+            cmd.msg[4] = tuning_word & 0xff;
+            break;
+        }
+        case 2: {
+            const uint32_t tuning_word_mhz = intermediate_frequency_mhz - 100;
+            cmd.msg_len = 4;    // Message size (meaningful bytes in msg)
+            // EN50607 does not send framing or address octets
+            cmd.msg[0] = 0x70;  // Channel change message ID.
+            cmd.msg[1] = uint8_t(((params.unicable->user_band_slot - 1) & 0x1F) << 3) |
+                uint8_t((tuning_word_mhz >> 8) & 0x7);
+            cmd.msg[2] = tuning_word_mhz & 0xff;
+            cmd.msg[3] = uint8_t(((params.satellite_number.value_or(0) & 0x3F) << 2) & 0xFC) |
+                (is_horizontal ? 0x02 : 0x00) |
+                (is_high_band ? 0x01 : 0x00);
+            break;
+        }
+        default: {
+            // Shouldn't get there, version already check in params.unicable->isValid().
+            assert(false);
+        }
+    }
+
+    if (::ioctl(_frontend_fd, ioctl_request_t(FE_DISEQC_SEND_MASTER_CMD), &cmd) < 0) {
+        _duck.report().error(u"DVB frontend FE_DISEQC_SEND_MASTER_CMD error: %s", SysErrorCodeMessage());
+        return false;
+    }
+
+    // Wait 15ms
+    ::nanosleep(&delay, nullptr);
+
+    // Set output voltage to 13V and leave it that way, to signal we continue to want our userband to be generated.
+    // (_voltage_on was already set)
+    if (ioctl_fe_set_voltage(_frontend_fd, SEC_VOLTAGE_13) < 0) {
+        _duck.report().error(u"DVB frontend FE_SET_VOLTAGE error: %s", SysErrorCodeMessage());
         return false;
     }
     return true;
@@ -1133,17 +1300,28 @@ bool ts::TunerDevice::tune(ModulationArgs& params)
 
     // In case of satellite delivery, we need to control the dish.
     if (IsSatelliteDelivery(params.delivery_system.value())) {
-        if (!params.lnb.has_value()) {
+        if (params.unicable.has_value()) {
+            if (!configUnicableSwitch(params)) {
+                return false;
+            }
+            // Unicable needs the receiver to tune to the user-band frequency, in the intermediate frequency
+            // range. Thus, multiple receivers can share the same coax by each having their own frequency band.
+            // For satellite, Linux DVB API uses an intermediate frequency in kHz.
+            freq = uint32_t(params.unicable->user_band_frequency / 1000);
+            // Clear tuner state again.
+            discardFrontendEvents();
+        }
+        else if (!params.lnb.has_value()) {
             _duck.report().warning(u"no LNB set for satellite delivery %s", DeliverySystemEnum().name(params.delivery_system.value()));
         }
         else {
             _duck.report().debug(u"using LNB %s", params.lnb.value());
             // Compute transposition information from the LNB.
             LNB::Transposition trans;
-            if (!params.lnb.value().transpose(trans, params.frequency.value(), params.polarity.value_or(POL_NONE), _duck.report())) {
+            if (!params.lnb->transpose(trans, params.frequency.value(), params.polarity.value_or(POL_NONE), _duck.report())) {
                 return false;
             }
-            // For satellite, Linux DVB API uses an intermediate frequency in kHz
+            // For satellite, Linux DVB API uses an intermediate frequency in kHz.
             freq = uint32_t(trans.intermediate_frequency / 1000);
             // We need to control the dish only if this is not a "stacked" transposition.
             if (trans.stacked) {

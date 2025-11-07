@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------------
 
 #pragma once
+#include "tsAbstractTableAttachment.h"
 #include "tsDescriptor.h"
 #include "tsEDID.h"
 #include "tsDescriptorContext.h"
@@ -26,7 +27,7 @@ namespace ts {
     //! List of MPEG PSI/SI descriptors.
     //! @ingroup libtsduck mpeg
     //!
-    class TSDUCKDLL DescriptorList
+    class TSDUCKDLL DescriptorList : public AbstractTableAttachment
     {
         TS_NO_DEFAULT_CONSTRUCTORS(DescriptorList);
     public:
@@ -97,24 +98,6 @@ namespace ts {
         size_t count() const { return _list.size(); }
 
         //!
-        //! Get the table id of the parent table.
-        //! @return The table id of the parent table or TID_NULL if there is none.
-        //!
-        TID tableId() const;
-
-        //!
-        //! Get the standards of the parent table.
-        //! @return The standards of the parent table or NONE if there is none.
-        //!
-        Standards tableStandards() const;
-
-        //!
-        //! Get the parent table.
-        //! @return The parent table or zero if there is none.
-        //!
-        const AbstractTable* table() const { return _table; }
-
-        //!
         //! Comparison operator.
         //! @param [in] other Another instance to compare.
         //! @return True if the two descriptor lists are identical.
@@ -171,7 +154,7 @@ namespace ts {
             const_iterator& operator++() { ++*static_cast<SuperClass*>(this); return *this; }
             const Descriptor& operator*() { return **static_cast<SuperClass>(*this); }
             const Descriptor* operator->() { return &**static_cast<SuperClass>(*this); }
-            bool operator==(const iterator& other) const { return static_cast<SuperClass>(*this) == static_cast<SuperClass>(other); }
+            bool operator==(const const_iterator& other) const { return static_cast<SuperClass>(*this) == static_cast<SuperClass>(other); }
             //! @endcond
         };
 
@@ -179,25 +162,25 @@ namespace ts {
         //! Get an iterator to the first descriptor in the list.
         //! @return An iterator to the first descriptor in the list.
         //!
-        iterator begin() { return iterator(_list.begin()); }
+        iterator begin() { return static_cast<iterator>(_list.begin()); }
 
         //!
         //! Get an iterator after the last descriptor in the list.
         //! @return An iterator after the last descriptor in the list.
         //!
-        iterator end() { return iterator(_list.end()); }
+        iterator end() { return static_cast<iterator>(_list.end()); }
 
         //!
         //! Get a constant iterator to the first descriptor in the list.
         //! @return A constant iterator to the first descriptor in the list.
         //!
-        const_iterator begin() const { return const_iterator(_list.begin()); }
+        const_iterator begin() const { return static_cast<const_iterator>(_list.begin()); }
 
         //!
         //! Get a constant iterator after the last descriptor in the list.
         //! @return A constant iterator after the last descriptor in the list.
         //!
-        const_iterator end() const { return const_iterator(_list.end()); }
+        const_iterator end() const { return static_cast<const_iterator>(_list.end()); }
 
         //!
         //! Get the extended descriptor id of a descriptor in the list.
@@ -310,6 +293,15 @@ namespace ts {
         //! The returned list can contain duplicates if the duplicates are present in the descriptor list.
         //!
         void getAllRegistrations(const DuckContext& duck, REGIDVector& regids) const;
+
+        //!
+        //! Get a list of all language codes from all descriptors.
+        //! @param [in] duck TSDuck execution context.
+        //! @param [out] languages A list of all language codes, in their order of appearance.
+        //! The returned list can contain duplicates if the duplicates are present in the descriptor list.
+        //! @param [in] max_count The maximum number of languages to return. By default, return them all.
+        //!
+        void getAllLanguages(const DuckContext& duck, UStringVector& languages, size_t max_count = NPOS) const;
 
         //!
         //! Merge one descriptor in the list.
@@ -517,9 +509,8 @@ namespace ts {
         bool fromXML(DuckContext& duck, const xml::Element* parent);
 
     private:
-        // Private members
-        const AbstractTable* const _table;    // Parent table (zero for descriptor list object outside a table).
-        std::vector<DescriptorPtr> _list {};  // Vector of safe pointers to descriptors.
+        // Vector of safe pointers to descriptors.
+        std::vector<DescriptorPtr> _list {};
 
         // Add a descriptor with a 32-bit payload at end of list.
         void add32BitDescriptor(DID did, uint32_t payload);
@@ -531,6 +522,12 @@ namespace ts {
         // Prepare removal of a private_data_specifier descriptor at the specified position, it any.
         // Return true if can be removed, false if it cannot (private descriptors ahead).
         bool canRemovePDS(std::vector<DescriptorPtr>::iterator);
+
+        // Explore the descriptor and invoke a callback for each language which is found.
+        // Use: bool callback(size_t descriptor_index, const char* lang, size_t lang_size)
+        // The callback shall return true to continue, false to stop browsing languages in the descriptor list.
+        template <typename F>
+        void browseLanguages(const DuckContext& duck, size_t start_index, F callback) const;
     };
 }
 

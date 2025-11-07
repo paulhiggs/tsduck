@@ -179,6 +179,8 @@ ts::UString ts::Registry::GetValue(const UString& key, const UString& value_name
         case REG_DWORD_BIG_ENDIAN:
             value = UString::Format(u"%d", GetUInt32(buf));
             break;
+        default:
+            break;
     }
 
     // Return value
@@ -338,7 +340,7 @@ bool ts::Registry::DeleteKey(const UString& key, Report& report)
 
 bool ts::Registry::NotifySettingChangeParam(const void* param, uint32_t timeout_ms, Report& report)
 {
-    const bool ok = 0 != ::SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(param), SMTO_ABORTIFHUNG, ::UINT(timeout_ms), 0);
+    const bool ok = 0 != ::SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(param), SMTO_ABORTIFHUNG, ::UINT(timeout_ms), nullptr);
     if (!ok) {
         report.error(u"notification error: %s", SysErrorCodeMessage());
     }
@@ -347,7 +349,7 @@ bool ts::Registry::NotifySettingChangeParam(const void* param, uint32_t timeout_
 
 bool ts::Registry::NotifySettingChange(Report& report)
 {
-    return NotifySettingChangeParam(0, 5000, report);
+    return NotifySettingChangeParam(nullptr, 5000, report);
 }
 
 bool ts::Registry::NotifyEnvironmentChange(Report& report)

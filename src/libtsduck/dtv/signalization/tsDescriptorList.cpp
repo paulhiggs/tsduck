@@ -12,7 +12,6 @@
 #include "tsDuckContext.h"
 #include "tsPSIRepository.h"
 #include "tsxmlElement.h"
-#include "tsFatal.h"
 
 
 //----------------------------------------------------------------------------
@@ -20,18 +19,18 @@
 //----------------------------------------------------------------------------
 
 ts::DescriptorList::DescriptorList(const AbstractTable* table) :
-    _table(table)
+    AbstractTableAttachment(table)
 {
 }
 
 ts::DescriptorList::DescriptorList(const AbstractTable* table, const DescriptorList& dl) :
-    _table(table),
+    AbstractTableAttachment(table),
     _list(dl._list)
 {
 }
 
 ts::DescriptorList::DescriptorList(const AbstractTable* table, DescriptorList&& dl) noexcept :
-    _table(table),
+    AbstractTableAttachment(table),
     _list(std::move(dl._list))
 {
 }
@@ -52,21 +51,6 @@ ts::DescriptorList& ts::DescriptorList::operator=(DescriptorList&& dl) noexcept
         _list = std::move(dl._list);
     }
     return *this;
-}
-
-
-//----------------------------------------------------------------------------
-// Get the characteristics of the parent table.
-//----------------------------------------------------------------------------
-
-ts::TID ts::DescriptorList::tableId() const
-{
-    return _table == nullptr ? TID(TID_NULL) : _table->tableId();
-}
-
-ts::Standards ts::DescriptorList::tableStandards() const
-{
-    return _table == nullptr ? Standards::NONE : _table->definingStandards();
 }
 
 
@@ -119,7 +103,13 @@ bool ts::DescriptorList::add(const Descriptor& desc)
 bool ts::DescriptorList::add(DuckContext& duck, const AbstractDescriptor& desc)
 {
     DescriptorPtr pd = std::make_shared<Descriptor>();
-    return desc.serialize(duck, *pd) && add(pd);
+    if (!desc.serialize(duck, *pd)) {
+        return false;
+    }
+    if (duck.fixPDS()) {
+        addPrivateIdentifier(desc.edid());
+    }
+    return add(pd);
 }
 
 
@@ -361,8 +351,8 @@ ts::REGID ts::DescriptorList::registrationId(size_t index) const
     while (index-- > 0 && regid == REGID_NULL) {
         UpdateREGID(regid, _list[index]);
     }
-    if (regid == REGID_NULL && _table != nullptr) {
-        const DescriptorList* dlist = _table->topLevelDescriptorList();
+    if (regid == REGID_NULL && hasTable()) {
+        const DescriptorList* dlist = table()->topLevelDescriptorList();
         if (dlist != nullptr && dlist != this) {
             index = dlist->_list.size();
             while (index-- > 0 && regid == REGID_NULL) {
@@ -662,7 +652,7 @@ size_t ts::DescriptorList::search(const ts::EDID& edid, size_t start_index) cons
 
     // If the EDID is table-specific, check that we are in the same table.
     // In the case the table of the descriptor list is unknown, assume that the table matches.
-    if (edid.isTableSpecific() && _table != nullptr && !edid.matchTableSpecific(_table->tableId(), _table->definingStandards())) {
+    if (edid.isTableSpecific() && hasTable() && !edid.matchTableSpecific(tableId(), tableStandards())) {
         // No the same table, cannot match.
         return _list.size();
     }
@@ -694,56 +684,49 @@ size_t ts::DescriptorList::search(const ts::EDID& edid, size_t start_index) cons
 
 
 //----------------------------------------------------------------------------
-// Search a descriptor for the specified language.
+// Explore the descriptor and invoke a callback for each language.
+// The callback shall return true to continue, false to stop.
 //----------------------------------------------------------------------------
 
-size_t ts::DescriptorList::searchLanguage(const DuckContext& duck, const UString& language, size_t start_index) const
+template <typename F>
+void ts::DescriptorList::browseLanguages(const DuckContext& duck, size_t start_index, F callback) const
 {
-    // Check that an actual language code was provided.
-    if (language.size() != 3) {
-        return count(); // not found
-    }
-
-    // Standards of the context and the parent table.
-    const Standards standards = duck.standards() | (_table == nullptr ? Standards::NONE : _table->definingStandards());
-    const bool dvb = bool(standards & Standards::DVB);
+    // Standards of the context and the parent table. Used to interpret descriptors.
+    // DVB is assumed if ATSC is not specified. ISDB reuses some DVB descriptors.
+    const Standards standards = duck.standards() | tableStandards();
     const bool atsc = bool(standards & Standards::ATSC);
     const bool isdb = bool(standards & Standards::ISDB);
+    const bool dvb = bool(standards & Standards::DVB) || !atsc;
 
     // Seach all known types of descriptors containing languages.
-    for (size_t index = start_index; index < _list.size(); index++) {
+    bool more = true;
+    for (size_t index = start_index; more && index < _list.size(); index++) {
         const DescriptorPtr& desc(_list[index]);
         assert(desc != nullptr);
         if (desc->isValid()) {
 
             const DID tag = desc->tag();
-            const uint8_t* data = desc->payload();
+            const char* data = reinterpret_cast<const char*>(desc->payload());
             size_t size = desc->payloadSize();
 
             if (tag == DID_MPEG_LANGUAGE) {
-                while (size >= 4) {
-                    if (language.similar(data, 3)) {
-                        return index;
-                    }
+                while (more && size >= 4) {
+                    more = callback(index, data, 3);
                     data += 4; size -= 4;
                 }
             }
-            else if (dvb && tag == DID_DVB_COMPONENT && size >= 6 && language.similar(data + 3, 3)) {
-                return index;
+            else if (dvb && tag == DID_DVB_COMPONENT && size >= 6) {
+                more = callback(index, data + 3, 3);
             }
             else if (dvb && tag == DID_DVB_SUBTITLING) {
-                while (size >= 8) {
-                    if (language.similar(data, 3)) {
-                        return index;
-                    }
+                while (more && size >= 8) {
+                    more = callback(index, data, 3);
                     data += 8; size -= 8;
                 }
             }
             else if (dvb && (tag == DID_DVB_TELETEXT || tag == DID_DVB_VBI_TELETEXT)) {
-                while (size >= 5) {
-                    if (language.similar(data, 3)) {
-                        return index;
-                    }
+                while (more && size >= 5) {
+                    more = callback(index, data, 3);
                     data += 5; size -= 5;
                 }
             }
@@ -752,61 +735,90 @@ size_t ts::DescriptorList::searchLanguage(const DuckContext& duck, const UString
                     // Skip leading component_tag in multilingual_component_descriptor.
                     data++; size--;
                 }
-                while (size >= 4) {
-                    if (language.similar(data, 3)) {
-                        return index;
-                    }
-                    const size_t len = std::min<size_t>(4 + data[3], size);
+                while (more && size >= 4) {
+                    more = callback(index, data, 3);
+                    const size_t len = std::min<size_t>(4 + uint8_t(data[3]), size);
                     data += len; size -= len;
                 }
             }
             else if (dvb && tag == DID_DVB_MLINGUAL_SERVICE) {
-                while (size >= 4) {
-                    if (language.similar(data, 3)) {
-                        return index;
-                    }
-                    size_t len = std::min<size_t>(4 + data[3], size);
+                while (more && size >= 4) {
+                    more = callback(index, data, 3);
+                    size_t len = std::min<size_t>(4 + uint8_t(data[3]), size);
                     if (len < size) {
-                        len = std::min<size_t>(len + 1 + data[len], size);
+                        len = std::min<size_t>(len + 1 + uint8_t(data[len]), size);
                     }
                     data += len; size -= len;
                 }
             }
-            else if (dvb && tag == DID_DVB_SHORT_EVENT && size >= 3 && language.similar(data, 3)) {
-                return index;
+            else if (dvb && tag == DID_DVB_SHORT_EVENT && size >= 3) {
+                more = callback(index, data, 3);
             }
-            else if (dvb && tag == DID_DVB_EXTENDED_EVENT && size >= 4 && language.similar(data + 1, 3)) {
-                return index;
+            else if (dvb && tag == DID_DVB_EXTENDED_EVENT && size >= 4) {
+                more = callback(index, data + 1, 3);
             }
             else if (atsc && tag == DID_ATSC_CAPTION && size > 0) {
                 data++; size--;
-                while (size >= 6) {
-                    if (language.similar(data, 3)) {
-                        return index;
-                    }
+                while (more && size >= 6) {
+                    more = callback(index, data, 3);
                     data += 6; size -= 6;
                 }
             }
             else if (isdb && tag == DID_ISDB_AUDIO_COMP) {
-                if (size >= 9 && language.similar(data + 6, 3)) {
-                    return index;
+                if (size >= 9) {
+                    more = callback(index, data + 6, 3);
                 }
-                if (size >= 12 && (data[5] & 0x80) != 0 && language.similar(data + 9, 3)) {
-                    return index;
+                if (more && size >= 12 && (data[5] & 0x80) != 0) {
+                    more = callback(index, data + 9, 3);
                 }
             }
             else if (isdb && tag == DID_ISDB_DATA_CONTENT && size >= 4) {
-                size_t len = std::min<size_t>(4 + data[3], size);
+                size_t len = std::min<size_t>(4 + uint8_t(data[3]), size);
                 if (len < size) {
-                    len = std::min<size_t>(len + 1 + data[len], size);
+                    len = std::min<size_t>(len + 1 + uint8_t(data[len]), size);
                 }
-                if (len + 3 <= size && language.similar(data + len, 3)) {
-                    return index;
+                if (len + 3 <= size) {
+                    more = callback(index, data + len, 3);
                 }
             }
         }
     }
-    return count(); // not found
+}
+
+
+//----------------------------------------------------------------------------
+// Search a descriptor for the specified language.
+//----------------------------------------------------------------------------
+
+size_t ts::DescriptorList::searchLanguage(const DuckContext& duck, const UString& language, size_t start_index) const
+{
+    size_t result = size(); // not found by default
+    browseLanguages(duck, start_index, [&](size_t index, const char* addr, size_t size) {
+        if (language.similar(addr, size)) {
+            result = index;
+            return false; // stop browsing languages
+        }
+        return true;
+    });
+    return result;
+}
+
+
+//----------------------------------------------------------------------------
+// Get a list of all language codes from all descriptors.
+//----------------------------------------------------------------------------
+
+void ts::DescriptorList::getAllLanguages(const DuckContext& duck, UStringVector& languages, size_t max_count) const
+{
+    languages.clear();
+    languages.reserve(_list.size());
+
+    if (max_count > 0) {
+        browseLanguages(duck, 0, [max_count, &languages](size_t index, const char* addr, size_t size) {
+            languages.push_back(UString::FromUTF8(addr, size));
+            return languages.size() < max_count;
+        });
+    }
 }
 
 
@@ -817,7 +829,7 @@ size_t ts::DescriptorList::searchLanguage(const DuckContext& duck, const UString
 size_t ts::DescriptorList::searchSubtitle(const DuckContext& duck, const UString& language, size_t start_index) const
 {
     // Standards of the context and the parent table.
-    const Standards standards = duck.standards() | (_table == nullptr ? Standards::NONE : _table->definingStandards());
+    const Standards standards = duck.standards() | tableStandards();
     const bool dvb = bool(standards & Standards::DVB);
 
     // Value to return if not found
@@ -919,6 +931,7 @@ bool ts::DescriptorList::fromXML(DuckContext& duck, xml::ElementVector& others, 
     bool success = true;
     clear();
     others.clear();
+    EDID edid;
 
     // Analyze all children nodes. Most of them are descriptors.
     for (const xml::Element* node = parent == nullptr ? nullptr : parent->firstChildElement(); node != nullptr; node = node->nextSiblingElement()) {
@@ -932,13 +945,16 @@ bool ts::DescriptorList::fromXML(DuckContext& duck, xml::ElementVector& others, 
         else if (node->name().similar(u"metadata")) {
             // Always ignore <metadata> nodes.
         }
-        else if (!bin->fromXML(duck, node, tableId())) {
+        else if (!bin->fromXML(duck, edid, node, tableId())) {
             // Failed to analyze the node as a descriptor.
             parent->report().error(u"Illegal <%s> at line %d", node->name(), node->lineNumber());
             success = false;
         }
         else if (bin->isValid()) {
             // The XML tag is a valid descriptor name.
+            if (duck.fixPDS()) {
+                addPrivateIdentifier(edid);
+            }
             add(bin);
         }
         else {

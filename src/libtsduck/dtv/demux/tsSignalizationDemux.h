@@ -15,6 +15,7 @@
 #include "tsSignalizationHandlerInterface.h"
 #include "tsService.h"
 #include "tsSectionDemux.h"
+#include "tsLogicalChannelNumbers.h"
 #include "tsCodecType.h"
 #include "tsTime.h"
 #include "tsStreamType.h"
@@ -256,6 +257,15 @@ namespace ts {
         //! @param [out] services The list of all services in the TS, as found so far.
         //!
         void getServices(ServiceList& services) const;
+
+        //!
+        //! Get the complete description of a service by id.
+        //! @param [in] id Service id.
+        //! @return A constant reference to the description of the service. If the service
+        //! was not yet found, return the reference to a Service instance where the service
+        //! id is set to INVALID_SERVICE_ID.
+        //!
+        const Service& getService(uint16_t id) const;
 
         //--------------------------------------------------------------------
         // Accessing PID information.
@@ -695,11 +705,15 @@ namespace ts {
         // Get the context for a service. Create if not existent and known in the PAT.
         ServiceContextPtr getServiceContext(uint16_t service_id, CreateService create);
 
+        // Handle a service update.
+        void handleService(ServiceContext&, bool if_modified, bool removed);
+
         // Implementation of table and section interfaces.
         virtual void handleTable(SectionDemux&, const BinaryTable&) override;
         virtual void handleSection(SectionDemux&, const Section&) override;
 
         // Process specific tables.
+        void handleTSId(uint16_t, TID);
         void handlePAT(const PAT&, PID);
         void handleCAT(const CAT&, PID);
         void handlePMT(const PMT&, PID);
@@ -707,6 +721,10 @@ namespace ts {
         void handleSDT(const SDT&, PID);
         void handleMGT(const MGT&, PID);
         void handleSAT(const SAT&, PID);
+        void handleSGT(const SGT&, PID);
+
+        // Process a set of logical channel numbers.
+        void processLCN(const LogicalChannelNumbers&);
 
         // Template common version for CVCT and TVCT.
         template<class XVCT> requires std::derived_from<XVCT, ts::VCT>
@@ -722,6 +740,9 @@ namespace ts {
         // Extract a field of a PIDPoint in a PIDContext.
         template<typename T>
         T getPIDPointField(PID pid, const T& no_value, PIDPoint PIDContext::* pp, T PIDPoint::* field) const;
+
+        // Get a constant reference to a service with invalid service id.
+        static const Service& InvalidService();
     };
 }
 

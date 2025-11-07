@@ -126,7 +126,7 @@ void ts::SelectionInformationTable::serializePayload(BinaryTable& table, PSIBuff
 
 void ts::SelectionInformationTable::DisplaySection(TablesDisplay& disp, const ts::Section& section, PSIBuffer& buf, const UString& margin)
 {
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
     disp.displayDescriptorListWithLength(section, context, true, buf, margin, u"Global information:");
     while (buf.canReadBytes(4)) {
         disp << margin << UString::Format(u"Service id: %n", buf.getUInt16());
@@ -143,8 +143,8 @@ void ts::SelectionInformationTable::DisplaySection(TablesDisplay& disp, const ts
 
 void ts::SelectionInformationTable::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     descs.toXML(duck, root);
 
     for (const auto& it : services) {
@@ -164,8 +164,8 @@ bool ts::SelectionInformationTable::analyzeXML(DuckContext& duck, const xml::Ele
 {
     xml::ElementVector children;
     bool ok =
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-        element->getBoolAttribute(is_current, u"current", false, true) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+        element->getBoolAttribute(_is_current, u"current", false, true) &&
         descs.fromXML(duck, children, element, u"service");
 
     for (size_t index = 0; ok && index < children.size(); ++index) {

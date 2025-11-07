@@ -44,4 +44,43 @@ include::{docdir}/opt/opt-format.adoc[tags=!*;input]
 include::{docdir}/opt/group-section-logger.adoc[tags=!*;pager]
 include::{docdir}/opt/group-section-display.adoc[tags=!*]
 include::{docdir}/opt/group-duck-context.adoc[tags=!*;cas;pds;std;timeref;charset]
+
+[.usage]
+PSI/SI information options
+
+These options display information on the PSI/SI tables and descriptors which are supported by TSDuck.
+Do not specify input files with these options.
+
+[.opt]
+*--dump-psi-repository*
+
+[.optdoc]
+Dump the internal state of the PSI repository (tables and descriptors).
+This is a debug function.
+It can be helpful to troubleshoot TSDuck extensions which fail to correctly declare their own tables or descriptors.
+
+[.opt]
+*--list-descriptors*
+
+[.optdoc]
+List all supported PSI/SI descriptors.
+
+[.opt]
+*--list-dvb-charset-order*
+
+[.optdoc]
+List all DVB character sets in their preferred order.
+Each time a DVB string is serialized in binary form, these character sets are tried in this order,
+until one is able to encode the string.
+
+[.optdoc]
+When the option `--default-charset` is used, the specified character set is tried first.
+If it cannot encode a string, then the list of DVB character sets in their preferred order is used.
+
+[.opt]
+*--list-tables*
+
+[.optdoc]
+List all supported PSI/SI tables.
+
 include::{docdir}/opt/group-common-commands.adoc[tags=!*]

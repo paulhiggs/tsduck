@@ -318,18 +318,21 @@ const ts::PSIRepository::TableClass& ts::PSIRepository::getTable(TID tid, const 
     for (auto it = bounds.first; it != bounds.second; ++it) {
         const auto& tc(it->second);
 
-        // If the table is in a standard PID, this is an exact match.
-        if (tc->pids.contains(pid)) {
-            return *tc;
-        }
-
         // Standard match: at least one standard of the table is current, or standard-agnostic table (Standards::NONE).
         const bool std_match = bool(standards & tc->standards) || tc->standards == Standards::NONE;
+
+        // Standard compatibility: already standard match or the table is compatible with the current standards
+        // (and will therefore add a new standard to the context).
+        const bool std_compat = std_match || CompatibleStandards(standards | tc->standards);
 
         // CAS match: either a CAS is specified and is in range, or no CAS specified and CAS-agnostic table (all CASID_NULL).
         const bool cas_match = cas >= tc->min_cas && cas <= tc->max_cas;
 
-        if (std_match && cas_match) {
+        if (tc->pids.contains(pid) && std_compat) {
+            // If the table is in a standard PID, this is an exact match.
+            return *tc;
+        }
+        else if (std_match && cas_match) {
             // Found an exact match, no need to search further.
             return *tc;
         }
@@ -536,31 +539,49 @@ ts::DisplayCADescriptorFunction ts::PSIRepository::getCADescriptorDisplay(CASID 
 // Get the list of standards which are defined for a given table id.
 //----------------------------------------------------------------------------
 
-ts::Standards ts::PSIRepository::getTableStandards(TID tid, PID pid) const
+ts::Standards ts::PSIRepository::getTableStandards(TID tid, PID pid, Standards current_standards) const
 {
     // Accumulate the common subset of all standards for this table id.
-    Standards standards = Standards::NONE;
+    std::optional<Standards> standards;
+
+    // Accumulate the common subset of all standards for this table id in incorrect PID's.
+    std::optional<Standards> standards_bad_pid;
+
+    // Accumulate the common subset of all standards for this table id with incompatible standards.
+    std::optional<Standards> standards_bad_std;
+
     const auto bounds(_tables_by_tid.equal_range(tid));
     for (auto it = bounds.first; it != bounds.second; ++it) {
         const auto& tc(*it->second);
-
         if (tc.pids.contains(pid)) {
             // We are in a standard PID for this table id, return the corresponding standards only.
             return tc.standards;
         }
-        else if (!tc.pids.empty() && pid != PID_NULL) {
-            // This is a table with dedicated PID's but we are not in one of them => ignore.
+        else if (!CompatibleStandards(current_standards | tc.standards)) {
+            // The candidate table is incompatible with the current standards.
+            standards_bad_std = standards_bad_std.has_value() ? (standards_bad_std.value() & tc.standards) : tc.standards;
         }
-        else if (standards == Standards::NONE) {
-            // No standard found yet, use all standards from first definition.
-            standards = tc.standards;
+        else if (!tc.pids.empty() && pid != PID_NULL) {
+            // This is a table with dedicated PID's but we are not in one of them => store separately.
+            standards_bad_pid = standards_bad_pid.has_value() ? (standards_bad_pid.value() & tc.standards) : tc.standards;
         }
         else {
-            // Some standards were already found, keep only the common subset.
-            standards &= tc.standards;
+            standards = standards.has_value() ? (standards.value() & tc.standards) : tc.standards;
         }
     }
-    return standards;
+
+    if (standards.has_value()) {
+        // Found one or more table ids with compatible standards in their correct PID. Keep them only.
+        return standards.value();
+    }
+    else if (standards_bad_pid.has_value()) {
+        // Otherwise, accept table ids with compatible standards but in a wrong PID.
+        return standards_bad_pid.value();
+    }
+    else {
+        // Finally, accept table ids with incompatible standards.
+        return standards_bad_std.value_or(Standards::NONE);
+    }
 }
 
 
@@ -602,7 +623,7 @@ ts::UString ts::PSIRepository::descriptorTables(const DuckContext& duck, const U
         if (!result.empty()) {
             result.append(u", ");
         }
-        result.append(TIDName(duck, it->second, CASID_NULL, NamesFlags::NAME | NamesFlags::HEXA));
+        result.append(TIDName(duck, it->second, PID_NULL, CASID_NULL, NamesFlags::NAME | NamesFlags::HEXA));
         ++it;
     }
 
@@ -652,6 +673,83 @@ void ts::PSIRepository::getRegisteredTablesModels(UStringList& names) const
 
 
 //----------------------------------------------------------------------------
+// List all supported tables.
+//----------------------------------------------------------------------------
+
+void ts::PSIRepository::listTables(std::ostream& out) const
+{
+    TextTable table;
+    table.addColumn(1, u"TID");
+    table.addColumn(2, u"XML");
+    table.addColumn(3, u"Standards");
+    table.addColumn(4, u"Name");
+
+    // Loop on all known tables.
+    for (const auto& it : _tables_by_tid) {
+        const auto& tc(*it.second);
+        if (!tc.xml_name.empty() && tc.index != NullIndex()) {
+            // This table is supported by TSDuck.
+            table.newLine();
+            table.setCell(1, UString::Format(u"%X", it.first));
+            table.setCell(2, u"<" + tc.xml_name + u">");
+            table.setCell(3, StandardsNames(tc.standards));
+            table.setCell(4, tc.display_name);
+        }
+    }
+    table.output(out, TextTable::Headers::UNDERLINED, false, UString(), u"  ");
+}
+
+
+//----------------------------------------------------------------------------
+// List all supported descriptors.
+//----------------------------------------------------------------------------
+
+void ts::PSIRepository::listDescriptors(std::ostream& out) const
+{
+    TextTable table;
+    table.addColumn(1, u"DID");
+    table.addColumn(2, u"XML");
+    table.addColumn(3, u"Standards");
+    table.addColumn(4, u"Name, context");
+
+    // Loop on all known descriptors.
+    for (const auto& it : _descriptors_by_xdid) {
+        const auto& dc(*it.second);
+        if (!dc.xml_name.empty() && dc.index != NullIndex()) {
+            // This descriptor is supported by TSDuck.
+            table.newLine();
+            table.setCell(1, it.first.toString());
+            table.setCell(2, u"<" + dc.xml_name + u">");
+            table.setCell(3, StandardsNames(dc.edid.standards()));
+            UString name(dc.display_name);
+            if (dc.edid.isPrivateDual()) {
+                name += u", MPEG and DVB private (" + REGIDName(dc.edid.privateId()) + u")";
+            }
+            else if (dc.edid.isPrivateMPEG()) {
+                name += u", MPEG private (" + REGIDName(dc.edid.regid()) + u")";
+            }
+            else if (dc.edid.isPrivateDVB()) {
+                name += u", DVB private (" + PDSName(dc.edid.pds()) + u")";
+            }
+            else if (dc.edid.isTableSpecific()) {
+                const std::set<TID> tids(dc.edid.tableIds());
+                DuckContext duck;
+                duck.addStandards(dc.edid.standards());
+                const UChar* prefix = u", only in ";
+                for (TID tid : tids) {
+                    name += prefix;
+                    name += TIDName(duck, tid);
+                    prefix = u", ";
+                }
+            }
+            table.setCell(4, name);
+        }
+    }
+    table.output(out, TextTable::Headers::UNDERLINED, false, UString(), u"  ");
+}
+
+
+//----------------------------------------------------------------------------
 // Dump the internal state of the PSI repository (for debug only).
 //----------------------------------------------------------------------------
 
@@ -682,7 +780,7 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
         table.setCell(6, PIDsToString(tc.pids));
         table.setCell(7, CASToString(tc.min_cas, tc.max_cas));
     }
-    table.output(std::cout, TextTable::Headers::UNDERLINED);
+    table.output(out, TextTable::Headers::UNDERLINED);
 
     out << std::endl << "==== Table XML name to table class: " << _tables_by_xml_name.size() << std::endl << std::endl;
     table.clear();
@@ -694,7 +792,7 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
         table.setCell(1, NameToString(u"<", it.first, u">"));
         table.setCell(2, TypeIndexToString(it.second->index));
     }
-    table.output(std::cout, TextTable::Headers::UNDERLINED);
+    table.output(out, TextTable::Headers::UNDERLINED);
 
     out << std::endl << "==== XDID to descriptor class: " << _descriptors_by_xdid.size() << std::endl << std::endl;
     table.clear();
@@ -713,7 +811,7 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
         table.setCell(4, dc.edid.toString());
         table.setCell(5, TypeIndexToString(dc.index));
     }
-    table.output(std::cout, TextTable::Headers::UNDERLINED);
+    table.output(out, TextTable::Headers::UNDERLINED);
 
     out << std::endl << "==== Descriptor name to descriptor class: " << _descriptors_by_xml_name.size() << std::endl << std::endl;
     table.clear();
@@ -725,7 +823,7 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
         table.setCell(1, NameToString(u"<", it.first, u">"));
         table.setCell(2, TypeIndexToString(it.second->index));
     }
-    table.output(std::cout, TextTable::Headers::UNDERLINED);
+    table.output(out, TextTable::Headers::UNDERLINED);
 
     out << std::endl << "==== Descriptor RTTI index to descriptor class: " << _descriptors_by_type_index.size() << std::endl << std::endl;
     table.clear();
@@ -739,7 +837,7 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
         table.setCell(2, NameToString(u"'", it.second->display_name, u"'"));
         table.setCell(3, NameToString(u"<", it.second->xml_name, u">"));
     }
-    table.output(std::cout, TextTable::Headers::UNDERLINED);
+    table.output(out, TextTable::Headers::UNDERLINED);
 
     out << std::endl << "==== XML descriptor name to table id for table-specific descriptors: " << _descriptor_tids.size() << std::endl << std::endl;
     table.clear();
@@ -751,7 +849,7 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
         table.setCell(1, NameToString(u"<", it.first, u">"));
         table.setCell(2, UString::Format(u"%X", it.second));
     }
-    table.output(std::cout, TextTable::Headers::UNDERLINED);
+    table.output(out, TextTable::Headers::UNDERLINED);
 
     out << std::endl << "==== Display CA Descriptor functions: " << _casid_descriptor_displays.size() << std::endl << std::endl;
     table.clear();
@@ -763,7 +861,7 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
         table.setCell(1, UString::Format(u"%X", it.first));
         table.setCell(2, UString::Format(u"%X", size_t(it.second)));
     }
-    table.output(std::cout, TextTable::Headers::UNDERLINED);
+    table.output(out, TextTable::Headers::UNDERLINED);
 
     out << std::endl << "==== XML extension files: " << _xml_extension_files.size() << std::endl << std::endl;
     for (const auto& it : _xml_extension_files) {
@@ -771,6 +869,11 @@ void ts::PSIRepository::dumpInternalState(std::ostream& out) const
     }
     out << std::endl;
 }
+
+
+//----------------------------------------------------------------------------
+// Display utilities.
+//----------------------------------------------------------------------------
 
 ts::UString ts::PSIRepository::NameToString(const UString& prefix, const UString& name, const UString& suffix)
 {
@@ -782,8 +885,10 @@ ts::UString ts::PSIRepository::TypeIndexToString(std::type_index index)
     if (index == NullIndex()) {
         return u"-";
     }
-    const UString name(ClassName(index));
-    return name.empty() ? UString::Format(u"%X", index.hash_code()): name;
+    else {
+        const UString name(ClassName(index));
+        return name.empty() ? UString::Format(u"%X", index.hash_code()): name;
+    }
 }
 
 ts::UString ts::PSIRepository::StandardsToString(Standards std)

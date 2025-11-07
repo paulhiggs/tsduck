@@ -58,16 +58,28 @@ namespace ts {
     };
 
     //!
-    //! Vector of strings
+    //! Vector of strings.
     //! @ingroup cpp
     //!
     using UStringVector = std::vector<UString>;
 
     //!
-    //! List of strings
+    //! List of strings.
     //! @ingroup cpp
     //!
     using UStringList = std::list<UString>;
+
+    //!
+    //! Map of strings, indexed by string.
+    //! @ingroup cpp
+    //!
+    using UStringToUStringMap = std::map<UString, UString>;
+
+    //!
+    //! Multi-map of strings, indexed by string.
+    //! @ingroup cpp
+    //!
+    using UStringToUStringMultiMap = std::multimap<UString, UString>;
 
     //!
     //! An implementation of UTF-16 strings.
@@ -481,6 +493,24 @@ namespace ts {
         //! @param [out] utf8 The equivalent UTF-8 string.
         //!
         void toUTF8(std::string& utf8) const;
+
+        //!
+        //! Convert this UTF-16 string into UTF-8 data.
+        //! @param [out] utf8 The equivalent UTF-8 data.
+        //!
+        void toUTF8(ByteBlock& utf8) const;
+
+        //!
+        //! Convert this UTF-16 string into UTF-8 and append in a 8-bit string.
+        //! @param [in,out] utf8 Where to append the equivalent UTF-8 string.
+        //!
+        void appendUTF8(std::string& utf8) const;
+
+        //!
+        //! Convert this UTF-16 string into UTF-8 data and append in a byte block.
+        //! @param [in,out] utf8 Where to append the equivalent UTF-8 data.
+        //!
+        void appendUTF8(ByteBlock& utf8) const;
 
         //!
         //! General routine to convert from UTF-16 to UTF-8.
@@ -1218,6 +1248,23 @@ namespace ts {
         }
 
         //!
+        //! Join a part of a container of strings into one big string.
+        //! The strings are accessed through iterators in the container.
+        //! All strings are concatenated into one big string.
+        //! @tparam ITERATOR An iterator class over @c UString as defined by the C++ Standard Template Library (STL).
+        //! @param [in] begin An iterator pointing to the first string.
+        //! @param [in] end An iterator pointing @em after the last string.
+        //! @param [in] separator A character to insert between all segments.
+        //! @param [in] remove_empty If true, empty segments are ignored
+        //! @return The big string containing all segments and separators.
+        //!
+        template <class ITERATOR>
+        static UString Join(ITERATOR begin, ITERATOR end, UChar separator, bool remove_empty = false)
+        {
+            return UString(1, separator).join(begin, end, remove_empty);
+        }
+
+        //!
         //! Join a container of strings into one big string.
         //! All strings from the container are concatenated into one big string.
         //! @tparam CONTAINER A container class of @c UString as defined by the C++ Standard Template Library (STL).
@@ -1230,6 +1277,21 @@ namespace ts {
         static UString Join(const CONTAINER& container, const UString& separator = UString(u", "), bool remove_empty = false)
         {
             return separator.join(container.begin(), container.end(), remove_empty);
+        }
+
+        //!
+        //! Join a container of strings into one big string.
+        //! All strings from the container are concatenated into one big string.
+        //! @tparam CONTAINER A container class of @c UString as defined by the C++ Standard Template Library (STL).
+        //! @param [in] container A container of @c UString containing all strings to concatenate.
+        //! @param [in] separator A character to insert between all segments.
+        //! @param [in] remove_empty If true, empty segments are ignored
+        //! @return The big string containing all segments and separators.
+        //!
+        template <class CONTAINER>
+        static UString Join(const CONTAINER& container, UChar separator, bool remove_empty = false)
+        {
+            return UString(1, separator).join(container.begin(), container.end(), remove_empty);
         }
 
         //!
@@ -1410,6 +1472,20 @@ namespace ts {
         //!
         template <class CONTAINER>
         void fromQuotedLine(CONTAINER& container, const UString& quote_characters = DEFAULT_QUOTE_CHARACTERS, const UString& special_characters = DEFAULT_SPECIAL_CHARACTERS) const;
+
+        //!
+        //! Remove matching pairs of quotes at beginning and end of string.
+        //! This is done recursively (e.g. "'"abcd"'" -> abcd).
+        //! @param [in] quote_characters All characters which are recognized as quote.
+        //!
+        void unquoted(const UString& quote_characters = DEFAULT_QUOTE_CHARACTERS);
+
+        //!
+        //! Return a version of the string with matching pairs of quotes at beginning and end removed.
+        //! @param [in] quote_characters All characters which are recognized as quote.
+        //! @return A version of the string with matching pairs of quotes at beginning and end removed.
+        //!
+        UString toUnquoted(const UString& quote_characters = DEFAULT_QUOTE_CHARACTERS) const;
 
         //!
         //! Convert the string into a suitable HTML representation.
@@ -1928,6 +2004,7 @@ namespace ts {
                              size_type width = 0,
                              size_type precision = 0,
                              bool force_sign = false);
+
         //!
         //! Convert a string into a std::chrono::duration value.
         //! No suffix is decoded. The string shall contain an integer value which
@@ -1950,12 +2027,15 @@ namespace ts {
 
         //!
         //! Format a string containing a std::chrono::duration value, with units.
+        //! This function returns one single value, e.g. "12345 ms".
+        //! Use Duration() for a string with hours, minutes, seconds, milliseconds.
         //! @param [in] value The chrono value to format.
         //! @param [in] short_format When true, use short unit format (e.g. "ms").
         //! By default, use a full unit name (e.g. "millisecond").
         //! @param [in] separator Separator string for groups of thousands, a comma by default.
         //! @param [in] force_sign If true, force a '+' sign for positive values.
         //! @return The formatted string.
+        //! @see Duration()
         //!
         template <class Rep, class Period>
         static UString Chrono(const cn::duration<Rep, Period>& value,
@@ -1964,6 +2044,19 @@ namespace ts {
                               bool force_sign = false)
         {
             return Decimal(value.count(), 0, true, separator, force_sign) + u" " + ChronoUnit(Period::num, Period::den, short_format, value.count() > 1);
+        }
+
+        //!
+        //! Format a string representing a std::chrono::duration value, with hours, minutes, seconds, milliseconds.
+        //! @param [in] value The chrono value to format.
+        //! @param [in] with_days When true, add a number of days when necessary. By default, use number of hours above 24.
+        //! @return The formatted string.
+        //! @see Chrono()
+        //!
+        template <class Rep, class Period>
+        static UString Duration(const cn::duration<Rep, Period>& value, bool with_days = false)
+        {
+            return DurationHelper(cn::duration_cast<cn::milliseconds>(value).count(), with_days);
         }
 
         //!
@@ -2620,6 +2713,9 @@ namespace ts {
         template<typename INT> requires std::signed_integral<INT> && (sizeof(INT) < 8)
         static void DecimalMostNegative(UString& result, const UString& separator);
 
+        // Internal helper for Duration().
+        static UString DurationHelper(cn::milliseconds::rep value, bool with_days);
+
         // Internal helpers for string formatting.
         void formatHelper(const UChar* fmt, std::initializer_list<ArgMixIn> args);
         bool scanHelper(size_t& extractedCount, size_type& endIndex, const UChar* fmt, std::initializer_list<ArgMixOut> args) const;
@@ -3109,16 +3205,17 @@ void ts::UString::splitBlocksAppend(CONTAINER& container, UChar starts_with, UCh
 template <class CONTAINER>
 void ts::UString::splitLinesAppend(CONTAINER& lines, size_t max_width, const UString& other_separators, const UString& next_margin, bool force_split) const
 {
-    // If line smaller than max size or next margin too wide, return one line
-    if (length() <= max_width || next_margin.length() >= max_width) {
+    // If next margin too wide, return one line.
+    // Note: if the string is smaller than max_width, process anyway because it may contain embedded new-lines.
+    if (next_margin.length() >= max_width) {
         lines.push_back(*this);
         return;
     }
 
-    size_t marginLength = 0; // No margin on first line (supposed to be in str)
-    size_t start = 0;        // Index in str of start of current line
-    size_t eol = 0;          // Index in str of last possible end-of-line
-    size_t cur = 0;          // Current index in str
+    size_t margin_length = 0; // No margin on first line (supposed to be in str)
+    size_t start = 0;         // Index in str of start of current line
+    size_t eol = 0;           // Index in str of last possible end-of-line
+    size_t cur = 0;           // Current index in str
 
     // Cut lines
     while (cur < length()) {
@@ -3129,7 +3226,7 @@ void ts::UString::splitLinesAppend(CONTAINER& lines, size_t max_width, const USt
         }
         // Determine if we need to cut here.
         bool cut = at(cur) == LINE_FEED;
-        if (!cut && marginLength + cur - start >= max_width) { // Reached max width
+        if (!cut && margin_length + cur - start >= max_width) { // Reached max width
             if (eol > start) {
                 // Found a previous possible end-of-line
                 cut = true;
@@ -3144,14 +3241,14 @@ void ts::UString::splitLinesAppend(CONTAINER& lines, size_t max_width, const USt
         if (cut) {
             // Add current line.
             UString line;
-            if (marginLength > 0) {
+            if (margin_length > 0) {
                 line.append(next_margin);
             }
             line.append(substr(start, eol - start));
             line.trim(false, true); // trim trailing spaces
             lines.push_back(line);
             // Start new line, skip leading spaces
-            marginLength = next_margin.length();
+            margin_length = next_margin.length();
             start = eol < length() && at(eol) == LINE_FEED ? eol + 1 : eol;
             while (start < length() && IsSpace(at(start)) && at(start) != LINE_FEED) {
                 start++;
@@ -3165,7 +3262,12 @@ void ts::UString::splitLinesAppend(CONTAINER& lines, size_t max_width, const USt
 
     // Rest of string on last line
     if (start < length()) {
-        lines.push_back(next_margin + substr(start));
+        if (margin_length == 0) {
+            lines.push_back(substr(start));
+        }
+        else {
+            lines.push_back(next_margin + substr(start));
+        }
     }
 }
 
@@ -3484,7 +3586,12 @@ bool ts::UString::toFloat(FLT& value, FLT min_value, FLT max_value) const
     // Use an additional dummy character to make sure there is nothing more to read.
     double flt = 0.0;
     char dummy = 0;
+    TS_PUSH_WARNING()
+    TS_GCC_NOWARNING(deprecated-declarations)
+    TS_LLVM_NOWARNING(deprecated-declarations)
+    TS_MSC_NOWARNING(4996) // 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead.
     const int count = ::sscanf(str.c_str(), "%lf%c", &flt, &dummy);
+    TS_POP_WARNING()
     value = FLT(flt);
     return count == 1 && value >= min_value && value <= max_value;
 }

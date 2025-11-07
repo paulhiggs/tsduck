@@ -17,6 +17,7 @@
 #include "tsAACDescriptor.h"
 #include "tsISO639LanguageDescriptor.h"
 #include "tsSubtitlingDescriptor.h"
+#include "tsRegistrationDescriptor.h"
 #include "tsTeletextDescriptor.h"
 #include "tsISDBTInformation.h"
 #include "tsBinaryTable.h"
@@ -506,6 +507,13 @@ void ts::TSAnalyzer::handleTable(SectionDemux&, const BinaryTable& table)
             }
             break;
         }
+        case TID_ASTRA_SGT: {
+            const SGT sgt(_duck, table);
+            if (sgt.isValid()) {
+                analyzeSGT(sgt, pid);
+            }
+            break;
+        }
         default: {
             break;
         }
@@ -812,6 +820,19 @@ void ts::TSAnalyzer::analyzeDCT(const DCT& dct)
 
 
 //----------------------------------------------------------------------------
+// Analyze an Astra-defined SGT (Service Guide Table).
+//----------------------------------------------------------------------------
+
+void ts::TSAnalyzer::analyzeSGT(const SGT& sgt, PID pid)
+{
+    // The SGT defines Logical Channel Numbers (LCN).
+    PIDContextPtr ps(getPID(pid));
+    ps->description = u"Astra SGT";
+    _lcn.addFromSGT(sgt, _ts_id.value_or(0xFFFF));
+}
+
+
+//----------------------------------------------------------------------------
 // Return a full description, with comment and optionally attributes
 //----------------------------------------------------------------------------
 
@@ -839,9 +860,9 @@ ts::UString ts::TSAnalyzer::PIDContext::fullDescription(bool include_attributes)
 
 
 //----------------------------------------------------------------------------
-//  Analyse a list of descriptors.
-//  If svp is not 0, we are in the PMT of the specified service.
-//  If ps is not 0, we are in the description of this PID in a PMT.
+// Analyse a list of descriptors.
+// If svp is not 0, we are in the PMT of the specified service.
+// If ps is not 0, we are in the description of this PID in a PMT.
 //----------------------------------------------------------------------------
 
 void ts::TSAnalyzer::analyzeDescriptors(const DescriptorList& descs, ServiceContext* svp, PIDContext* ps)
@@ -956,6 +977,33 @@ void ts::TSAnalyzer::analyzeDescriptors(const DescriptorList& descs, ServiceCont
                 if (ps != nullptr) {
                     // The presence of this descriptor indicates a PID carrying an AIT.
                     ps->comment = u"AIT";
+                }
+                break;
+            }
+            case DID_MPEG_REGISTRATION: {
+                if (ps != nullptr) {
+                    const RegistrationDescriptor desc(_duck, bindesc);
+                    switch (desc.format_identifier) {
+                        case REGID_BSSD: {
+                            // The presence of this registration id indicates an AES3 PCM audio track (SMPTE 302M).
+                            ps->description = u"AES3 PCM Audio";
+                            ps->carry_audio = true;
+                            break;
+                        }
+                        case REGID_VC1: {
+                            ps->description = u"VC-1 Video";
+                            ps->carry_video = true;
+                            break;
+                        }
+                        case REGID_VC4: {
+                            ps->description = u"VC-4 Video";
+                            ps->carry_video = true;
+                            break;
+                        }
+                        default: {
+                            break;
+                        }
+                    }
                 }
                 break;
             }

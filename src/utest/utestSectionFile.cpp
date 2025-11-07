@@ -269,6 +269,7 @@ TSUNIT_DEFINE_TEST(GenericShortTable)
     TSUNIT_ASSERT(tab.fromXML(duck, children[0]));
     TSUNIT_ASSERT(tab.isValid());
     TSUNIT_ASSERT(tab.isShortSection());
+    TSUNIT_ASSERT(!tab.isLongSection());
     TSUNIT_EQUAL(0xAB, tab.tableId());
     TSUNIT_EQUAL(1, tab.sectionCount());
 
@@ -292,6 +293,7 @@ TSUNIT_DEFINE_TEST(GenericLongTable)
     refTable.addNewSection(0xCD, true, 0x1234, 7, true, 0, 0, refData0, sizeof(refData0));
     refTable.addNewSection(0xCD, true, 0x1234, 7, true, 1, 1, refData1, sizeof(refData1));
     TSUNIT_ASSERT(refTable.isValid());
+    TSUNIT_ASSERT(refTable.isLongSection());
     TSUNIT_ASSERT(!refTable.isShortSection());
     TSUNIT_EQUAL(0xCD, refTable.tableId());
     TSUNIT_EQUAL(0x1234, refTable.tableIdExtension());
@@ -334,6 +336,7 @@ TSUNIT_DEFINE_TEST(GenericLongTable)
     ts::BinaryTable tab;
     TSUNIT_ASSERT(tab.fromXML(duck, children[0]));
     TSUNIT_ASSERT(tab.isValid());
+    TSUNIT_ASSERT(tab.isLongSection());
     TSUNIT_ASSERT(!tab.isShortSection());
     TSUNIT_EQUAL(0xCD, tab.tableId());
     TSUNIT_EQUAL(0x1234, tab.tableIdExtension());
@@ -450,14 +453,14 @@ TSUNIT_DEFINE_TEST(BuildSections)
 
     ts::PAT binPAT(duck, *binFile.tables()[0]);
     TSUNIT_ASSERT(binPAT.isValid());
-    TSUNIT_EQUAL(7, binPAT.version);
+    TSUNIT_EQUAL(7, binPAT.version());
     TSUNIT_EQUAL(0x1234, binPAT.ts_id);
     TSUNIT_EQUAL(ts::PID_NIT, binPAT.nit_pid);
     TSUNIT_ASSERT(binPAT.pmts == pat.pmts);
 
     ts::PAT xmlPAT(duck, *xmlFile.tables()[0]);
     TSUNIT_ASSERT(xmlPAT.isValid());
-    TSUNIT_EQUAL(7, xmlPAT.version);
+    TSUNIT_EQUAL(7, xmlPAT.version());
     TSUNIT_EQUAL(0x1234, xmlPAT.ts_id);
     TSUNIT_EQUAL(ts::PID_NIT, xmlPAT.nit_pid);
     TSUNIT_ASSERT(xmlPAT.pmts == pat.pmts);

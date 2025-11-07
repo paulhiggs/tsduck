@@ -106,7 +106,7 @@ ts::UString ts::TCPConnection::peerName() const
 
 bool ts::TCPConnection::send(const void* buffer, size_t size, Report& report)
 {
-    const char* data = reinterpret_cast <const char*>(buffer);
+    const char* data = reinterpret_cast<const char*>(buffer);
     size_t remain = size;
 
     while (remain > 0) {
@@ -138,9 +138,9 @@ bool ts::TCPConnection::send(const void* buffer, size_t size, Report& report)
 // (in case of user-interrupt, return, otherwise retry).
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::receive(void* data,             // Buffers address
-                                size_t max_size,        // Buffer size
-                                size_t& ret_size,       // Received message size
+bool ts::TCPConnection::receive(void* data,
+                                size_t max_size,
+                                size_t& ret_size,
                                 const AbortInterface* abort,
                                 Report& report)
 {
@@ -162,9 +162,13 @@ bool ts::TCPConnection::receive(void* data,             // Buffers address
             declareDisconnected(report);
             return false;
         }
+        else if (abort != nullptr && abort->aborting()) {
+            // User-interrupt, end of processing but no error message
+            return false;
+        }
 #if defined(TS_UNIX)
         else if (errcode == EINTR) {
-            // Ignore signal, retry
+            // Ignore signal, retry.
             report.debug(u"recv() interrupted by signal, retrying");
         }
 #endif
@@ -178,7 +182,6 @@ bool ts::TCPConnection::receive(void* data,             // Buffers address
         }
     }
 }
-
 
 
 //----------------------------------------------------------------------------

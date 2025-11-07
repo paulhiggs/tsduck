@@ -13,6 +13,7 @@
 
 #include "tsMain.h"
 #include "tsVersionInfo.h"
+#include "tsFeatures.h"
 #include "tsGitHubRelease.h"
 #include "tsWebRequest.h"
 #include "tsSysUtils.h"
@@ -20,7 +21,6 @@
 #include "tsErrCodeReport.h"
 #include "tsNullReport.h"
 #include "tsForkPipe.h"
-#include "tsPSIRepository.h"
 #include "tsDuckExtensionRepository.h"
 #if defined(TS_WINDOWS)
 #include "tsWinUtils.h"
@@ -45,7 +45,6 @@ namespace {
         bool current = false;         // Display current version of TSDuck, this executable.
         bool integer = false;         // Display current version of TSDuck as integer value.
         bool extensions = false;      // List extensions.
-        bool xdump_psi_repo = false;  // Dump internal state of PSI repository.
 
         // The following options are used to detect, download and upgrade new versions of TSDuck.
         // They are disabled when TS_NO_GITHUB is defined. With this macro, TSDuck is unlinked
@@ -85,15 +84,9 @@ Options::Options(int argc, char *argv[]) :
          ts::VersionInfo::GetVersion(ts::VersionInfo::Format::INTEGER) + u" for " +
          ts::VersionInfo::GetVersion(ts::VersionInfo::Format::SHORT) + u".");
 
-    option(u"xdump-psi-repository");
-    help(u"xdump-psi-repository", u"Dump the internal state of the PSI repository. This is a debug function.");
-
     // Enumeration of support options. The values are 0 or 1, indicating support.
     // Add a negative value meaning list all.
-    ts::Names support(ts::VersionInfo::SupportEnum());
-    support.add(u"all", -1);
-
-    option(u"support", 0, support);
+    option(u"support", 0, ts::Names(ts::Features::Instance().supportEnum(), {{u"all", -1}}));
     help(u"support",
          u"Check support for a specific feature. Using 'all' displays all features. "
          u"Other options simply exit with a success or failure status, depending if the corresponding feature is implemented or not.");
@@ -163,25 +156,25 @@ Options::Options(int argc, char *argv[]) :
 
     extensions = present(u"extensions");
     integer = present(u"integer");
-    xdump_psi_repo = present(u"xdump-psi-repository");
 
     // Option --support is fully handled inside the constructor.
     // It exits the application with a specific status.
     if (present(u"support")) {
         const int feature = intValue<int>(u"support");
+        bool success = true;
         if (feature < 0) {
             // Display all features.
             ts::UStringList names;
-            support.getAllNames(names);
+            ts::Features::Instance().supportEnum().getAllNames(names);
             names.sort();
             for (const auto& fname : names) {
-                const auto value = support.value(fname);
-                if (value >= 0) {
-                    std::cout << fname << ": " << ts::UString::YesNo(value != 0) << std::endl;
-                }
+                std::cout << fname << ": " << ts::UString::YesNo(ts::Features::Instance().isSupported(fname)) << std::endl;
             }
         }
-        std::exit(feature ? EXIT_SUCCESS : EXIT_FAILURE);
+        else {
+            success = ts::Features::Instance().isSupported(feature);
+        }
+        std::exit(success ? EXIT_SUCCESS : EXIT_FAILURE);
     }
 
 #if !defined(TS_NO_GITHUB)
@@ -639,10 +632,6 @@ int MainCode(int argc, char *argv[])
         // Display list of available extensions.
         // The returned string is either empty or ends with a new-line.
         std::cout << ts::DuckExtensionRepository::Instance().listExtensions(opt);
-    }
-    else if (opt.xdump_psi_repo) {
-        // Dump internal state of PSI repository.
-        ts::PSIRepository::Instance().dumpInternalState(std::cout);
     }
     else if (opt.integer) {
         // Display current version in integer format.

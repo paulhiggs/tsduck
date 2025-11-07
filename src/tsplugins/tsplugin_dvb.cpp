@@ -36,7 +36,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual bool isRealTime() override {return true;}
+        virtual bool isRealTime() override;
         virtual BitRate getBitrate() override;
         virtual BitRateConfidence getBitrateConfidence() override;
         virtual size_t receive(TSPacket*, TSPacketMetadata*, size_t) override;
@@ -97,7 +97,7 @@ bool ts::DVBInputPlugin::getOptions()
     // Get common tuning options from command line
     duck.loadArgs(*this);
     _tuner_args.loadArgs(duck, *this);
-    _json_args.loadArgs(duck, *this);
+    _json_args.loadArgs(*this);
     getChronoValue(_json_interval, u"json-interval", DEFAULT_JSON_INTERVAL);
     return Args::valid();
 }
@@ -235,6 +235,16 @@ ts::BitRate ts::DVBInputPlugin::getBitrate()
     }
 
     return _previous_bitrate = bitrate;
+}
+
+
+//----------------------------------------------------------------------------
+// This is a hardware-based real-time plugin.
+//----------------------------------------------------------------------------
+
+bool ts::DVBInputPlugin::isRealTime()
+{
+    return true;
 }
 
 ts::BitRateConfidence ts::DVBInputPlugin::getBitrateConfidence()

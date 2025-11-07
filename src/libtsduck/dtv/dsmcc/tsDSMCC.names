@@ -1,0 +1,132 @@
+[DSMCC.type]
+# ISO/IEC 13818-6, section 2, table 2-2
+Bits = 8
+0x01 = User-to-Network configuration message
+0x02 = User-to-Network session message
+0x03 = Download message
+0x04 = SDB Channel Change Protocol message
+0x05 = User-to- Network pass-thru message
+
+[DSMCC.messageId]
+Bits = 16
+0x0000 = Reserved
+0x0001 = UNConfigRequest
+0x0002 = UNConfigConfirm
+0x0003 = UNConfigIndication
+0x0004 = UNConfigResponse
+0x1001 = DownloadInfoRequest
+0x1002 = DownloadInfoIndication (DII)
+0x1003 = DownloadDataBlock (DDB)
+0x1004 = DownloadDataRequest
+0x1005 = DownloadCancel
+0x1006 = DownloadServerInitiate (DSI)
+0x4010 = ClientSessionSetUpRequest
+0x4011 = ClientSessionSetUpConfirm
+0x4020 = ClientSessionReleaseRequest
+0x4021 = ClientSessionReleaseConfirm
+0x4022 = ClientSessionReleaseIndication
+0x4023 = ClientSessionReleaseResponse
+0x4032 = ClientAddResourceIndication
+0x4033 = ClientAddResourceResponse
+0x4042 = ClientDeleteResourceIndication
+0x4043 = ClientDeleteResourceResponse
+0x4060 = ClientStatusRequest
+0x4061 = ClientStatusConfirm
+0x4062 = ClientStatusIndication
+0x4063 = ClientStatusResponse
+0x4070 = ClientResetRequest
+0x4071 = ClientResetConfirm
+0x4072 = ClientResetIndication
+0x4073 = ClientResetResponse
+0x4082 = ClientSessionProceedingIndication
+0x4090 = ClientConnectRequest
+0x8012 = ServerSessionSetUpIndication
+0x8013 = ServerSessionSetUpResponse
+0x8030 = ServerAddResourceRequest
+0x8031 = ServerAddResourceConfirm
+0x8040 = ServerDeleteResourceRequest
+0x8041 = ServerDeleteResourceConfirm
+0x8050 = ServerContinuousFeedSessionRequest
+0x8051 = ServerContinuousFeedSessionConfirm
+0x8060 = ServerStatusRequest
+0x8061 = ServerStatusConfirm
+0x8062 = ServerStatusIndication
+0x8063 = ServerStatusResponse
+0x8070 = ServerResetRequest
+0x8071 = ServerResetConfirm
+0x8072 = ServerResetIndication
+0x8073 = ServerResetResponse
+0x8082 = ServerSessionProceedingIndication
+0x8092 = ServerConnectIndication
+0x80a0 = ServerSessionTransferRequest
+0x80a1 = ServerSessionTransferConfirm
+0x80a2 = ServerSessionTransferIndication
+0x80a3 = ServerSessionTransferResponse
+0x80b0 = ServerSessionInProgressRequest
+
+[DSMCC.descriptorType]
+# ISO/IEC 13818-6, 6.1
+Bits = 8
+0x00 = Pad descriptor
+0x01 = System Hardware descriptor
+0x02 = System Software descriptor
+
+[DSMCC.specifierType]
+# ISO/IEC 13818-6, 6.1
+Bits = 8
+0x01 = IEEE OUI
+
+[DSMCC.tap_use]
+Bits=16
+0x0000 = UNKNOWN
+0x0001 = MPEG_TS_UP_USE
+0x0002 = MPEG_TS_DOWN_USE
+0x0003 = MPEG_ES_UP_USE
+0x0004 = MPEG_ES_DOWN_USE
+0x0005 = DOWNLOAD_CTRL_USE
+0x0006 = DOWNLOAD_CTRL_UP_USE
+0x0007 = DOWNLOAD_CTRL_DOWN_USE
+0x0008 = DOWNLOAD_DATA_USE
+0x0009 = DOWNLOAD_DATA_UP_USE
+0x000A = DOWNLOAD_DATA_DOWN_USE
+0x000B = STR_NPT_USE (Stream NPT Descriptors)
+0x000C = STR_STATUS_AND_EVENT_USE (Both Stream Mode and Stream Event Descriptors)
+0x000D = STR_EVENT_USE (Stream Event Descriptors)
+0x000E = STR_STATUS_USE (Stream Mode Descriptors)
+0x000F = RPC_USE
+0x0010 = IP_USE
+0x0011 = SDB_CTRL_USE
+0x0015 = T120_TAP reserved
+0x0016 = BIOP_DELIVERY_PARA_USE (Module delivery parameters)
+0x0017 = BIOP_OBJECT_USE (BIOP objects in Modules)
+0x0018 = BIOP_ES_USE (Elementary Stream (Video/Audio))
+0x0019 = BIOP_PROGRAM_USE (Program (DVB Service) Reference)
+0x001A = BIOP_DNL_CTRL_USE
+0x8000 = STR_DVBTIMEL_USE (DVB broadcast_timeline_descriptor)
+0x8001 = STR_DVBEVENT_USE (DVB synchronised_event_descriptor)
+
+[DSMCC.resourceDescriptorType]
+Bits=16
+0x0000 = Reserved
+0x0001 = ContinuousFeedSession
+0x0002 = AtmConnection
+0x0003 = MpegProgram
+0x0004 = PhysicalChannel
+0x0005 = TSUpstreamBandwidth
+0x0006 = TSDownstreamBandwidth
+0x0007 = AtmSvcConnection
+0x0008 = ConnectionNotify
+0x0009 = IP
+0x000A = ClientTDMAAssignment
+0x000B = PSTNSetup
+0x000C = NISDNSetup
+0x000D = NISDNConnection
+0x000E = Q.922Connections
+0x000F = HeadEndList
+0x0010 = AtmVcConnection
+0x0011 = SdbContinuousFeed
+0x0012 = SdbAssociations
+0x0013 = SdbEntitlement
+0x7FFE = SharedResource
+0x7FFF = SharedRequestId
+0xFFFF = TypeOwner

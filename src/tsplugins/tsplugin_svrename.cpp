@@ -15,7 +15,6 @@
 #include "tsService.h"
 #include "tsSectionDemux.h"
 #include "tsCyclingPacketizer.h"
-#include "tsAlgorithm.h"
 #include "tsEITProcessor.h"
 #include "tsPAT.h"
 #include "tsPMT.h"
@@ -194,7 +193,7 @@ void ts::SVRenamePlugin::handleTable(SectionDemux& demux, const BinaryTable& tab
 {
     if (debug()) {
         debug(u"Got %s v%d, PID %n, TIDext %n",
-              TIDName(duck, table.tableId()), table.version(),
+              TIDName(duck, table.tableId(), table.sourcePID()), table.version(),
               table.sourcePID(), table.tableIdExtension());
     }
 

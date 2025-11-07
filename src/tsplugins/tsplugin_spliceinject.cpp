@@ -25,28 +25,28 @@
 
 namespace {
     // Default maximum number of sections in queue.
-    const size_t DEFAULT_SECTION_QUEUE_SIZE = 100;
+    constexpr size_t DEFAULT_SECTION_QUEUE_SIZE = 100;
 
     // Default interval between two poll operations.
-    const cn::milliseconds DEFAULT_POLL_INTERVAL = cn::milliseconds(500);
+    constexpr cn::milliseconds DEFAULT_POLL_INTERVAL = cn::milliseconds(500);
 
     // Default minimum file stability delay.
-    const cn::milliseconds DEFAULT_MIN_STABLE_DELAY = cn::milliseconds(500);
+    constexpr cn::milliseconds DEFAULT_MIN_STABLE_DELAY = cn::milliseconds(500);
 
     // Default start delay for non-immediate splice_insert() and time_signal() commands.
-    const cn::milliseconds DEFAULT_START_DELAY = cn::milliseconds(2000);
+    constexpr cn::milliseconds DEFAULT_START_DELAY = cn::milliseconds(2000);
 
     // Default inject interval for non-immediate splice_insert() and time_signal() commands.
-    const cn::milliseconds DEFAULT_INJECT_INTERVAL = cn::milliseconds(800);
+    constexpr cn::milliseconds DEFAULT_INJECT_INTERVAL = cn::milliseconds(800);
 
     // Default inject count for non-immediate splice_insert() and time_signal() commands.
-    const size_t DEFAULT_INJECT_COUNT = 2;
+    constexpr size_t DEFAULT_INJECT_COUNT = 2;
 
     // Default max size for files.
-    const std::uintmax_t DEFAULT_MAX_FILE_SIZE = 2048;
+    constexpr std::uintmax_t DEFAULT_MAX_FILE_SIZE = 2048;
 
     // Stack size of listener threads.
-    const size_t SERVER_THREAD_STACK_SIZE = 128 * 1024;
+    constexpr size_t SERVER_THREAD_STACK_SIZE = 128 * 1024;
 }
 
 
@@ -70,28 +70,29 @@ namespace ts {
 
     private:
         // Command line options:
-        bool              _use_files = false;         // Use file polling input.
-        bool              _use_udp = false;           // Use UDP input.
-        bool              _delete_files = false;
-        bool              _reuse_port = false;
-        bool              _wait_first_batch = false;  // Option --wait-first-batch (wfb).
-        PID               _inject_pid_opt = PID_NULL; // PID for injection, as specified in cmmand line.
-        PID               _pcr_pid_opt = PID_NULL;    // PID containing PCR's, as specified in cmmand line.
-        PID               _pts_pid_opt = PID_NULL;    // PID containing PTS's, as specified in cmmand line.
-        BitRate           _min_bitrate = 0;
-        PacketCounter     _min_inter_packet = 0;
-        UString           _files {};
-        UString           _service_ref {};            // Service name or id.
-        IPSocketAddress   _server_address {};
-        size_t            _sock_buf_size = 0;
-        size_t            _inject_count = 0;
-        cn::milliseconds  _inject_interval {};
-        cn::milliseconds  _start_delay = {};
-        cn::milliseconds  _poll_interval {};
-        cn::milliseconds  _min_stable_delay {};
-        std::uintmax_t    _max_file_size = 0;
-        size_t            _queue_size = 0;
-        SectionPtr        _null_splice {};            // A null splice section to maintain PID bitrate.
+        bool             _use_files = false;         // Use file polling input.
+        bool             _use_udp = false;           // Use UDP input.
+        bool             _delete_files = false;
+        bool             _reuse_port = false;
+        bool             _ignore_pid_conflict = false;
+        bool             _wait_first_batch = false;  // Option --wait-first-batch (wfb).
+        PID              _inject_pid_opt = PID_NULL; // PID for injection, as specified in cmmand line.
+        PID              _pcr_pid_opt = PID_NULL;    // PID containing PCR's, as specified in cmmand line.
+        PID              _pts_pid_opt = PID_NULL;    // PID containing PTS's, as specified in cmmand line.
+        BitRate          _min_bitrate = 0;
+        PacketCounter    _min_inter_packet = 0;
+        UString          _files {};
+        UString          _service_ref {};            // Service name or id.
+        IPSocketAddress  _server_address {};
+        size_t           _sock_buf_size = 0;
+        size_t           _inject_count = 0;
+        cn::milliseconds _inject_interval {};
+        cn::milliseconds _start_delay = {};
+        cn::milliseconds _poll_interval {};
+        cn::milliseconds _min_stable_delay {};
+        std::uintmax_t   _max_file_size = 0;
+        size_t           _queue_size = 0;
+        SectionPtr       _null_splice {};            // A null splice section to maintain PID bitrate.
 
         // The plugin contains two internal threads in addition to the packet processing thread.
         // One thread polls input files and another thread receives UDP messages.
@@ -143,8 +144,8 @@ namespace ts {
 
         private:
             SpliceInjectPlugin* const _plugin;
-            PollFiles                 _poller {UString(), this, PollFiles::DEFAULT_POLL_INTERVAL, PollFiles::DEFAULT_MIN_STABLE_DELAY, *_plugin};
-            volatile bool             _terminate = false;
+            volatile bool _terminate = false;
+            PollFiles _poller {UString(), this, PollFiles::DEFAULT_POLL_INTERVAL, PollFiles::DEFAULT_MIN_STABLE_DELAY, *_plugin};
 
             // Implementation of Thread.
             virtual void main() override;
@@ -168,8 +169,8 @@ namespace ts {
 
         private:
             SpliceInjectPlugin* const _plugin;
-            UDPReceiver               _client {*_plugin};
-            volatile bool             _terminate = false;
+            volatile bool _terminate = false;
+            UDPReceiver _client {*_plugin};
 
             // Implementation of Thread.
             virtual void main() override;
@@ -179,23 +180,26 @@ namespace ts {
         // Plugin working data
         // -------------------
 
-        bool             _abort = false;               // Error found, abort asap.
-        ServiceDiscovery _service {duck, this};        // Service holding the SCTE 35 injection.
-        FileListener     _file_listener {this};        // File listener thread.
-        UDPListener      _udp_listener {this};         // UDP listener thread.
-        CommandQueue     _queue {};                    // Queue for splice commands.
+        bool             _abort = false;                 // Error found, abort asap.
+        bool             _pid_conflict_detected = false; // A PID conflict was detected with the splice PID.
+        bool             _input_pids_checked = false;    // _input_pids has been checked right after finding _inject_pid_act.
+        ServiceDiscovery _service {duck, this};          // Service holding the SCTE 35 injection.
+        FileListener     _file_listener {this};          // File listener thread.
+        UDPListener      _udp_listener {this};           // UDP listener thread.
+        CommandQueue     _queue {};                      // Queue for splice commands.
         Packetizer       _packetizer {duck, PID_NULL, this};  // Packetizer for Splice Information sections.
-        uint64_t         _last_pts = INVALID_PTS;      // Last PTS value from a clock reference.
-        PID              _inject_pid_act = PID_NULL;   // PID for injection, actual.
-        PID              _pcr_pid_act = PID_NULL;      // PID containing PCR's, actual.
-        PID              _pts_pid_act = PID_NULL;      // PID containing PTS's, actual.
-        PacketCounter    _last_inject_pkt = 0;         // Insertion point of last splice command packet.
-        PacketCounter    _inter_packet = 0;            // Interval between two splice command packets (0 if none speficied).
+        uint64_t         _last_pts = INVALID_PTS;        // Last PTS value from a clock reference.
+        PID              _inject_pid_act = PID_NULL;     // PID for injection, actual.
+        PID              _pcr_pid_act = PID_NULL;        // PID containing PCR's, actual.
+        PID              _pts_pid_act = PID_NULL;        // PID containing PTS's, actual.
+        PacketCounter    _last_inject_pkt = 0;           // Insertion point of last splice command packet.
+        PacketCounter    _inter_packet = 0;              // Interval between two splice command packets (0 if none specified).
+        PIDSet           _input_pids {};                 // Keep track of input PID's as long as splice PID is unknown.
 
         // Specific support for deterministic start (wfb = wait first batch, non-regression testing).
-        volatile bool    _wfb_received = false;        // First batch was received.
-        std::mutex       _wfb_mutex {};                // Mutex waiting for _wfb_received.
-        std::condition_variable _wfb_condition{};      // Condition waiting for _wfb_received.
+        volatile bool    _wfb_received = false;          // First batch was received.
+        std::mutex       _wfb_mutex {};                  // Mutex waiting for _wfb_received.
+        std::condition_variable _wfb_condition{};        // Condition waiting for _wfb_received.
 
         // Implementation of SignalizationHandlerInterface.
         virtual void handlePMT(const PMT&, PID) override;
@@ -206,6 +210,9 @@ namespace ts {
 
         // Process a section file or message. Invoked from listener threads.
         void processSectionMessage(const uint8_t*, size_t);
+
+        // Check if the specified PID creates a conflict with the inject PID. Return false on error.
+        bool checkPIDConflict(PID pid);
     };
 }
 
@@ -261,6 +268,13 @@ ts::SpliceInjectPlugin::SpliceInjectPlugin(TSP* tsp_) :
          u"When such a file is created or updated, it is loaded and its "
          u"content is interpreted as binary, XML or JSON tables. "
          u"All tables shall be splice information tables.");
+
+    option(u"ignore-pid-conflict");
+    help(u"ignore-pid-conflict",
+         u"Ignore conflicts between the splice PID (option --pid) and an existing identical PID. "
+         u"By default, this is an error if existing input packets have the same PID as the splice PID. "
+         u"Using this option may lead to incorrect streams, use with care. "
+         u"A verbose-level message is still displayed the first time a PID conflict is detected.");
 
     option(u"inject-count", 0, UNSIGNED);
     help(u"inject-count",
@@ -394,6 +408,7 @@ bool ts::SpliceInjectPlugin::getOptions()
     getChronoValue(_min_stable_delay, u"min-stable-delay", DEFAULT_MIN_STABLE_DELAY);
     getIntValue(_queue_size, u"queue-size", DEFAULT_SECTION_QUEUE_SIZE);
     _wait_first_batch = present(u"wait-first-batch");
+    _ignore_pid_conflict = present(u"ignore-pid-conflict");
 
     // We need either a service or specified PID's.
     if (_service_ref.empty() && (_inject_pid_opt == PID_NULL || _pts_pid_opt == PID_NULL)) {
@@ -427,6 +442,11 @@ bool ts::SpliceInjectPlugin::start()
     _inject_pid_act = _inject_pid_opt;
     _pcr_pid_act = _pcr_pid_opt;
     _pts_pid_act = _pts_pid_opt;
+
+    // PID conflict detection.
+    _pid_conflict_detected = false;
+    _input_pids_checked = _inject_pid_act != PID_NULL;
+    _input_pids.reset();
 
     // Interval between two splice command packets.
     const BitRate initial_bitrate = tsp->bitrate();
@@ -504,7 +524,9 @@ bool ts::SpliceInjectPlugin::stop()
 
 ts::ProcessorPlugin::Status ts::SpliceInjectPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
+    // Detect PID conflict with injection PID.
     const PID pid = pkt.getPID();
+    checkPIDConflict(pid);
 
     // Feed the service finder with the packet as long as the required PID's are not found.
     if (_inject_pid_act == PID_NULL || _pts_pid_act == PID_NULL) {
@@ -546,11 +568,52 @@ ts::ProcessorPlugin::Status ts::SpliceInjectPlugin::processPacket(TSPacket& pkt,
 
 
 //----------------------------------------------------------------------------
+// Check if the specified PID creates a conflict with the inject PID.
+//----------------------------------------------------------------------------
+
+bool ts::SpliceInjectPlugin::checkPIDConflict(PID pid)
+{
+    // Keep track of input PID's as long as the splice PID is unknown.
+    if (_inject_pid_act == PID_NULL) {
+        _input_pids.set(pid);
+        return true;
+    }
+
+    // First time after _inject_pid_act becomes non-null.
+    if (!_input_pids_checked) {
+        _input_pids_checked = true;
+        if (_input_pids.test(_inject_pid_act)) {
+            _pid_conflict_detected = true;
+            log(_ignore_pid_conflict ? Severity::Verbose : Severity::Error, u"PID conflict: PID %n for SCTE-35 injection was previously detected in input stream", _inject_pid_act);
+            if (!_ignore_pid_conflict) {
+                _abort = true;
+                return false;
+            }
+        }
+    }
+
+    // Finally check if the specified PID conflicts.
+    if (pid == _inject_pid_act) {
+        if (!_ignore_pid_conflict) {
+            error(u"PID conflict: PID %n for SCTE-35 injection detected in input stream", pid);
+            _abort = true;
+            return false;
+        }
+        if (!_pid_conflict_detected) {
+            _pid_conflict_detected = true;
+            verbose(u"PID conflict: PID %n for SCTE-35 injection detected in input stream", pid);
+        }
+    }
+    return true;
+}
+
+
+//----------------------------------------------------------------------------
 // Invoked when the PMT of the service is found.
 // Implementation of SignalizationHandlerInterface.
 //----------------------------------------------------------------------------
 
-void ts::SpliceInjectPlugin::handlePMT(const PMT& pmt, PID)
+void ts::SpliceInjectPlugin::handlePMT(const PMT& pmt, PID pid)
 {
     // Get the PID with PCR's.
     if (_pcr_pid_act == PID_NULL) {
@@ -568,6 +631,7 @@ void ts::SpliceInjectPlugin::handlePMT(const PMT& pmt, PID)
             // Found an SCTE 35 splice information stream, use its PID.
             _inject_pid_act = it.first;
             _packetizer.setPID(_inject_pid_act);
+            checkPIDConflict(pid);
         }
     }
 
@@ -753,7 +817,7 @@ void ts::SpliceInjectPlugin::processSectionMessage(const uint8_t* addr, size_t s
         SectionPtr sec(*it);
         if (sec != nullptr) {
             if (sec->tableId() != TID_SCTE35_SIT) {
-                error(u"unexpected section, %s, ignored", TIDName(duck, sec->tableId(), CASID_NULL, NamesFlags::NAME_VALUE));
+                error(u"unexpected section, %s, ignored", TIDName(duck, sec->tableId(), sec->sourcePID(), CASID_NULL, NamesFlags::NAME_VALUE));
             }
             else {
                 CommandPtr cmd(new SpliceCommand(this, sec));

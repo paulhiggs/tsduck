@@ -284,6 +284,12 @@ namespace ts {
         bool isShortSection() const;
 
         //!
+        //! Check if this is a table with long sections.
+        //! @return True if this is a table with long sections.
+        //!
+        bool isLongSection() const;
+
+        //!
         //! Set a generic user-defined string as "attribute" of the object.
         //! The semantics of this attribute string is not defined. It is used by the application.
         //! The attribute string can be found in the `<metadata>` structure of the XML representation of a table.
@@ -340,7 +346,7 @@ namespace ts {
         bool fromXML(DuckContext& duck, const xml::Element* node);
 
         // Implementation of AbstractDefinedByStandards
-        virtual Standards definingStandards() const override;
+        virtual Standards definingStandards(Standards current_standards = Standards::NONE) const override;
 
     private:
         BinaryTable(const BinaryTable& table) = delete;

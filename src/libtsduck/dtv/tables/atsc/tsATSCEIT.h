@@ -52,9 +52,9 @@ namespace ts {
         //!
         //! List of events.
         //!
-        using EventList = EntryWithDescriptorsList<Event>;
+        using EventList = AttachedEntryList<Event>;
 
-        // EIT public members:
+        // ATSCEIT public members:
         uint16_t  source_id = 0;         //!< EIT source id.
         uint8_t   protocol_version = 0;  //!< ATSC protocol version.
         EventList events;                //!< List of events.

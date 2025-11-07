@@ -1,0 +1,282 @@
+#-----------------------------------------------------------------------------
+#
+#  TSDuck - The MPEG Transport Stream Toolkit
+#  Copyright (c) 2005-2025, Thierry Lelegard
+#  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
+#
+#  GitHub Actions configuration file : Create a release.
+#
+#  Generate binaries for Ubuntu, Debian, Fedora, Red Hat, and Windows
+#  on Intel x64 and Arm64. The Linux binaries are built on Docker
+#  containers running a Ubunty GitHub runner host. All binaries are
+#  published as artifacts of the workflow. These binaries can be used
+#  to create a new release or update the latest one.
+#
+#-----------------------------------------------------------------------------
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Create release after build'
+        type: choice
+        required: false
+        default: 'none'
+        options:
+        - none
+        - update-last
+        - draft
+        - pre-release
+        - official
+      build_x64:
+        description: 'Build Intel x64 packages'
+        type: boolean
+        required: false
+        default: true
+      build_arm64:
+        description: 'Build Arm64 packages'
+        type: boolean
+        required: false
+        default: true
+      build_docs:
+        description: 'Build documentation'
+        type: boolean
+        required: false
+        default: false
+      ubuntu_image:
+        description: 'Ubuntu docker image'
+        type: choice
+        required: false
+        default: 'ubuntu:latest'
+        options:
+        - none
+        - ubuntu:latest
+        - ubuntu:25.10
+        - ubuntu:24.04
+      debian_image:
+        description: 'Debian docker image'
+        type: choice
+        required: false
+        default: 'debian:latest'
+        options:
+        - none
+        - debian:latest
+        - debian:13
+      fedora_image:
+        description: 'Fedora docker image'
+        type: choice
+        required: false
+        default: 'fedora:latest'
+        options:
+        - none
+        - fedora:latest
+        - fedora:43
+        - fedora:42
+      redhat_image:
+        description: 'Red Hat docker image'
+        type: choice
+        required: false
+        default: 'almalinux:latest'
+        options:
+        - none
+        - almalinux:latest
+        - almalinux:10
+        - almalinux:9
+        - rockylinux:9
+        - oraclelinux:10
+        - oraclelinux:9
+      windows_runner:
+        description: 'Windows runner'
+        type: choice
+        required: false
+        default: 'windows-latest'
+        options:
+        - none
+        - windows-latest
+        - windows-11-arm
+
+jobs:
+  # Identify target tag if release_type is "update-last".
+  init:
+    name: Initialization
+    runs-on: ubuntu-latest
+    outputs:
+      # Tag of last version, empty if release_type is not "update-last".
+      tag: ${{ steps.get_vars.outputs.tag }}
+      retention_days: ${{ steps.get_vars.outputs.retention }}
+      workflow: ${{ steps.identify.outputs.workflow }}
+    permissions:
+      # Required to get draft releases
+      contents: write
+    steps:
+    - name: Identify workflow run
+      id: identify
+      run: |
+        WF="${{ github.workflow_ref }}"
+        WF=$(basename ${WF/@*/} .yml)
+        echo "workflow=$WF" >>$GITHUB_OUTPUT
+        echo "Workflow: $WF"
+        echo "Workflow run id: ${{ github.run_id }}"
+        echo "Workflow run number: ${{ github.run_number }}"
+        echo "Workflow run attempt: ${{ github.run_attempt }}"
+    - name: Install prerequisites
+      # Getting the tag of the last release requires curl and jq.
+      if: inputs.release_type == 'update-last'
+      run: sudo apt install -y curl jq
+    - name: Get TSDuck repo
+      # Getting the current version needs the content of the repo.
+      if: inputs.release_type != 'update-last'
+      uses: actions/checkout@master
+    - name: Get version
+      id: get_vars
+      run: |
+        if [[ ${{ inputs.release_type }} == update-last ]]; then
+            # Get most recent release, including draft and pre-release.
+            # Note using "release/latest" would return the latest release, excluding draft and pre-release.
+            tag=$(curl -sSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                       "https://api.github.com/repos/${{ github.repository }}/releases?per_page=1" | \
+                  jq -r '.[].tag_name')
+            tag=${tag/#null/}
+            version=${tag/#v/}
+            echo "Tag to build: $tag"
+        else
+            tag=
+            version=$(scripts/get-version-from-sources.py)
+            echo "Build the latest commit (version $version)"
+        fi
+        retention=${{ vars.ARTIFACT_RETENTION_DAYS || 5 }}
+        echo "Artifacts retention days: $retention"
+        echo "retention=$retention" >>$GITHUB_OUTPUT
+        echo "tag=$tag" >>$GITHUB_OUTPUT
+        echo "$version" >version.txt
+    - name: Upload version
+      uses: actions/upload-artifact@v4
+      with:
+        name: version
+        path: version.txt
+        retention-days: ${{ fromJSON(steps.get_vars.outputs.retention) }}
+
+  # Build on Linux, several distros and architectures, using containers.
+  linux:
+    needs: [init]
+    strategy:
+      # If a job fails, do not abort others.
+      fail-fast: false
+      matrix:
+        distro: [ubuntu, debian, fedora, redhat]
+        arch: [x64, arm64]
+        include:
+        - arch: x64
+          build_arch: ${{ inputs.build_x64 }}
+          runner: ubuntu-latest
+        - arch: arm64
+          build_arch: ${{ inputs.build_arm64 }}
+          runner: ubuntu-24.04-arm
+        - distro: ubuntu
+          build_distro: ${{ inputs.ubuntu_image != 'none' }}
+          image: ${{ inputs.ubuntu_image }}
+          setup_command: apt update; apt install -y sudo git lsb-release
+          package_options:
+        - distro: debian
+          build_distro: ${{ inputs.debian_image != 'none' }}
+          image: ${{ inputs.debian_image }}
+          setup_command: apt update; apt install -y sudo git lsb-release
+          package_options:
+        - distro: fedora
+          build_distro: ${{ inputs.fedora_image != 'none' }}
+          image: ${{ inputs.fedora_image }}
+          setup_command: dnf install -y sudo git
+          package_options: --allowerasing
+        - distro: redhat
+          build_distro: ${{ inputs.redhat_image != 'none' }}
+          image: ${{ inputs.redhat_image }}
+          setup_command: dnf install -y sudo git
+          package_options: --allowerasing
+    name: Build on ${{ matrix.distro }} for ${{ matrix.arch }}
+    # Warning: "matrix" is not accepted in "jobs.job.if". However, it is in "jobs.job.with".
+    # Therefore "if: matrix.build_arch && matrix.build_distro" is not allowed here.
+    # See https://github.com/orgs/community/discussions/37883 for a discussion on the subject.
+    uses: ./.github/workflows/release-linux.yml
+    with:
+      build: ${{ matrix.build_arch && matrix.build_distro }}
+      tag: ${{ needs.init.outputs.tag }}
+      arch: ${{ matrix.arch }}
+      distro: ${{ matrix.distro }}
+      runner: ${{ matrix.runner }}
+      image: ${{ matrix.image }}
+      setup_command: ${{ matrix.setup_command }}
+      package_options: ${{ matrix.package_options }}
+      retention_days: ${{ fromJSON(needs.init.outputs.retention_days) }}
+
+  # Build Win64 and Arm64 packages in one pass to get the two sets of libraries in the installers.
+  # The runner can be a x64 or arm64 system. Even though one single runner can build the two packages,
+  # there is only one package which can be tested, the one with the same architecture as the runner.
+  # If only one package is built, it is recommended to select a runner of the same architecture.
+  # Otherwise, the package won't be tested after build.
+  windows:
+    name: Build on Windows
+    needs: [init]
+    uses: ./.github/workflows/release-windows.yml
+    with:
+      build: ${{ inputs.windows_runner != 'none' && (inputs.build_x64 || inputs.build_arm64) }}
+      tag: ${{ needs.init.outputs.tag }}
+      build_x64: ${{ inputs.build_x64 }}
+      build_arm64: ${{ inputs.build_arm64 }}
+      runner: ${{ inputs.windows_runner }}
+      retention_days: ${{ fromJSON(needs.init.outputs.retention_days) }}
+
+  # Build documentation.
+  docs:
+    name: Build documentation
+    needs: [init]
+    uses: ./.github/workflows/release-docs.yml
+    with:
+      build: ${{ inputs.build_docs }}
+      tag: ${{ needs.init.outputs.tag }}
+      build_guides: true
+      build_doxy: true
+      retention_days: ${{ fromJSON(needs.init.outputs.retention_days) }}
+
+  # Final job: create or update release (if release_type is not 'none').
+  # Do it even if a previous build fails. This way, we include everything that was build
+  # so far and we can restart later only with missing packages and 'update-last' release.
+  release:
+    name: Create or update release
+    if: always() && inputs.release_type != 'none'
+    needs: [init, linux, windows, docs]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Get TSDuck repo
+      uses: actions/checkout@master
+    - name: Install dependencies
+      run: sudo apt install -y python3-github
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: pkg/installers
+    - name: Extract artifacts
+      run: |
+        # Each artifact has been downloaded as a directory containing the actual file.
+        cd pkg/installers
+        for f in $(ls -d tsduck-*-x64 tsduck-*-arm64 2>/dev/null || true); do
+            if [[ -d $f ]]; then
+                mv $f/* .
+                rmdir $f
+            fi
+        done
+        ls -lR
+    - name: Create or update release
+      run: |
+        echo "Using repository ${{ github.repository }}"
+        case ${{ inputs.release_type }} in
+            update-last) opt="--update --tag ${{ needs.init.outputs.tag }}" ;;
+            draft)       opt="--create --missing --draft" ;;
+            pre-release) opt="--create --missing --pre" ;;
+            official)    opt="--create --missing" ;;
+            *) echo "Invalid release_type: ${{ inputs.release_type }}"; exit 1 ;;
+        esac
+        pkg/github/release.py --repo ${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} $opt

@@ -11,14 +11,25 @@
 #include "tsNullReport.h"
 #include "tsSysUtils.h"
 
-// Network timestampting feature in Linux.
-#if defined(TS_LINUX)
-    #include <linux/net_tstamp.h>
-#endif
-
-// Furiously idiotic Windows feature, see comment in receiveOne()
 #if defined(TS_WINDOWS)
-    volatile ::LPFN_WSARECVMSG ts::UDPSocket::_wsaRevcMsg = nullptr;
+    #include "tsBeforeStandardHeaders.h"
+    #include <mstcpip.h>
+    #include "tsAfterStandardHeaders.h"
+#elif defined(TS_LINUX)
+    #include "tsBeforeStandardHeaders.h"
+    #include <linux/errqueue.h>
+    #include <linux/net_tstamp.h>
+    #include <linux/sockios.h>
+    #include "tsAfterStandardHeaders.h"
+    #if defined(SO_TIMESTAMPING_NEW)
+        #define TS_SO_TIMESTAMPING SO_TIMESTAMPING_NEW
+        #define TS_SCM_TIMESTAMPING SO_TIMESTAMPING_NEW  // SCM_TIMESTAMPING_NEW not defined
+        #define TS_STRUCT_SCM_TIMESTAMPING ::scm_timestamping64
+    #elif defined(SO_TIMESTAMPING)
+        #define TS_SO_TIMESTAMPING SO_TIMESTAMPING
+        #define TS_SCM_TIMESTAMPING SCM_TIMESTAMPING
+        #define TS_STRUCT_SCM_TIMESTAMPING ::scm_timestamping
+    #endif
 #endif
 
 
@@ -302,8 +313,20 @@ bool ts::UDPSocket::setMulticastLoop(bool on, Report& report)
 
 bool ts::UDPSocket::setReceiveTimestamps(bool on, Report& report)
 {
-    // The option exists only on Linux and is silently ignored on other systems.
-#if defined(TS_LINUX)
+#if defined(TS_WINDOWS)
+
+    ::TIMESTAMPING_CONFIG config;
+    TS_ZERO(config);
+    config.Flags = TIMESTAMPING_FLAG_RX;
+    ::DWORD bytes = 0;
+    if (::WSAIoctl(getSocket(), SIO_TIMESTAMPING, &config, sizeof(config), nullptr, 0, &bytes, nullptr, nullptr) != 0) {
+        report.error(u"socket option SIO_TIMESTAMPING: %s", SysErrorCodeMessage(::WSAGetLastError()));
+        return false;
+    }
+
+#else
+
+#if defined(SO_TIMESTAMPNS)
     // Set SO_TIMESTAMPNS option which reports timestamps in nanoseconds (struct timespec).
     int enable = int(on);
     report.debug(u"setting socket SO_TIMESTAMPNS to %d", enable);
@@ -311,7 +334,29 @@ bool ts::UDPSocket::setReceiveTimestamps(bool on, Report& report)
         report.error(u"socket option SO_TIMESTAMPNS: %s", SysErrorCodeMessage());
         return false;
     }
+#elif defined(SO_TIMESTAMP)
+    // Set SO_TIMESTAMP option which reports timestamps in microseconds (struct timeval).
+    int enable = int(on);
+    report.debug(u"setting socket SO_TIMESTAMP to %d", enable);
+    if (::setsockopt(getSocket(), SOL_SOCKET, SO_TIMESTAMP, &enable, sizeof(enable)) != 0) {
+        report.error(u"socket option SO_TIMESTAMP: %s", SysErrorCodeMessage());
+        return false;
+    }
 #endif
+
+#if defined(TS_SO_TIMESTAMPING)
+    // Set SO_TIMESTAMPING to request hardware timestamps, when available.
+    int val = SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RX_SOFTWARE |
+              SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RAW_HARDWARE;
+    report.debug(u"setting socket SO_TIMESTAMPING to %d", val);
+    if (::setsockopt(getSocket(), SOL_SOCKET, TS_SO_TIMESTAMPING, &val, sizeof(val)) != 0) {
+        report.error(u"socket option SO_TIMESTAMPING: %s", SysErrorCodeMessage());
+        return false;
+    }
+#endif
+
+#endif // Windows vs. UNIX
+
     return true;
 }
 
@@ -580,7 +625,8 @@ bool ts::UDPSocket::receive(void* data,
                             IPSocketAddress& destination,
                             const AbortInterface* abort,
                             Report& report,
-                            cn::microseconds* timestamp)
+                            cn::microseconds* timestamp,
+                            TimeStampType* timestamp_type)
 {
     // Clear timestamp if specified.
     if (timestamp != nullptr) {
@@ -591,7 +637,7 @@ bool ts::UDPSocket::receive(void* data,
     for (;;) {
 
         // Wait for a message.
-        const int err = receiveOne(data, max_size, ret_size, sender, destination, report, timestamp);
+        const int err = receiveOne(data, max_size, ret_size, sender, destination, report, timestamp, timestamp_type);
 
         if (abort != nullptr && abort->aborting()) {
             // Aborting, no error message.
@@ -626,6 +672,43 @@ bool ts::UDPSocket::receive(void* data,
 
 
 //----------------------------------------------------------------------------
+// Dynamically resolve WSARecvMsg() on Windows.
+// Implemented as a static function to allow "initialize once" later.
+//
+// On all operating systems, recvmsg() is used to receive a UDP message with
+// additional information such as sender address, timestamps and other info.
+// On Windows, all socket operations are smoothly emulated, including recvfrom,
+// allowing a reasonable portability. However, in the specific case of recvmsg,
+// there is no equivalent but a similar - and carefully incompatible - function
+// named WSARecvMsg. Not only this function is different from recvmsg, but it
+// is also not exported from any DLL. Its address must be queried dynamically
+// using WSAIoctl(). The stupid idiot who had this pervert idea at Microsoft
+// deserves to burn in hell (twice) !!
+//----------------------------------------------------------------------------
+
+#if defined(TS_WINDOWS)
+namespace {
+    // Get the address of a WSA extension function.
+    ::LPFN_WSARECVMSG GetWSAFunction(::GUID& guid, int& error)
+    {
+        ::LPFN_WSARECVMSG func_address = nullptr;
+        ::DWORD bytes = 0;
+        const ::SOCKET sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (sock == INVALID_SOCKET) {
+            error = ::WSAGetLastError();
+            return nullptr;
+        }
+        if (::WSAIoctl(sock, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid), &func_address, sizeof(func_address), &bytes, nullptr, nullptr) != 0) {
+            error = ::WSAGetLastError();
+        }
+        ::closesocket(sock);
+        return func_address;
+    }
+}
+#endif
+
+
+//----------------------------------------------------------------------------
 // Perform one receive operation. Hide the system mud.
 //----------------------------------------------------------------------------
 
@@ -635,45 +718,33 @@ int ts::UDPSocket::receiveOne(void* data,
                               IPSocketAddress& sender,
                               IPSocketAddress& destination,
                               Report& report,
-                              cn::microseconds* timestamp)
+                              cn::microseconds* timestamp,
+                              TimeStampType* timestamp_type)
 {
     // Clear returned values
     ret_size = 0;
     sender.clear();
     destination.clear();
+    if (timestamp != nullptr) {
+        *timestamp = cn::microseconds(-1);
+    }
+    if (timestamp_type != nullptr) {
+        *timestamp_type = TimeStampType::NONE;
+    }
 
     // Reserve a socket address to receive the sender address.
     ::sockaddr_storage sender_sock;
     TS_ZERO(sender_sock);
 
-    // Normally, this operation should be done quite easily using recvmsg.
-    // On Windows, all socket operations are smoothly emulated, including
-    // recvfrom, allowing a reasonable portability. However, in the specific
-    // case of recvmsg, there is no equivalent but a similar - and carefully
-    // incompatible - function named WSARecvMsg. Not only this function is
-    // different from recvmsg, but it is also not exported from any DLL.
-    // Its address must be queried dynamically. The stupid idiot who had
-    // this pervert idea at Microsoft deserves to burn in hell (twice) !!
-
 #if defined(TS_WINDOWS)
 
-    // First, get the address of WSARecvMsg the first time we use it.
-    if (_wsaRevcMsg == nullptr) {
-        ::LPFN_WSARECVMSG funcAddress = nullptr;
-        ::GUID guid = WSAID_WSARECVMSG;
-        ::DWORD dwBytes = 0;
-        const ::SOCKET sock = ::socket(AF_INET, SOCK_DGRAM, 0);
-        if (sock == INVALID_SOCKET) {
-            return LastSysErrorCode();
-        }
-        if (::WSAIoctl(sock, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid), &funcAddress, sizeof(funcAddress), &dwBytes, 0, 0) != 0) {
-            const int err = LastSysErrorCode();
-            ::closesocket(sock);
-            return err;
-        }
-        ::closesocket(sock);
-        // Now update the volatile value.
-        _wsaRevcMsg = funcAddress;
+    // Get the address of WSARecvMsg the first time we use it.
+    // Thread-safe init-safe static data pattern:
+    static ::GUID wsa_recvmsg_guid = WSAID_WSARECVMSG;
+    static int wsa_recvmsg_error = 0;
+    static const ::LPFN_WSARECVMSG wsa_recvmsg = GetWSAFunction(wsa_recvmsg_guid, wsa_recvmsg_error);
+    if (wsa_recvmsg == nullptr) {
+        return wsa_recvmsg_error;
     }
 
     // Build an WSABUF pointing to the message.
@@ -698,19 +769,33 @@ int ts::UDPSocket::receiveOne(void* data,
 
     // Wait for a message.
     ::DWORD insize = 0;
-    if (_wsaRevcMsg(getSocket(), &msg, &insize, 0, 0)  != 0) {
+    if (wsa_recvmsg(getSocket(), &msg, &insize, nullptr, nullptr) != 0) {
         return LastSysErrorCode();
     }
 
     // Browse returned ancillary data.
-    for (::WSACMSGHDR* cmsg = WSA_CMSG_FIRSTHDR(&msg); cmsg != 0; cmsg = WSA_CMSG_NXTHDR(&msg, cmsg)) {
-        if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO) {
+    for (::WSACMSGHDR* cmsg = WSA_CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = WSA_CMSG_NXTHDR(&msg, cmsg)) {
+        if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO && cmsg->cmsg_len >= sizeof(::IN_PKTINFO)) {
             const ::IN_PKTINFO* info = reinterpret_cast<const ::IN_PKTINFO*>(WSA_CMSG_DATA(cmsg));
             destination = IPSocketAddress(info->ipi_addr, _local_address.port());
         }
-        else if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
+        else if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO && cmsg->cmsg_len >= sizeof(::IN6_PKTINFO)) {
             const ::IN6_PKTINFO* info = reinterpret_cast<const ::IN6_PKTINFO*>(WSA_CMSG_DATA(cmsg));
             destination = IPSocketAddress(info->ipi6_addr, _local_address.port());
+        }
+        else if (timestamp != nullptr && cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMP && cmsg->cmsg_len >= sizeof(uint64_t)) {
+            const uint64_t* ts = reinterpret_cast<const uint64_t*>(WSA_CMSG_DATA(cmsg));
+            if (ts != nullptr && *ts != 0) {
+                // Got a timestamp. Its frequency is returned by QueryPerformanceFrequency().
+                ::LARGE_INTEGER freq;
+                TS_ZERO(freq);
+                if (QueryPerformanceFrequency(&freq) && freq.QuadPart != 0) {
+                    *timestamp = cn::microseconds((*ts * 1'000'000) / freq.QuadPart);
+                    if (timestamp_type != nullptr) {
+                        *timestamp_type = TimeStampType::SOFTWARE;
+                    }
+                }
+            }
         }
     }
 
@@ -744,6 +829,9 @@ int ts::UDPSocket::receiveOne(void* data,
         return LastSysErrorCode();
     }
 
+    // On Linux, keep timestamp from SO_TIMESTAMPING over SO_TIMESTAMPNS when both are available.
+    [[maybe_unused]] bool got_timestamp = false;
+
     TS_PUSH_WARNING()
     TS_GCC_NOWARNING(zero-as-null-pointer-constant) // invalid definition of CMSG_NXTHDR in musl libc (Alpine Linux)
 #if defined(TS_OPENBSD)
@@ -774,18 +862,67 @@ int ts::UDPSocket::receiveOne(void* data,
         }
 #endif
 
-        // On Linux, look for receive timestamp.
-#if defined(TS_LINUX)
-        if (timestamp != nullptr && cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMPNS && cmsg->cmsg_len >= sizeof(::timespec)) {
-            // System time stamp in nanosecond.
-            const ::timespec* ts = reinterpret_cast<const ::timespec*>(CMSG_DATA(cmsg));
-            const cn::nanoseconds::rep nano = cn::nanoseconds::rep(ts->tv_sec) * 1'000'000'000 + cn::nanoseconds::rep(ts->tv_nsec);
-            // System time stamp is valid when not zero, convert it to micro-seconds.
-            if (nano != 0) {
-                *timestamp = cn::duration_cast<cn::microseconds>(cn::nanoseconds(nano));
+        // Look for receive timestamp.
+        if (timestamp != nullptr && !got_timestamp && cmsg->cmsg_level == SOL_SOCKET) {
+
+#if defined(SO_TIMESTAMP)
+            if (cmsg->cmsg_type == SCM_TIMESTAMP && cmsg->cmsg_len >= sizeof(::timeval)) {
+                // System timestamp in microseconds.
+                const ::timeval* ts = reinterpret_cast<const ::timeval*>(CMSG_DATA(cmsg));
+                const cn::microseconds::rep micro = cn::microseconds::rep(ts->tv_sec) * 1'000'000 + cn::microseconds::rep(ts->tv_usec);
+                // System time stamp is valid when not zero.
+                if (micro != 0) {
+                    *timestamp = cn::microseconds(micro);
+                    if (timestamp_type != nullptr) {
+                        *timestamp_type = TimeStampType::SOFTWARE;
+                    }
+                }
             }
-        }
 #endif
+
+#if defined(SO_TIMESTAMPNS)
+            if (cmsg->cmsg_type == SCM_TIMESTAMPNS && cmsg->cmsg_len >= sizeof(::timespec)) {
+                // System timestamp in nanoseconds.
+                const ::timespec* ts = reinterpret_cast<const ::timespec*>(CMSG_DATA(cmsg));
+                const cn::nanoseconds::rep nano = cn::nanoseconds::rep(ts->tv_sec) * 1'000'000'000 + cn::nanoseconds::rep(ts->tv_nsec);
+                // System time stamp is valid when not zero, convert it to micro-seconds.
+                if (nano != 0) {
+                    *timestamp = cn::duration_cast<cn::microseconds>(cn::nanoseconds(nano));
+                    if (timestamp_type != nullptr) {
+                        *timestamp_type = TimeStampType::SOFTWARE;
+                    }
+                }
+            }
+#endif
+
+#if defined(TS_SO_TIMESTAMPING)
+            if (cmsg->cmsg_type == TS_SCM_TIMESTAMPING && cmsg->cmsg_len >= sizeof(TS_STRUCT_SCM_TIMESTAMPING)) {
+                const TS_STRUCT_SCM_TIMESTAMPING* ts = reinterpret_cast<const TS_STRUCT_SCM_TIMESTAMPING*>(CMSG_DATA(cmsg));
+                // Try hardware timestamp at index 2.
+                cn::nanoseconds::rep nano = cn::nanoseconds::rep(ts->ts[2].tv_sec) * 1'000'000'000 + cn::nanoseconds::rep(ts->ts[2].tv_nsec);
+                if (nano != 0) {
+                    // Got a hardware timestamp.
+                    got_timestamp = true;
+                    *timestamp = cn::duration_cast<cn::microseconds>(cn::nanoseconds(nano));
+                    if (timestamp_type != nullptr) {
+                        *timestamp_type = TimeStampType::HARDWARE;
+                    }
+                }
+                else {
+                    // Try software timestamp at index 0.
+                    nano = cn::nanoseconds::rep(ts->ts[0].tv_sec) * 1'000'000'000 + cn::nanoseconds::rep(ts->ts[0].tv_nsec);
+                    if (nano != 0) {
+                        // Got a software timestamp.
+                        got_timestamp = true;
+                        *timestamp = cn::duration_cast<cn::microseconds>(cn::nanoseconds(nano));
+                        if (timestamp_type != nullptr) {
+                            *timestamp_type = TimeStampType::SOFTWARE;
+                        }
+                    }
+                }
+            }
+#endif
+        }
     }
 
     TS_POP_WARNING()

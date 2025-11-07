@@ -182,7 +182,7 @@ bool ts::PcapInputPlugin::getOptions()
     }
 
     // Get command line arguments for superclass and file filtering options.
-    return AbstractDatagramInputPlugin::getOptions() && _pcap_udp.loadArgs(duck, *this) && _pcap_tcp.loadArgs(duck, *this);
+    return AbstractDatagramInputPlugin::getOptions() && _pcap_udp.loadArgs(*this) && _pcap_tcp.loadArgs(*this);
 }
 
 
@@ -203,12 +203,15 @@ bool ts::PcapInputPlugin::start()
     // Select the right receive method.
     if (_http) {
         _receive = &PcapInputPlugin::receiveHTTP;
+        setDatagram(false);
     }
     else if (_tcp_emmg_mux) {
         _receive = &PcapInputPlugin::receiveEMMG;
+        setDatagram(false);
     }
     else {
         _receive = &PcapInputPlugin::receiveUDP;
+        setDatagram(true);
     }
 
     // Initialize superclass and pcap file.

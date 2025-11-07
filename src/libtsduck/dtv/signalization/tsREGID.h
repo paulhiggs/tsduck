@@ -60,6 +60,7 @@ namespace ts {
         REGID_AOM      = MakeREGID("AV01"),  //!< Alliance for Open Media.
         REGID_AVSAudio = MakeREGID("AVSA"),  //!< Audio Video Coding Standard Working Group of China.
         REGID_AVSVideo = MakeREGID("AVSV"),  //!< Audio Video Coding Standard Working Group of China.
+        REGID_BSSD     = MakeREGID("BSSD"),  //!< Society of Motion Picture and Television Engineers
         REGID_CUEI     = MakeREGID("CUEI"),  //!< Society of Cable Telecommunications Engineers (SCTE-35 splice information).
         REGID_DTG1     = MakeREGID("DTG1"),  //!< Digital TV Group.
         REGID_EAC3     = MakeREGID("EAC3"),  //!< Dolby Laboratories, Inc.
@@ -68,6 +69,9 @@ namespace ts {
         REGID_HEVC     = MakeREGID("HEVC"),  //!< "HEVC" registration identifier (unofficial, used in legacy streams).
         REGID_KLVA     = MakeREGID("KLVA"),  //!< Society of Motion Picture and Television Engineers.
         REGID_SCTE     = MakeREGID("SCTE"),  //!< Society of Cable Telecommunications Engineers.
+        REGID_VANC     = MakeREGID("VANC"),  //!< SMPTE ST 2038 Carriage of Ancillary Data Packets (unofficial)
+        REGID_VC1      = MakeREGID("VC-1"),  //!< VC-1 video coding (SMPTE 421).
+        REGID_VC4      = MakeREGID("VC-4"),  //!< VC-4 video coding (SMPTE 2058).
         REGID_CUVV     = MakeREGID("cuvv"),  //!< UHD World Association ("cuvv") registration identifier (registration procedure in progress).
         REGID_NULL     = 0xFFFFFFFF,         //!< Unassigned registration identifier.
     };

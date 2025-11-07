@@ -113,7 +113,7 @@ bool ts::ForkPipe::open(const UString& command, WaitMode wait_mode, size_t buffe
         ::DWORD bufsize = buffer_size == 0 ? 0 : ::DWORD(std::max<size_t>(32768, buffer_size));
         ::SECURITY_ATTRIBUTES sa;
         sa.nLength = sizeof(sa);
-        sa.lpSecurityDescriptor = 0;
+        sa.lpSecurityDescriptor = nullptr;
         sa.bInheritHandle = true;
         if (::CreatePipe(&read_handle, &write_handle, &sa, bufsize) == 0) {
             report.error(u"error creating pipe: %s", SysErrorCodeMessage());
@@ -150,7 +150,7 @@ bool ts::ForkPipe::open(const UString& command, WaitMode wait_mode, size_t buffe
         }
         case STDIN_NONE: {
             // Open the null device for reading.
-            null_handle = ::CreateFileA("NUL:", GENERIC_READ, FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
+            null_handle = ::CreateFileA("NUL:", GENERIC_READ, FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
             if (null_handle == INVALID_HANDLE_VALUE) {
                 report.error(u"error opening NUL: %s", SysErrorCodeMessage());
                 if (_use_pipe) {
@@ -422,6 +422,7 @@ bool ts::ForkPipe::open(const UString& command, WaitMode wait_mode, size_t buffe
 
         // Execute the command if there was no prior error.
         if (message == nullptr) {
+            // Flawfinder: ignore: we create a process on purpose.
             ::execl(TS_SHELL_STRING, TS_SHELL_STRING, "-c", command.toUTF8().c_str(), nullptr);
             // Should not return, so this is an error if we get there.
             error = errno;

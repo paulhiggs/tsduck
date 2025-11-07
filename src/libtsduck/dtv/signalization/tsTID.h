@@ -14,6 +14,7 @@
 
 #pragma once
 #include "tsCAS.h"
+#include "tsTS.h"
 #include "tsNames.h"
 
 namespace ts {
@@ -114,6 +115,10 @@ namespace ts {
         TID_CAS_FIRST     = 0x80, //!< Start of Table id range for CAS
         TID_CAS_LAST      = 0x8F, //!< End of Table id range for CAS
 
+        // Valid in SES Astra context:
+
+        TID_ASTRA_SGT     = 0x91, //!< Table id for SES Astra Service Guide Table
+
         // Valid in SafeAccess CAS context:
 
         TID_SA_CECM_82    = 0x82, //!< Table id for SafeAccess Complementary ECM
@@ -157,15 +162,22 @@ namespace ts {
 
         // Valid in ATSC context:
 
-        TID_MGT           = 0xC7, //!< Table id for Master Guide Table
-        TID_TVCT          = 0xC8, //!< Table id for Terrestrial Virtual Channel Table
-        TID_CVCT          = 0xC9, //!< Table id for Cable Virtual Channel Table
-        TID_RRT           = 0xCA, //!< Table id for Rating Region Table
+        TID_MGT           = 0xC7, //!< Table id for Master Guide Table (ATSC)
+        TID_TVCT          = 0xC8, //!< Table id for Terrestrial Virtual Channel Table (ATSC)
+        TID_CVCT          = 0xC9, //!< Table id for Cable Virtual Channel Table (ATSC)
+        TID_RRT           = 0xCA, //!< Table id for Rating Region Table (ATSC)
         TID_ATSC_EIT      = 0xCB, //!< Table id for Event Information Table (ATSC version)
-        TID_ETT           = 0xCC, //!< Table id for Extended Text Table
-        TID_STT           = 0xCD, //!< Table id for System Time Table
-        TID_DCCT          = 0xD3, //!< Table id for Directed Channel Change Table
-        TID_DCCSCT        = 0xD4, //!< Table id for Directed Channel Change Selection Code Table
+        TID_ETT           = 0xCC, //!< Table id for Extended Text Table (ATSC)
+        TID_STT           = 0xCD, //!< Table id for System Time Table (ATSC)
+        TID_DET           = 0xCE, //!< Table id for Data Event Table (ATSC A/90)
+        TID_DST           = 0xCF, //!< Table id for Data Service Table (ATSC A/90)
+        TID_NRT           = 0xD1, //!< Table id for Network Resources Table (ATSC A/90)
+        TID_LTST          = 0xD2, //!< Table id for Long Term Service Table (ATSC A/90)
+        TID_DCCT          = 0xD3, //!< Table id for Directed Channel Change Table (ATSC)
+        TID_DCCSCT        = 0xD4, //!< Table id for Directed Channel Change Selection Code Table (ATSC)
+        TID_AEIT          = 0xD6, //!< Table id for Aggregate Event Information Table (ATSC A/81)
+        TID_AETT          = 0xD7, //!< Table id for Aggregate Extended Text Table (ATSC A/81)
+        TID_SVCT          = 0xDA, //!< Table id for Satellite Virtual Channel Table (ATSC A/81)
 
         // Valid in SCTE context:
 
@@ -193,9 +205,10 @@ namespace ts {
     //! Get the name of a Table ID.
     //! @param [in] duck TSDuck execution context (used to select from conflicting standards).
     //! @param [in] tid Table id.
+    //! @param [in] pid PID of the table, if known.
     //! @param [in] cas CAS id for EMM/ECM table ids.
     //! @param [in] flags Presentation flags.
     //! @return The corresponding name.
     //!
-    TSDUCKDLL UString TIDName(const DuckContext& duck, TID tid, CASID cas = CASID_NULL, NamesFlags flags = NamesFlags::NAME);
+    TSDUCKDLL UString TIDName(const DuckContext& duck, TID tid, PID pid = PID_NULL, CASID cas = CASID_NULL, NamesFlags flags = NamesFlags::NAME);
 }

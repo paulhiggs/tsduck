@@ -1,0 +1,909 @@
+//----------------------------------------------------------------------------
+//
+// TSDuck - The MPEG Transport Stream Toolkit
+// Copyright (c) 2005-2025, Thierry Lelegard
+// BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
+//
+//----------------------------------------------------------------------------
+
+<<<
+=== influx
+
+[.cmd-header]
+Send live metrics to InfluxDB, a data source for Grafana
+
+By default, the plugin sends the global transport stream bitrate at regular intervals (5 seconds by default).
+
+Other options include:
+
+[.compact-list]
+* Bitrate information by PID, by type of PID (audio, video, etc.), by service.
+* Last PCR/PTS/DTS timestamp values by PID, by service.
+* Error counters as defined in <<ETSI-101-290>>.
+* Inter-packet Arrival Time (IAT) for datagram-based inputs.
+
+Be careful to send the required information for your graph only.
+Sending bitrate information for all PID's, all types of PID's, and all services,
+every second, may overload the InfluxDB database. Do some benchmarking first.
+
+Even though InfluxDB is typically used as a Grafana data source,
+the collected data can be used by other applications for analytics, monitoring, etc.
+
+[.usage]
+Usage
+
+[source,shell]
+----
+$ tsp -P influx [options]
+----
+
+[.usage]
+General options
+
+[.opt]
+*-i* _seconds_ +
+*--interval* _seconds_
+
+[.optdoc]
+Interval in seconds between metrics reports to InfluxDB.
+
+[.optdoc]
+The default is 5 seconds. This is usually the minimal update interval in Grafana.
+
+[.opt]
+*--max-metrics* _count_
+
+[.optdoc]
+Terminate `tsp` after sending the specified number of metrics.
+This is a test option. The processing is never stopped by default.
+
+[.usage]
+Monitored information options
+
+[.opt]
+*-a* +
+*--all-pids*
+
+[.optdoc]
+Send metrics data for all PID's.
+Equivalent to `--pid 0-8191`.
+
+[.opt]
+*--bitrate*
+
+[.optdoc]
+Send bitrate monitoring data.
+
+[.optdoc]
+This option is only useful in addition to `--pcr`, `--pts`, `--dts`, `--tr-101-290`.
+Otherwise, this is the default.
+
+[.opt]
+*--dts*
+
+[.optdoc]
+Send the last DTS value in a set of PID and/or services.
+Also specify at least one of `--pid`, `--all-pids`, `--services`.
+
+[.opt]
+*--iat*
+
+[.optdoc]
+Send metrics on Inter-packet Arrival Time (IAT) for datagram-based inputs (`ip`, `pcap`, `srt`, `rist`).
+Ignored if the input is not datagram-based.
+
+[.optdoc]
+See xref:_iat[xrefstyle=short] the documentation of plugin `iat` for more details on inter-packet arrival times.
+
+[.opt]
+*--max-severity* _value_
+
+[.optdoc]
+With `--tr-101-290`, specify the maximum severity of error counters to send.
+<<ETSI-101-290>> defines severity from 1 (most severe) to 3 (less severe).
+TSDuck adds informational counters at severity 4.
+
+[.optdoc]
+By default, all error counters are sent.
+
+[.opt]
+*-n* +
+*--names*
+
+[.optdoc]
+With `--services`, the services are identified in InfluxDB by their name, when available.
+Services without name are identified by their id in decimal.
+
+[.opt]
+*--pcr*
+
+[.optdoc]
+Send the last PCR value in a set of PID and/or services.
+Also specify at least one of `--pid`, `--all-pids`, `--services`.
+
+[.opt]
+*-p* _pid1[-pid2]_ +
+*--pid* _pid1[-pid2]_
+
+[.optdoc]
+Send metrics data for the specified PID's.
+The PID's are identified in InfluxDB by their value in decimal.
+
+[.optdoc]
+Several `--pid` options may be specified.
+To save bandwidth and database space, PID's with no packets during an interval are not reported for that interval.
+
+[.opt]
+*--pts*
+
+[.optdoc]
+Send the last PTS value in a set of PID and/or services.
+Also specify at least one of `--pid`, `--all-pids`, `--services`.
+
+[.opt]
+*-s* +
+*--services*
+
+[.optdoc]
+Send metrics data for services.
+The services are identified in InfluxDB by their id in decimal.
+
+[.opt]
+*--tr-101-290*
+
+[.optdoc]
+Send error counters as defined in <<ETSI-101-290>>.
+This plugin can detect a subset of ETSI TR 101 290 only:
+all transport stream logical checks are performed but physical checks on modulation cannot be reported.
+See more details below.
+
+[.optdoc]
+By default, all defined error counters are sent at each interval for the whole transport stream,
+even when the counter value is zero.
+In addition, if `--services` or `--pid` or `--all-pids` are specified, each counter is also sent
+for each service or PID, only when the counter value is not zero.
+The scope of each counter, transport stream, service, or PID, is specified in the tag `scope`.
+See more details below.
+
+[.opt]
+*--type*
+
+[.optdoc]
+Send bitrate metrics data by type of PID's (audio, video, subtitles, PSI, etc.)
+See more details below.
+
+include::{docdir}/opt/group-clock.adoc[tags=!*]
+include::{docdir}/opt/group-influx.adoc[tags=!*;short]
+include::{docdir}/opt/group-common-plugins.adoc[tags=!*]
+
+==== Building Flux queries for Grafana
+
+This plugin sends metrics data to InfluxDB.
+On top of that, the user has to build Flux queries in Grafana to extract the appropriate data to visualize.
+This section describes the precise metrics which are sent to InfluxDB.
+The provided information shall be used to build Flux queries.
+
+At each specified interval (option `--interval`), this plugin sends a list of metrics entries.
+
+A timestamp is always provided with each data entry.
+Depending on the plugin options, this can be a local time or a UTC time,
+a wall-clock time or a time which is extracted from the stream.
+
+The following table lists the possible types of the field `_measurement` and the semantics of the corresponding field `value`.
+The `value` type is `float` (in practice, an integer value is provided).
+The tags are present for all occurrences of the corresponding `_measurement`.
+The presence of the secondary tags depend on the `scope` tag.
+
+.InfluxDB measurements and values
+[cols="<1m,<1,<1m,<1m",stripes=none,options="autowidth"]
+|===
+|_measurement |value |Tags |Secondary tags
+
+|bitrate
+|bitrate in bits/second
+|scope tsid
+|pid service type
+
+|counter
+|number of errors
+|name severity scope tsid
+|pid service
+
+|dts
+|DTS value in 90 kHz units
+|scope tsid
+|pid service
+
+|iat
+|inter-packet arrival time in microseconds
+|type
+|
+
+|pcr
+|PCR value in 27 MHz units
+|scope tsid
+|pid service
+
+|pts
+|PTS value in 90 kHz units
+|scope tsid
+|pid service
+
+|===
+
+==== Custom identification of metrics
+
+It is possible to add user-defined tags to build a custom identification.
+This can be useful if several instances of the plugin `influx` send metrics to the same bucket.
+
+Consider the following defaut metrics, sending the global bitrate of the TS.
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4 value=22936796 1548161530912
+----
+
+Following the format which is defined by InfluxDB, we see the following components:
+
+[.compact-list]
+* The first identifier `bitrate` defines the type of _measurement_, here a bitrate.
+* The following fields `scope` and `tsid` are _tags_. They can be used as filters in Flux queries.
+* The `value` field is the numerical value of the measurement. Its interpretation depends on the type of measurement.
+* The last numerical field is the timestamp of the measurement.
+
+Using `-P influx --tag operator=tvsat --tag satellite=sat1`, the two user-specified tags are added to all metrics.
+The previous metrics become:
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4,operator=tvsat,satellite=sat1 value=22936796 1548161530912
+----
+
+Using that kind of custom identification, it is possible to build complex Flux queries to select metrics
+from specific user-identified sources.
+
+==== Bitrate metrics
+
+Each entry contains the following information:
+
+[.compact-list]
+* Field `_measurement`: `bitrate`.
+* Field `value`: the bitrate in bits/second during the measurement period.
+* Tag `scope`: an identifier defining the scope of the bitrate value.
+  The possible values are `ts` (total bitrate of the transport stream),
+  `service` (accumulated bitrate of all PID's in a service), `pid` (bitrate of one PID),
+  or `type` (accumulated bitrate of all PID's of a given type).
+* Tag `tsid`: this is the transport stream id as an integer.
+* Tag `service`: when `scope=service`, this is the service name or service id as an integer,
+  or `global` for all global PID's (ie. not attached to any service).
+* Tag `pid`: when `scope=pid`, this is the PID as an integer.
+* Tag `type`: when `scope=type`, this is one of `audio`, `data`, `ecm`, `emm`, `pcr`, `psi`,
+  `stuffing`, `subtitles`, `undefined`, `video`.
+
+Note that if a PID is shared between several services,
+its bitrate is included in the bitrate of all services it belongs to.
+In that case, the sum of the bitrate of all services is greater than the global TS bitrate.
+
+To reduce the amount of logged data, bitrates with value zero are not sent.
+For instance, using option `--all-pids`, a `pid` record is sent only for PID's with a non-zero bitrate during that interval.
+
+[.usage]
+Examples
+
+By default, InfluxDB receives the following data:
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4 value=22936796 1548161530912
+----
+
+With option `--type` on a clear stream, InfluxDB receives the following data:
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4 value=22936796 1548161530912
+bitrate,scope=type,tsid=4,type=psi value=231915 1548161530912
+bitrate,scope=type,tsid=4,type=video value=20195737 1548161530912
+bitrate,scope=type,tsid=4,type=audio value=2207176 1548161530912
+bitrate,scope=type,tsid=4,type=subtitles value=102425 1548161530912
+bitrate,scope=type,tsid=4,type=data value=199543 1548161530912
+----
+
+With options `--services --names`, InfluxDB receives the following data:
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4 value=22936796 1548161530912
+bitrate,scope=service,tsid=4,service=M6 value=3874631 1548161530912
+bitrate,scope=service,tsid=4,service=W9 value=5054905 1548161530912
+bitrate,scope=service,tsid=4,service=Arte value=4344830 1548161530912
+bitrate,scope=service,tsid=4,service=France\ 5 value=3736119 1548161530912
+bitrate,scope=service,tsid=4,service=6ter value=5694397 1548161530912
+bitrate,scope=service,tsid=4,service=global value=231915 1548161530912
+----
+
+==== Timestamp metrics (PCR, PTS, DTS)
+
+Each entry contains the following information:
+
+[.compact-list]
+* Field `_measurement`: one of `pcr`, `pts`, `dts`, depending on the type of timestamp.
+* Field `value`: the raw value of the last timestamp of that type in the measurement period.
+* Tag `scope`: an identifier defining the scope of the bitrate value.
+  The possible values are `service` (last timestamp in any PID of a service), `pid` (last timestamp in one PID).
+* Tag `tsid`: this is the transport stream id as an integer.
+* Tag `service`: when `scope=service`, this is the service name or service id as an integer.
+* Tag `pid`: when `scope=pid`, this is the PID as an integer.
+
+[.usage]
+Examples
+
+With options `--pcr --services --names`, InfluxDB receives the following data:
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4 value=22936796 1548161530912
+pcr,scope=service,tsid=4,service=M6 value=1783513330866 1548161530912
+pcr,scope=service,tsid=4,service=W9 value=1781908554388 1548161530912
+pcr,scope=service,tsid=4,service=Arte value=1782082319070 1548161530912
+pcr,scope=service,tsid=4,service=France\ 5 value=1783885926024 1548161530912
+pcr,scope=service,tsid=4,service=6ter value=1790246369026 1548161530912
+----
+
+==== IAT metrics
+
+Each entry contains the following information:
+
+[.compact-list]
+* Field `_measurement`: `iat`.
+* Field `_value`: the value of the inter-packet arrival time in microseconds.
+* Tag `type`: one of `mean`, `min` or `max`, indicating the type of metrics.
+
+[.usage]
+Examples
+
+With options `--iat`, InfluxDB receives the following data:
+
+[source,text]
+----
+bitrate,scope=ts,tsid=1 value=1009504 1760132351779
+iat,type=mean value=10436 1760132351779
+iat,type=min value=9547 1760132351779
+iat,type=max value=13487 1760132351779
+----
+
+NOTE: There are some operating system specificities in measuring IAT.
+See xref:_iat[xrefstyle=short] the documentation of plugin `iat` for more details.
+
+==== ETSI TR 101 290 error counter metrics
+
+With option `--tr-101-290`, each metrics entry contains one error counter for the last measurement interval.
+
+Each entry contains the following information:
+
+[.compact-list]
+* Field `_measurement`: `counter`.
+* Field `_value`: the value of the counter, typically a number of errors.
+* Tag `name`: name of the error counter, as defined in <<ETSI-101-290>>, lowercase.
+* Tag `severity`: an integer value from 1 to 4, defining the severity of the error.
+  The severity 1 (most severe) to 3 (less severe) are defined by <<ETSI-101-290>>
+  in sections 5.2.1 to 5.2.3. The severity 4 (informational) is added by TSDuck.
+* Tag `scope`: an identifier defining the scope of the counter.
+  The possible values are `ts` (counter for all PID's in the transport stream),
+  `service` (counter for all PID's in a service), or `pid` (counter for one PID).
+* Tag `tsid`: this is the transport stream id as an integer.
+* Tag `service`: when `scope=service`, this is the service name or service id as an integer,
+  or `global` for all global PID's (ie. not attached to any service).
+* Tag `pid`: when `scope=pid`, this is the PID as an integer.
+
+The following table lists all rules which are implemented in this plugin and which
+error counter is incremented. The reference "x.y" is the rule number in <<ETSI-101-290>> section 5.2.
+In "x.y/z", "z" is a sequence number when the same rule includes distinct checks.
+In "x.y/zU", "U" means unreferenced in <<ETSI-101-290>>, a new rule which seems necessary.
+
+The first colum of the table indicates which rules are implemented (X) and which are not (-).
+The severity is the first digit "x" in "x.y/z".
+The descriptions of the rule are directly copied from <<ETSI-101-290>>.
+
+// PDF backend does not correctly process "autowidth" tables.
+.InfluxDB ETSI TR 101 290 error counter metrics
+ifndef::backend-pdf[]
+[cols="^1,<1,<1m,<1",stripes=none,options="autowidth"]
+endif::[]
+ifdef::backend-pdf[]
+[cols="^7,<10,<20m,<63",stripes=none]
+endif::[]
+|===
+|Imp. |Ref. |name |Description
+
+|X
+|1.1
+|ts_sync_loss
+|Loss of synchronization with consideration of hysteresis parameters.
+
+|X
+|1.2
+|sync_byte_error
+|Sync_byte not equal 0x47.
+
+|X
+|1.3/1
+|pat_error
+|PID 0x0000 does not occur at least every 0,5 s.
+
+|X
+|1.3/2
+|pat_error
+|a PID 0x0000 does not contain a table_id 0x00 (i.e. a PAT).
+
+|X
+|1.3/3
+|pat_error
+|Scrambling_control_field is not 00 for PID 0x0000
+
+|X
+|1.3.a/1
+|pat_error_2
+|Sections with table_id 0x00 do not occur at least every 0,5 s on PID 0x0000.
+
+|X
+|1.3.a/2
+|pat_error_2
+|Section with table_id other than 0x00 found on PID 0x0000.
+
+|X
+|1.3.a/3
+|pat_error_2
+|Scrambling_control_field is not 00 for PID 0x0000.
+
+|X
+|1.3.a/4U
+|pat_error_2
+|A PAT section is present on PID other than 0x0000.
+
+|X
+|1.3.a/5U
+|pat_error_2
+|A PAT table is syntactically incorrect.
+
+|X
+|1.4
+|continuity_count_error
+|Incorrect packet order, a packet occurs more than twice, lost packet.
+
+|X
+|1.5/1
+|pmt_error
+|Sections with table_id 0x02, (i.e. a PMT), do not occur at least every 0,5 s on the PID which is referred to in the PAT.
+
+|X
+|1.5/2
+|pmt_error
+|Scrambling_control_field is not 00 for all PIDs containing sections with table_id 0x02 (i.e. a PMT).
+
+|X
+|1.5.a/1
+|pmt_error_2
+|Sections with table_id 0x02, (i.e. a PMT), do not occur at least every 0,5 s
+ on each program_map_PID which is referred to in the PAT.
+
+|X
+|1.5.a/2
+|pmt_error_2
+|Scrambling_control_field is not 00 for all packets containing information of sections with
+ table_id 0x02 (i.e. a PMT) on each program_map_PID which is referred to in the PAT.
+
+|X
+|1.5.a/3U
+|pmt_error_2
+|A PMT table is syntactically incorrect.
+
+|X
+|1.6
+|pid_error
+|Referred PID does not occur for a user specified period.
+
+|X
+|2.1
+|transport_error
+|Transport_error_indicator in the TS-Header is set to "1".
+
+|X
+|2.2/1
+|crc_error
+|CRC error occurred in CAT, PAT, PMT, NIT, EIT, BAT, SDT or TOT table.
+
+|X
+|2.2/2U
+|crc_error_2
+|CRC error occurred in other table id than specified in CRC_error.
+
+|X
+|2.3/1
+|pcr_error
+|PCR discontinuity of more than 100 ms occurring without specific indication.
+
+|X
+|2.3/2
+|pcr_error
+|Time interval between two consecutive PCR values more than 100 ms.
+
+|X
+|2.3.a
+|pcr_repetition_error
+|Time interval between two consecutive PCR values more than 100 ms.
+
+|X
+|2.3.b
+|pcr_discontinuity_indicator_error
+|The difference between two consecutive PCR values (PCRi+1 – PCRi) is outside the range
+ of 0...100 ms without the discontinuity_indicator set.
+
+|-
+|2.4
+|pcr_accuracy_error
+|PCR accuracy of selected programme is not within +/- 500 ns.
+
+|X
+|2.5
+|pts_error
+|PTS repetition period more than 700 ms.
+
+|X
+|2.6/1
+|cat_error
+|Packets with transport_scrambling_control not 00 present, but no section with table_id = 0x01 (i.e. a CAT) present.
+
+|X
+|2.6/2
+|cat_error
+|Section with table_id other than 0x01 (i.e. not a CAT) found on PID 0x0001.
+
+|X
+|2.6/3U
+|cat_error
+|A CAT section is present on PID other than 0x0001.
+
+|X
+|2.6/4U
+|cat_error
+|A CAT table is syntactically incorrect.
+
+|X
+|3.1/1
+|nit_error
+|Section with table_id other than 0x40 or 0x41 or 0x72 (i. e. not an NIT or ST) found on PID 0x0010.
+
+|X
+|3.1/2
+|nit_error
+|No section with table_id 0x40 or 0x41 (i.e. an NIT) in PID value 0x0010 for more than 10 s.
+
+|X
+|3.1.a/1
+|nit_actual_error
+|Section with table_id other than 0x40 or 0x41 or 0x72 (i.e. not an NIT or ST) found on PID 0x0010.
+
+|X
+|3.1.a/2
+|nit_actual_error
+|No section with table_id 0x40 (i.e. an NIT_actual) in PID value 0x0010 for more than 10 s.
+
+|X
+|3.1.a/3
+|nit_actual_error
+|Any two sections with table_id = 0x40 (NIT_actual) occur on PID 0x0010 within a specified value (25 ms or lower).
+
+|X
+|3.1.a/4U
+|nit_actual_error
+|A NIT_actual section is present on PID other than 0x0010.
+
+|X
+|3.1.b/1
+|nit_other_error
+|Interval between sections with the same section_number and table_id = 0x41 (NIT_other)
+ on PID 0x0010 longer than a specified value (10 s or higher).
+
+|X
+|3.1.b/2U
+|nit_other_error
+|A NIT_other section is present on PID other than 0x0010.
+
+|X
+|3.2/1
+|si_repetition_error
+|Repetition rate of SI tables outside of specified limits.
+
+|X
+|3.2/2U
+|si_pid_error
+|A SI sections is present on PID other than its allocated PID.
+
+|-
+|3.3/1
+|buffer_error
+|TB_buffering_error: overflow of transport buffer (TBn).
+
+|-
+|3.3/2
+|buffer_error
+|TBsys_buffering_error: overflow of transport buffer for system information (Tbsys).
+
+|-
+|3.3/3
+|buffer_error
+|MB_buffering_error: overflow of multiplexing buffer (MBn) or if the vbv_delay method is used: underflow of multiplexing buffer (Mbn).
+
+|-
+|3.3/4
+|buffer_error
+|EB_buffering_error: overflow of elementary stream buffer (EBn) or if the leak method is used:
+ underflow of elementary stream buffer (EBn) though low_delay_flag and DSM_trick_mode_flag are
+ set to 0 else (vbv_delay method) underflow of elementary stream buffer (EBn).
+
+|-
+|3.3/5
+|buffer_error
+|B_buffering_error: overflow or underflow of main buffer (Bn).
+
+|-
+|3.3/6
+|buffer_error
+|bsys_buffering_error: overflow of PSI input buffer (Bsys).
+
+|X
+|3.4
+|unreferenced_pid
+|PID (other than PAT, CAT, CAT_PIDs, PMT_PIDs, NIT_PID, SDT_PID, TDT_PID, EIT_PID, RST_PID,
+ reserved_for_future_use PIDs, or PIDs user defined as private data streams) not referred to
+ by a PMT within 0,5 s.
+
+|X
+|3.4.a
+|unreferenced_pid
+|PID (other than PMT_PIDs, PIDs with numbers between 0x00 and 0x1F or PIDs user defined as private data streams)
+ not referred to by a PMT or a CAT within 0,5 s.
+
+|X
+|3.5/1
+|sdt_error
+|Sections with table_id = 0x42 (SDT, actual TS) not present on PID 0x0011 for more than 2 s.
+
+|X
+|3.5/2
+|sdt_error
+|Sections with table_ids other than 0x42, 0x46, 0x4A or 0x72 found on PID 0x0011.
+
+|X
+|3.5.a/1
+|sdt_actual_error
+|Sections with table_id = 0x42 (SDT, actual TS) not present on PID 0x0011 for more than 2 s.
+
+|X
+|3.5.a/2
+|sdt_actual_error
+|Sections with table_ids other than 0x42, 0x46, 0x4A or 0x72 found on PID 0x0011.
+
+|X
+|3.5.a/3
+|sdt_actual_error
+|Any two sections  table_id = 0x42 (SDT_actual) occur on PID 0x0011 within a specified value (25 ms or lower).
+
+|X
+|3.5.a/4U
+|sdt_actual_error
+|A SDT_actual section is present on PID other than 0x0011.
+
+|X
+|3.5.b/1
+|sdt_other_error
+|Interval between sections with the same section_number and table_id = 0x46 (SDT, other TS)
+ on PID 0x0011 longer than a specified value (10s or higher).
+
+|X
+|3.5.b/2U
+|sdt_other_error
+|A SDT_other section is present on PID other than 0x0011.
+
+|X
+|3.6/1
+|eit_error
+|Sections with table_id = 0x4E (EIT-P/F, actual TS) not present on PID 0x0012 for more than 2 s.
+
+|X
+|3.6/2
+|eit_error
+|Sections with table_ids other than in the range 0x4E - 0x6F or 0x72 found on PID 0x0012.
+
+|X
+|3.6/3U
+|eit_error
+|An EIT section is present on PID other than 0x0012.
+
+|X
+|3.6.a/1
+|eit_actual_error
+|Section '0' with table_id = 0x4E (EIT-P, actual TS) not present on PID 0x0012 for more than 2 s.
+
+|X
+|3.6.a/2
+|eit_actual_error
+|Section '1' with table_id = 0x4E (EIT-F, actual TS) not present on PID 0x0012 for more than 2 s.
+
+|X
+|3.6.a/3
+|eit_actual_error
+|Sections with table_ids other than in the range 0x4E - 0x6F or 0x72 found on PID 0x0012.
+
+|X
+|3.6.a/4
+|eit_actual_error
+|Any two sections with table_id = 0x4E (EIT-P/F, actual TS) occur on PID 0x0012 within a specified value (25 ms or lower).
+
+|X
+|3.6.b/1
+|eit_other_error
+|Interval between sections '0' with table_id = 0x4F (EIT-P, other TS) on PID 0x0012 longer than a specified value (10 s or higher).
+
+|X
+|3.6.b/2
+|eit_other_error
+|Interval between sections '1' with table_id = 0x4F (EIT-F, other TS) on PID 0x0012 longer than a specified value (10 s or higher).
+
+|X
+|3.6.c/1
+|eit_pf_error
+|If either section ('0' or '1') of each EIT P/F sub table is present both should exist.
+
+|X
+|3.6.c/2U
+|eit_pf_error
+|An EIT P/F section has section number greater that 1.
+
+|X
+|3.7/1
+|rst_error
+|Sections with table_id other than 0x71 or 0x72 found on PID 0x0013.
+
+|X
+|3.7/2
+|rst_error
+|Any two sections with table_id = 0x71 (RST) occur on PID 0x0013 within a specified value (25 ms or lower).
+
+|X
+|3.7/3U
+|rst_error
+|A RST section is present on PID other than 0x0013.
+
+|X
+|3.8/1
+|tdt_error
+|Sections with table_id = 0x70 (TDT) not present on PID 0x0014 for more than 30 s.
+
+|X
+|3.8/2
+|tdt_error
+|Sections with table_id other than 0x70, 0x72 (ST) or 0x73 (TOT) found on PID 0x0014.
+
+|X
+|3.8/3
+|tdt_error
+|Any two sections with table_id = 0x70 (TDT) occur on PID 0x0014 within a specified value (25 ms or lower).
+
+|X
+|3.8/4U
+|tdt_error
+|A TDT section is present on PID other than 0x0014.
+
+|-
+|3.9
+|empty_buffer_error
+|Transport buffer (TBn) not empty at least once per second or transport buffer for system information
+ (TBsys) not empty at least once per second or if the leak method is used multiplexing buffer (MBn)
+ not empty at least once per second.
+
+|-
+|3.10/1
+|data_delay_error
+|Delay of data (except still picture video data) through the TSTD buffers superior to 1 second.
+
+|-
+|3.10/2
+|data_delay_error
+|Delay of still picture video data through the TSTD buffers superior to 60 s.
+
+|X
+|4
+|packet_count
+|Number of TS packets during that interval of analysis.
+
+|X
+|4
+|error_count
+|Number of errors during that interval of analysis. This is not exactly the same as
+ the sum of all error counters in that interval because <<ETSI-101-290>> sometimes
+ includes the same check in distinct counters.
+
+|===
+
+[.usage]
+Examples
+
+With option `--tr-101-290`, InfluxDB receives the following data:
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4 value=22936796 1548161530912
+counter,name=ts_sync_loss,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=sync_byte_error,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pat_error,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pat_error_2,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=continuity_count_error,severity=1,scope=ts,tsid=4 value=220 1548161530912
+counter,name=pmt_error,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pmt_error_2,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pid_error,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=transport_error,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=crc_error,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=crc_error_2,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pcr_error,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pcr_repetition_error,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pcr_discontinuity_indicator_error,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pcr_accuracy_error,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pts_error,severity=2,scope=ts,tsid=4 value=10 1548161530912
+counter,name=cat_error,severity=2,scope=ts,tsid=4 value=0 1548161530912
+counter,name=nit_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=nit_actual_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=nit_other_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=si_repetition_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=si_pid_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=buffer_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=unreferenced_pid,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=sdt_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=sdt_actual_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=sdt_other_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=eit_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=eit_actual_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=eit_other_error,severity=3,scope=ts,tsid=4 value=1 1548161530912
+counter,name=eit_pf_error,severity=3,scope=ts,tsid=4 value=31 1548161530912
+counter,name=rst_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=tdt_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=empty_buffer_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=data_delay_error,severity=3,scope=ts,tsid=4 value=0 1548161530912
+counter,name=packet_count,severity=4,scope=ts,tsid=4 value=43220 1548161530912
+counter,name=error_count,severity=4,scope=ts,tsid=4 value=262 1548161530912
+----
+
+With options `--tr-101-290 --services --all-pids --max-severity 3`, the counters are
+added per service and per PID, when non-zero. All global counters, with `scope=ts`,
+are always sent, even they are zero.
+
+Note that, when logging counters for all PID's, it is recommended to use `--max-severity 3`.
+Otherwise, all informational counters, with severity 4, are also logged. Because these
+counters include `packet_count` (the number of packets per PID or per service), these
+counters are never zero and tend to overflow InfluxDB.
+
+[source,text]
+----
+bitrate,scope=ts,tsid=4 value=22936796 1548161530912
+counter,name=ts_sync_loss,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=sync_byte_error,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pat_error,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=pat_error_2,severity=1,scope=ts,tsid=4 value=0 1548161530912
+counter,name=continuity_count_error,severity=1,scope=ts,tsid=4 value=220 1548161530912
+counter,name=continuity_count_error,severity=1,scope=service,tsid=4,service=1025 value=44 1548161530912
+counter,name=continuity_count_error,severity=1,scope=service,tsid=4,service=1026 value=40 1548161530912
+counter,name=continuity_count_error,severity=1,scope=service,tsid=4,service=1031 value=42 1548161530912
+counter,name=continuity_count_error,severity=1,scope=service,tsid=4,service=1045 value=45 1548161530912
+counter,name=continuity_count_error,severity=1,scope=service,tsid=4,service=1046 value=38 1548161530912
+counter,name=continuity_count_error,severity=1,scope=service,tsid=4,service=global value=11 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=0 value=1 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=18 value=3 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=100 value=1 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=120 value=13 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=130 value=13 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=132 value=6 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=140 value=2 1548161530912
+counter,name=continuity_count_error,severity=1,scope=pid,tsid=4,pid=170 value=3 1548161530912
+...
+----

@@ -158,6 +158,7 @@ ts::MGT::TableTypeNames::TableTypeNames() :
         {u"CVCT-next",    0x0003},
         {u"ETT",          0x0004},
         {u"DCCSCT",       0x0005},
+        {u"LTST",         0x0006},
     })
 {
     // 0x0100-0x017F EIT-0 to EIT-127
@@ -172,9 +173,29 @@ ts::MGT::TableTypeNames::TableTypeNames() :
     for (int val = 0x0301; val <= 0x03FF; ++val) {
         add(UString::Format(u"RRT-%d", val & 0x00FF), val);
     }
-    // 0x1400 - 0x14FF DCCT with dcc_id 0x00 - 0xFF
+    // 0x1000 - 0x10FF AEIT MGT_tag 0 to 255
+    for (int val = 0x1000; val <= 0x10FF; ++val) {
+        add(UString::Format(u"AEIT-%d", val & 0x00FF), val);
+    }
+    // 0x1100 - 0x11FF AETT with MGT_tag 0 to 255
+    for (int val = 0x1100; val <= 0x11FF; ++val) {
+        add(UString::Format(u"AETT-%d", val & 0x00FF), val);
+    }
+    // 0x1200 - 0x127F ETT associated with DET
+    for (int val = 0x1200; val <= 0x127F; ++val) {
+        add(UString::Format(u"EET-DET-%d", val & 0x00FF), val);
+    }
+    // 0x1300 - 0x137F DET
+    for (int val = 0x1300; val <= 0x137F; ++val) {
+        add(UString::Format(u"DET-%d", val & 0x00FF), val);
+    }
+    // 0x1400 - 0x14FF DCCT with dcc_id 0 to 255
     for (int val = 0x1400; val <= 0x14FF; ++val) {
         add(UString::Format(u"DCCT-%d", val & 0x00FF), val);
+    }
+    // 0x1600 - 0x16FF SVCT with SVCT_id 0 to 255
+    for (int val = 0x1600; val <= 0x16FF; ++val) {
+        add(UString::Format(u"SVCT-%d", val & 0x00FF), val);
     }
 }
 
@@ -191,7 +212,7 @@ const ts::Names& ts::MGT::TableTypeEnum()
 
 void ts::MGT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PSIBuffer& buf, const UString& margin)
 {
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
     uint16_t table_count = 0;
 
     if (!buf.canReadBytes(2)) {
@@ -230,7 +251,7 @@ void ts::MGT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PS
 
 void ts::MGT::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
+    root->setIntAttribute(u"version", _version);
     root->setIntAttribute(u"protocol_version", protocol_version);
     descs.toXML(duck, root);
 
@@ -253,7 +274,7 @@ bool ts::MGT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
     xml::ElementVector children;
     bool ok =
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
         element->getIntAttribute(protocol_version, u"protocol_version", false, 0) &&
         descs.fromXML(duck, children, element, u"table");
 

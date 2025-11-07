@@ -351,7 +351,7 @@ void ts::RCT::Link::serializePayload(PSIBuffer& buf) const
 
 void ts::RCT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PSIBuffer& buf, const UString& margin)
 {
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
     disp << margin << UString::Format(u"Service id: %n", section.tableIdExtension()) << std::endl;
 
     if (buf.canReadBytes(3)) {
@@ -493,8 +493,8 @@ bool ts::RCT::Link::Display(TablesDisplay& disp, const ts::Section& section, Des
 
 void ts::RCT::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     root->setIntAttribute(u"service_id", service_id, true);
     root->setIntAttribute(u"year_offset", year_offset);
     for (const auto& link : links) {
@@ -579,8 +579,8 @@ void ts::RCT::Link::buildXML(DuckContext& duck, xml::Element* parent) const
 bool ts::RCT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
     xml::ElementVector xlink;
-    bool ok = element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-              element->getBoolAttribute(is_current, u"current", false, true) &&
+    bool ok = element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+              element->getBoolAttribute(_is_current, u"current", false, true) &&
               element->getIntAttribute(service_id, u"service_id", true) &&
               element->getIntAttribute(year_offset, u"year_offset", true) &&
               descs.fromXML(duck, xlink, element, u"link");

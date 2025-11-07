@@ -6,7 +6,7 @@
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  Build the file tsduck.dtv.names, containing names for Digital TV.
-#  Syntax: build-dtv-names-names.py out-file in-file-or-dir ...
+#  Syntax: build-dtv-names.py out-file in-file-or-dir ...
 #
 #-----------------------------------------------------------------------------
 
@@ -18,7 +18,10 @@ def process_file_or_dir(path, output):
         print('#---------- ' + os.path.basename(path), file=output)
         print('', file=output)
         with open(path, 'r', encoding='utf-8') as input:
-            output.write(input.read())
+            for line in input:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    print(line, file=output)
         print('', file=output)
     elif os.path.isdir(path):
         for name in os.listdir(path):

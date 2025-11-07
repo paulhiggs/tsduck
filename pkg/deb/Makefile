@@ -12,10 +12,9 @@ include ../../Makefile.inc
 
 VERSION  = $(shell $(GET_TSDUCK_VERSION))
 DISTRO   = $(shell $(GET_TSDUCK_VERSION) --distro)
-TMPROOT  = $(INSTALLERDIR)/tmp
 DEB_ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 
-.PHONY: default installer install-installer deb-tools deb-dev
+.PHONY: default installer install-installer installer-tarball deb-tools deb-dev
 default: installer
 installer: deb-tools deb-dev
 
@@ -35,8 +34,18 @@ deb-dev: deb-tools
 	dpkg-deb --build --root-owner-group $(TMPROOT) $(INSTALLERDIR)
 	rm -rf $(TMPROOT)
 
+INSTALLERS = $(INSTALLERDIR)/tsduck_$(VERSION)$(DISTRO)_$(DEB_ARCH).deb \
+             $(INSTALLERDIR)/tsduck-dev_$(VERSION)$(DISTRO)_$(DEB_ARCH).deb
+
+ifeq ($(INSTALLER_TARBALL),)
+    INSTALLER_TARBALL = $(INSTALLERDIR)/tsduck.$(VERSION)$(DISTRO).$(DEB_ARCH).tgz
+endif
+
 install-installer:
-	$(SUDO) dpkg -i $(INSTALLERDIR)/tsduck_$(VERSION)$(DISTRO)_$(DEB_ARCH).deb $(INSTALLERDIR)/tsduck-dev_$(VERSION)$(DISTRO)_$(DEB_ARCH).deb
+	$(SUDO) dpkg -i $(INSTALLERS)
+
+installer-tarball:
+	$(TAR) -czf $(INSTALLER_TARBALL) -C $(INSTALLERDIR) $(notdir $(INSTALLERS))
 
 # Build the DEBIAN/control files using the exact library dependencies.
 # Warning: Because the command lines contain macros which analyze the
@@ -66,6 +75,7 @@ deb-tools-control:
 	    $(if $(NOVATEK),-e '/libusb/d',-e 's/ libusb,/ $(call F_GETSODPKG,libusb)/') \
 	    $(if $(NOPCSC),-e '/libpcsc/d',-e 's/ libpcsc,/ $(call F_GETSODPKG,libpcsc)/') \
 	    $(if $(NOCURL),-e '/libcurl/d',-e 's/ libcurl,/ $(call F_GETSODPKG,libcurl)/') \
+	    -e '/^ *$$/d' \
 	    tsduck.control >$(TMPROOT)/DEBIAN/control
 
 deb-dev-control:
@@ -80,4 +90,5 @@ deb-dev-control:
 	    $(if $(NOVATEK),-e '/libusb/d',-e 's/ libusb-dev,/ $(call F_GETDPKG,libusb.h)/') \
 	    $(if $(NOPCSC),-e '/libpcsc/d',-e 's/ libpcsc-dev,/ $(call F_GETDPKG,PCSC/reader.h)/') \
 	    $(if $(NOCURL),-e '/libcurl/d',-e 's/ libcurl-dev,/ $(call F_GETDPKG,curl/curl.h)/') \
+	    -e '/^ *$$/d' \
 	    tsduck-dev.control >$(TMPROOT)/DEBIAN/control

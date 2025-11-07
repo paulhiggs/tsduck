@@ -18,6 +18,7 @@
 #include "tsTSPacket.h"
 #include "tsSectionDemux.h"
 #include "tsSectionFormat.h"
+#include "tsPCRAnalyzer.h"
 #include "tsUDPSocket.h"
 #include "tsCASMapper.h"
 #include "tsxmlTweaks.h"
@@ -164,7 +165,7 @@ namespace ts {
         fs::path                 _json_destination {};       // JSON output file name.
         fs::path                 _bin_destination {};        // Binary output file name.
         UString                  _udp_destination {};        // UDP/IP destination address:port.
-        bool                     _bin_multi_files = false;   // Multiple binary output files (one per section).
+        bool                     _multiple_files = false;    // Multiple output files (one per section if binary).
         bool                     _bin_stdout = false;        // Output binary sections on stdout.
         bool                     _flush = false;             // Flush output file.
         bool                     _rewrite_xml = false;       // Rewrite a new XML file for each table.
@@ -187,6 +188,7 @@ namespace ts {
         bool                     _invalid_versions = false;  // Track invalid section versions.
         uint32_t                 _max_tables = 0;            // Max number of tables to dump.
         bool                     _time_stamp = false;        // Display time stamps with each table.
+        bool                     _duration = false;          // Display duration since beginning with each table.
         bool                     _packet_index = false;      // Display packet index with each table.
         bool                     _meta_sections = false;     // Add hexadecimal dump of each section in XML and JSON metadata.
         bool                     _logger = false;            // Table logger.
@@ -214,6 +216,7 @@ namespace ts {
         PacketCounter            _packet_count = 0;
         SectionDemux             _demux {_duck};
         CASMapper                _cas_mapper {_duck};
+        PCRAnalyzer              _pcr_analyzer {1, 2};       // To evaluate stream duration.
         xml::RunningDocument     _xml_doc {_report};         // XML document, built on-the-fly.
         xml::JSONConverter       _x2j_conv {_report};        // XML-to-JSON converter.
         json::RunningDocument    _json_doc {_report};        // JSON document, built on-the-fly.
@@ -228,6 +231,9 @@ namespace ts {
 
         // Create a binary file. On error, set _abort and return false.
         bool createBinaryFile(const fs::path& name);
+
+        // Build an output file name from a table or section (with --multiple-files).
+        static fs::path BuildFileName(const fs::path& pattern, const BinaryTable*, const Section*);
 
         // Save a section in a binary file
         void saveBinarySection(const Section&);

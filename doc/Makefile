@@ -96,7 +96,7 @@ $(BINDOCINFO)/docinfo-footer.html: $(ADOCDIR)/docinfo-footer.in.html $(ADOCDIR)/
 	cat $(ADOCDIR)/docinfo-footer.in.html >>$@
 
 #-----------------------------------------------------------------------------
-# User's guide
+# User guide
 #-----------------------------------------------------------------------------
 
 .PHONY: userguide userguide-html userguide-pdf open-userguide open-userguide-html open-userguide-pdf
@@ -110,8 +110,10 @@ userguide-pdf: $(BINDOC)/tsduck.pdf
 
 open-userguide: open-userguide-html open-userguide-pdf
 open-userguide-html: $(BINDOC)/tsduck.html
+	$(call LOG,[OPEN] $<) \
 	$(XDGOPEN) $< $(POST_XDGOPEN)
 open-userguide-pdf: $(BINDOC)/tsduck.pdf
+	$(call LOG,[OPEN] $<) \
 	$(XDGOPEN) $< $(POST_XDGOPEN)
 
 # Each table and descriptor has a .adoc file in the source tree.
@@ -167,7 +169,7 @@ $(BINDOC)/tsduck.bigpdf: $(USERGUIDE_INPUTS) $(COMMON_INPUTS_PDF)
 	$(ASCIIDOCTOR_PDF) $(ADOCFLAGS_PDF) $(USERDOCDIR)/tsduck.adoc -D $(dir $@) -o $(notdir $@)
 
 #-----------------------------------------------------------------------------
-# Developer's guide
+# Developer guide
 #-----------------------------------------------------------------------------
 
 .PHONY: devguide devguide-html devguide-pdf open-devguide open-devguide-html open-devguide-pdf
@@ -181,8 +183,10 @@ devguide-pdf: $(BINDOC)/tsduck-dev.pdf
 
 open-devguide: open-devguide-html open-devguide-pdf
 open-devguide-html: $(BINDOC)/tsduck-dev.html
+	$(call LOG,[OPEN] $<) \
 	$(XDGOPEN) $< $(POST_XDGOPEN)
 open-devguide-pdf: $(BINDOC)/tsduck-dev.pdf
+	$(call LOG,[OPEN] $<) \
 	$(XDGOPEN) $< $(POST_XDGOPEN)
 
 # Documentation generation.

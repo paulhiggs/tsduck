@@ -49,6 +49,7 @@ TSPOptions::TSPOptions(int argc, char *argv[]) :
     duck.defineArgsForCharset(*this);
     duck.defineArgsForHFBand(*this);
     duck.defineArgsForPDS(*this);
+    duck.defineArgsForFixingPDS(*this);
     duck.defineArgsForTimeReference(*this);
     duck.defineArgsForStandards(*this);
     log_args.defineArgs(*this);
@@ -68,7 +69,7 @@ TSPOptions::TSPOptions(int argc, char *argv[]) :
     monitor = present(u"monitor");
     getValue(monitor_config, u"monitor");
     duck.loadArgs(*this);
-    log_args.loadArgs(duck, *this);
+    log_args.loadArgs(*this);
     tsp_args.loadArgs(duck, *this);
 
     // Final checking

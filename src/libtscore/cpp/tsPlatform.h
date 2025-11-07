@@ -378,11 +378,11 @@
     #if !defined(TS_SPARC)
         #define TS_SPARC 1
     #endif
-#elif defined(__powerpc64__)
+#elif defined(__powerpc64__) || defined(__ppc64__)
     #if !defined(TS_POWERPC64)
         #define TS_POWERPC64 1
     #endif
-#elif defined(__powerpc__)
+#elif defined(__powerpc__) || defined(__ppc__)
     #if !defined(TS_POWERPC)
         #define TS_POWERPC 1
     #endif
@@ -862,6 +862,27 @@ TS_MSC_NOWARNING(5045)  // Compiler will insert Spectre mitigation for memory lo
     #define TSDUCKDLL __declspec(dllimport)
 #else
     #define TSDUCKDLL
+#endif
+
+//!
+//! @hideinitializer
+//! Attribute to declare a class or function from tsdektec.dll on Windows.
+//! @ingroup windows
+//!
+//! When building tsdektec.dll on Windows, define _TSDEKTECDLL_IMPL in the project options.
+//! When building a project which references tsdektec.dll, define _TSDEKTECDLL_USE.
+//! All API located inside tsdektec.dll shall be prefixed by TSDEKTECDLL in headers.
+//! This prefix exports the API when building the DLL and imports the API
+//! when used in an application.
+//! @see TSCOREDLL
+//! @see TSDUCKDLL
+//!
+#if defined(TS_WINDOWS) && defined(_TSDEKTECDLL_IMPL)
+    #define TSDEKTECDLL __declspec(dllexport)
+#elif defined(TS_WINDOWS) && defined(_TSDEKTECDLL_USE)
+    #define TSDEKTECDLL __declspec(dllimport)
+#else
+    #define TSDEKTECDLL
 #endif
 
 //!

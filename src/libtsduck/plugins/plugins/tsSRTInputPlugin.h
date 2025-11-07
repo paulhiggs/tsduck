@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2020-2025, Anthony Delannoy
+// Copyright (c) 2020-2025, Lola Delannoy
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -35,6 +35,8 @@ namespace ts {
         virtual bool receiveDatagram(uint8_t* buffer, size_t buffer_size, size_t& ret_size, cn::microseconds& timestamp, TimeSource& timesource) override;
 
     private:
-        SRTSocket _sock {};
+        bool             _multiple = false;  // Accept multiple (sequential) connections.
+        cn::milliseconds _restart_delay {};  // If _multiple, wait before reconnecting.
+        SRTSocket        _sock {};           // Incoming SRT socket.
     };
 }

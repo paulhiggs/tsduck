@@ -15,7 +15,7 @@ This appendix describes the XML reference format for all tables and descriptors.
 === PSI/SI file format
 
 The format which is used here is informal.
-See xref:xml-models[xrefstyle=short] about XML model files.
+See xref:xml-models[xrefstyle=short] for more details on XML model files.
 
 Additionally:
 
@@ -30,6 +30,10 @@ Additionally:
   See tags `<generic_short_table>`, `<generic_long_table>` and `<generic_descriptor>` in xref:xml-generic[xrefstyle=short].
 
 ==== XML file structure
+
+All TSDuck XML files use `<tsduck>` as root node.
+They shall be encoded in UTF-8 format.
+The initial declaration line `<?xml version="1.0" encoding="UTF-8"?>` is optional but recommended.
 
 The `<tsduck>` root node contains any number of tables:
 
@@ -94,6 +98,13 @@ include::.all.mpeg.tables.adoc[]
 
 include::.all.dvb.tables.adoc[]
 
+=== Astra-defined tables
+
+The European satellite operator SES Astra defines a few private tables.
+They are used in the context of the DVB standard.
+
+include::.all.astra.tables.adoc[]
+
 === SCTE-defined tables
 
 include::.all.scte.tables.adoc[]
@@ -109,6 +120,10 @@ include::.all.isdb.tables.adoc[]
 === MPEG-defined descriptors
 
 include::.all.mpeg.descriptors.adoc[]
+
+=== SMPTE-defined descriptors (MPEG private descriptors)
+
+include::.all.smpte.descriptors.adoc[]
 
 === DVB-defined descriptors
 
@@ -127,6 +142,10 @@ include::.all.dtg.descriptors.adoc[]
 === EACEM-defined descriptors (DVB private descriptors)
 
 include::.all.eacem.descriptors.adoc[]
+
+=== Astra-defined descriptors (DVB private descriptors)
+
+include::.all.astra.descriptors.adoc[]
 
 === Eutelsat-defined descriptors (DVB private descriptors)
 

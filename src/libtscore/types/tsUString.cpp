@@ -53,7 +53,7 @@ ts::UString::UString(const ::WCHAR* s, size_type count, const allocator_type& al
 
 // Constructor using a Windows Unicode string.
 ts::UString::UString(const ::WCHAR* s, const allocator_type& alloc) :
-    UString(s == 0 ? &CHAR_NULL : reinterpret_cast<const UChar*>(s), alloc)
+    UString(s == nullptr ? &CHAR_NULL : reinterpret_cast<const UChar*>(s), alloc)
 {
     assert(sizeof(::WCHAR) == sizeof(UChar));
 }
@@ -346,14 +346,41 @@ ts::UString& ts::UString::assignFromUTF8(const char* utf8, size_type count)
 // Convert this UTF-16 string into UTF-8.
 //----------------------------------------------------------------------------
 
-void ts::UString::toUTF8(std::string& utf8) const
+void ts::UString::toUTF8(ByteBlock& utf8) const
+{
+    utf8.clear();
+    appendUTF8(utf8);
+}
+
+void ts::UString::appendUTF8(ByteBlock& utf8) const
 {
     // The maximum number of UTF-8 bytes is 3 times the number of UTF-16 codes.
-    utf8.resize(3 * size());
+    const size_t previous_size = utf8.size();
+    utf8.resize(previous_size + 3 * size());
 
     const UChar* in_start = data();
-    char* out_start = const_cast<char*>(utf8.data());
-    ConvertUTF16ToUTF8(in_start, in_start + size(), out_start, out_start + utf8.size());
+    char* const utf8_start = reinterpret_cast<char*>(utf8.data());
+    char* out_start = utf8_start + previous_size;
+    ConvertUTF16ToUTF8(in_start, in_start + size(), out_start, utf8_start + utf8.size());
+
+    utf8.resize(out_start - utf8_start);
+}
+
+void ts::UString::toUTF8(std::string& utf8) const
+{
+    utf8.clear();
+    appendUTF8(utf8);
+}
+
+void ts::UString::appendUTF8(std::string& utf8) const
+{
+    // The maximum number of UTF-8 bytes is 3 times the number of UTF-16 codes.
+    const size_t previous_size = utf8.size();
+    utf8.resize(previous_size + 3 * size());
+
+    const UChar* in_start = data();
+    char* out_start = utf8.data() + previous_size;
+    ConvertUTF16ToUTF8(in_start, in_start + size(), out_start, utf8.data() + utf8.size());
 
     utf8.resize(out_start - utf8.data());
 }
@@ -1010,7 +1037,7 @@ ts::UString ts::UString::toSplitLines(size_type max_width, const UString& other_
 {
     UStringList lines;
     splitLines(lines, max_width, other_separators, next_margin, force_split);
-    return Join(lines, lineSeparator);
+    return lineSeparator.join(lines);
 }
 
 
@@ -1176,6 +1203,43 @@ void ts::UString::quoted(UChar quote_character, const UString& special_character
         }
         // Final quote.
         push_back(quote_character);
+    }
+}
+
+
+//----------------------------------------------------------------------------
+// Remove matching pairs of quotes at beginning and end of string.
+//----------------------------------------------------------------------------
+
+void ts::UString::unquoted(const UString& quote_characters)
+{
+    if (length() > 1) {
+        size_type first = 0;
+        size_type last = length() - 1;
+        while (first < last && (*this)[first] == (*this)[last] && quote_characters.contains((*this)[first])) {
+            first++;
+            last--;
+        }
+        if (first > 0) {
+            erase(last + 1);
+            erase(0, first);
+        }
+    }
+}
+
+ts::UString ts::UString::toUnquoted(const UString& quote_characters) const
+{
+    if (length() < 2) {
+        return *this;
+    }
+    else {
+        size_type first = 0;
+        size_type last = length() - 1;
+        while (first < last && (*this)[first] == (*this)[last] && quote_characters.contains((*this)[first])) {
+            first++;
+            last--;
+        }
+        return substr(first, last + 1 - first);
     }
 }
 
@@ -1689,6 +1753,30 @@ bool ts::UString::toTristate(Tristate& value) const
         }
         return true;
     }
+}
+
+
+//----------------------------------------------------------------------------
+// Internal helper for Duration().
+//----------------------------------------------------------------------------
+
+ts::UString ts::UString::DurationHelper(cn::milliseconds::rep value, bool with_days)
+{
+    constexpr cn::milliseconds::rep one_hour = 3'600'000;
+    constexpr cn::milliseconds::rep one_day = 24 * one_hour;
+    UString s;
+    if (value < 0) {
+        s.append(u'-');
+        value = -value;
+    }
+    if (with_days && value >= one_day) {
+        s.format(u"%dd ", value / one_day);
+        value %= one_day;
+    }
+    const cn::milliseconds::rep hours = value / one_hour;
+    value %= one_hour;
+    s.format(u"%02d:%02d:%02d.%03d", hours, value / 60'000, (value / 1000) % 60, value % 1000);
+    return s;
 }
 
 
@@ -2616,6 +2704,7 @@ ts::UString ts::UString::Float(double value, size_type width, size_type precisio
     TS_GCC_NOWARNING(format-nonliteral)
     TS_LLVM_NOWARNING(format-nonliteral)
     TS_MSC_NOWARNING(4774) // 'snprintf' : format string expected in argument 3 is not a string literal
+    // Flawfinder: ignore: format used on purpose
     std::snprintf(&str[0], str.size(), format.c_str(), int(width), int(precision), value);
     TS_POP_WARNING()
 

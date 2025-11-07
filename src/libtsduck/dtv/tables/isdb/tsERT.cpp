@@ -148,7 +148,7 @@ void ts::ERT::serializePayload(BinaryTable& table, PSIBuffer& buf) const
 
 void ts::ERT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PSIBuffer& buf, const UString& margin)
 {
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
     disp << margin << UString::Format(u"Event relation id: %n", section.tableIdExtension()) << std::endl;
 
     if (buf.canReadBytes(3)) {
@@ -173,8 +173,8 @@ void ts::ERT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PS
 
 void ts::ERT::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     root->setIntAttribute(u"event_relation_id", event_relation_id, true);
     root->setIntAttribute(u"information_provider_id", information_provider_id, true);
     root->setIntAttribute(u"relation_type", relation_type);
@@ -198,8 +198,8 @@ bool ts::ERT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
     xml::ElementVector xrel;
     bool ok =
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-        element->getBoolAttribute(is_current, u"current", false, true) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+        element->getBoolAttribute(_is_current, u"current", false, true) &&
         element->getIntAttribute(event_relation_id, u"event_relation_id", true) &&
         element->getIntAttribute(information_provider_id, u"information_provider_id", true) &&
         element->getIntAttribute(relation_type, u"relation_type", true, 0, 0, 15) &&

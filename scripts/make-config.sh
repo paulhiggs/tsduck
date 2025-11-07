@@ -76,7 +76,7 @@ findcmdvers() {
     local cmd=$(which "$name" 2>/dev/null)
     if [[ -z $cmd ]]; then
         # Not found, look for versioned names.
-        cmd=$(for dir in ${PATH//:/ }; do echo "$dir/$name"*; done | tr ' ' '\n' | grep -v '\*' | grep -e "/$name"'[-\.0-9]*$' | tail -1)
+        cmd=$(for dir in ${PATH//:/ } /usr/local/bin; do echo "$dir/$name"*; done | tr ' ' '\n' | grep -v '\*' | grep -e "/$name"'[-\.0-9]*$' | tail -1)
     fi
     [[ -n $cmd ]] && echo "$cmd"
 }
@@ -100,9 +100,9 @@ exist-wildcard () {
 extract-version() {
     "$1" --version 2>/dev/null |
         head -1 |
-        sed -e 's/([^(]*)//g' |
+        sed -e 's/([^(]*)//g' -e 's/\([\.-][0-9][0-9]*\)[abc][0-9]/\1 /g' -e 's/\([\.-][0-9][0-9]*\)rc[0-9]/\1 /g' |
         tr ' ' '\n' |
-        grep '^[0-9][0-9]*\.[0-9\.]*$' |
+        grep '^[0-9][0-9]*\.[0-9\.-]*$' |
         head -1
 }
 
@@ -130,22 +130,20 @@ done
 # Check if we need to download external libraries which are not installed at system level.
 # For maintenance or cleanup operations, we should not download stuff (we may even want
 # to delete them in the case of a cleanup operation). These libraries are used only when
-# building libtsduck.
+# building libtsduck (libvatek) or libtsdektec (dtapi).
 NOEXTLIBS=1
-if [[ $CURDIR == */src/libtsduck || $CURDIR == */src/libtsduck/* ]]; then
-    if [[ -z ${MAKECMDGOALS// /} ]]; then
-        # Default build in libtsduck: use external libraries.
-        NOEXTLIBS=
-    else
-        # Each of these targets need the external libraries:
-        for target_prefix in default headers libs listvars install; do
-            if [[ ' '$MAKECMDGOALS == *' '${target_prefix}* ]]; then
-                # This is a target which needs the libraries.
-                NOEXTLIBS=
-                break
-            fi
-        done
-    fi
+if [[ -z ${MAKECMDGOALS// /} ]]; then
+    # Default build: use external libraries when in the right directory.
+    NOEXTLIBS=
+else
+    # Each of these targets need the external libraries:
+    for target_prefix in default headers libs listvars install; do
+        if [[ ' '$MAKECMDGOALS == *' '${target_prefix}* ]]; then
+            # This is a target which needs the libraries.
+            NOEXTLIBS=
+            break
+        fi
+    done
 fi
 debug "NOEXTLIBS='$NOEXTLIBS'"
 
@@ -159,7 +157,10 @@ LC_ALL=en_US.UTF-8
 LANG=en_US.UTF-8
 
 [[ -z $LOCAL_OS ]] && LOCAL_OS=$(uname -s | tr A-Z a-z)
-[[ -z $LOCAL_ARCH ]] && LOCAL_ARCH=$(uname -m)
+if [[ -z $LOCAL_ARCH ]]; then
+    LOCAL_ARCH=$(uname -m)
+    LOCAL_ARCH=${LOCAL_ARCH// /-}
+fi
 if [[ -n $M32 ]]; then
     # 32-bit cross-compilation
     MAIN_ARCH=i386
@@ -307,12 +308,6 @@ if [[ -z $CROSS$CROSS_TARGET ]]; then
     # No cross-compilation.
     CXXFLAGS_CROSS=
     LDFLAGS_CROSS=
-    # In last step of build, always use the version of tsxml which is built.
-    if [[ -n $MACOS ]]; then
-        TSXML='LD_LIBRARY_PATH="$(BINDIR):$(LD_LIBRARY_PATH)" DYLD_LIBRARY_PATH="$(BINDIR):$(DYLD_LIBRARY_PATH)" $(BINDIR)/tsxml'
-    else
-        TSXML='LD_LIBRARY_PATH="$(BINDIR):$(LD_LIBRARY_PATH)" $(BINDIR)/tsxml'
-    fi
 else
     # Perform cross-compilation.
     CROSS=1
@@ -346,11 +341,6 @@ else
     # Add options. The layout can be different, so use them all.
     CXXFLAGS_CROSS='-I$(CROSS_PREFIX)/$(CROSS_TARGET)/include -I$(CROSS_PREFIX)/$(CROSS_TARGET)/$(CROSS_TARGET)/include -I$(CROSS_PREFIX)/$(CROSS_TARGET)/$(CROSS_TARGET)/libc/include'
     LDFLAGS_CROSS='-L$(CROSS_PREFIX)/$(CROSS_TARGET)/lib -L$(CROSS_PREFIX)/$(CROSS_TARGET)/$(CROSS_TARGET)/lib -L$(CROSS_PREFIX)/$(CROSS_TARGET)/$(CROSS_TARGET)/libc/lib'
-    # In last step of build, use tsxml from 1) command line, 2) already installed, 3) previous native build.
-    [[ -z $TSXML ]] && TSXML=$(which tsxml 2>/dev/null)
-    [[ -z $TSXML && -x $NATIVEBINDIR/tsxml ]] && \
-        TSXML='LD_LIBRARY_PATH="$(NATIVEBINDIR):$(LD_LIBRARY_PATH)" DYLD_LIBRARY_PATH="$(NATIVEBINDIR):$(DYLD_LIBRARY_PATH)" $(NATIVEBINDIR)/tsxml'
-    [[ -z $TSXML ]] && error "no native TSDuck found for cross-compilation, check NATIVEBINDIR"
 fi
 
 #-----------------------------------------------------------------------------
@@ -376,6 +366,7 @@ SCRIPTSDIR="$ROOTDIR/scripts"
 SRCROOT="$ROOTDIR/src"
 LIBTSCOREDIR="$SRCROOT/libtscore"
 LIBTSDUCKDIR="$SRCROOT/libtsduck"
+LIBTSDEKTECDIR="$SRCROOT/libtsdektec"
 TSTOOLSDIR="$SRCROOT/tstools"
 TSPLUGINSDIR="$SRCROOT/tsplugins"
 BINROOT="$ROOTDIR/bin"
@@ -414,11 +405,16 @@ fi
 # Subdirectory of $BINDIR where object files are stored; named from make's CURDIR.
 OBJDIR="$BINDIR/objs-\$(notdir \$(CURDIR))"
 
+# This directory can be created, used, and deleted by any rule.
+TMPROOT="$BINDIR/tmp"
+
 # Output library files depend on $(BINDIR) in makefile.
 STATIC_LIBTSCORE="$BINDIR/libtscore.a"
 SHARED_LIBTSCORE="$BINDIR/libtscore$SO_SUFFIX"
 STATIC_LIBTSDUCK="$BINDIR/libtsduck.a"
 SHARED_LIBTSDUCK="$BINDIR/libtsduck$SO_SUFFIX"
+STATIC_LIBTSDEKTEC="$BINDIR/libtsdektec.a"
+SHARED_LIBTSDEKTEC="$BINDIR/libtsdektec$SO_SUFFIX"
 
 #-----------------------------------------------------------------------------
 # Preload configuration variables: exclude some dependencies.
@@ -444,6 +440,7 @@ if [[ -z $PRECONFIG_DONE ]]; then
     [[ $PRECONFIG == */TS_NO_EDITLINE/* ]] && NOEDITLINE=1
     [[ $PRECONFIG == */TS_NO_CURL/* ]] && NOCURL=1
     [[ $PRECONFIG == */TS_NO_ZLIB/* ]] && NOZLIB=1
+    [[ $PRECONFIG == */TS_NO_SDEFL/* ]] && NOSDEFL=1
     [[ $PRECONFIG == */TS_NO_SRT/* ]] && NOSRT=1
     [[ $PRECONFIG == */TS_NO_RIST/* ]] && NORIST=1
     [[ $PRECONFIG == */TS_NO_OPENSSL/* ]] && NOOPENSSL=1
@@ -460,7 +457,11 @@ LIBTSCORE_LDLIBS=
 LIBTSDUCK_CXXFLAGS_INCLUDES=
 LIBTSDUCK_INCLUDES=
 LIBTSDUCK_LDLIBS=
+LIBTSDEKTEC_CXXFLAGS_INCLUDES=
+LIBTSDEKTEC_INCLUDES=
+LIBTSDEKTEC_LDLIBS=
 APPS_CXXFLAGS_INCLUDES=
+DTAPPS_CXXFLAGS_INCLUDES=
 CXXFLAGS_INCLUDES=
 CXXFLAGS_WARNINGS=
 CXXFLAGS_NO_WARNINGS=
@@ -472,6 +473,11 @@ ARFLAGS=
 
 # Use $(CXX) for compilation. Use $(GCC) to explicitly reference GCC.
 [[ -z $GCC ]] && GCC=gcc
+
+# The strip command tries to remove global symbols on macOS.
+if [[ -z $STRIP ]]; then
+    [[ -n $MACOS ]] && STRIP="strip -x" || STRIP="strip"
+fi
 
 # Define compilation flags for 32-bit cross-compilation.
 if [[ -n $M32 ]]; then
@@ -667,6 +673,7 @@ else
     NOSRT=1
     NORIST=1
     NOEDITLINE=1
+    NOOPENSSL=1
     NOTEST=1
     CXXFLAGS_INCLUDES="$CXXFLAGS_INCLUDES -DTSDUCK_STATIC=1"
 fi
@@ -722,19 +729,19 @@ if [[ -z $NOPCSC$MACOS$PCSC_DONE ]]; then
 fi
 
 # Download Dektec library (DTAPI) if required.
-if [[ -z $NODTAPI$NOEXTLIBS ]]; then
+if [[ -z $NODTAPI$NOEXTLIBS && ($CURDIR == */src/libtsdektec || $CURDIR == */src/libtsdektec/*) ]]; then
     [[ $M32 ]] && m32=--m32 || m32=
     [[ -z $DTAPI_OBJECT ]] && DTAPI_OBJECT=$($SCRIPTSDIR/dtapi-config.sh --object --download $m32)
     [[ -z $DTAPI_HEADER ]] && DTAPI_HEADER=$($SCRIPTSDIR/dtapi-config.sh --header)
     if [[ -z $DTAPI_OBJECT || -z $DTAPI_HEADER ]]; then
         NODTAPI=1
     else
-        LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -isystem $(dirname $DTAPI_HEADER)"
+        LIBTSDEKTEC_CXXFLAGS_INCLUDES="$LIBTSDEKTEC_CXXFLAGS_INCLUDES -isystem $(dirname $DTAPI_HEADER)"
     fi
 fi
 
 # Download VATek library if required.
-if [[ -z $NOVATEK$NOEXTLIBS ]]; then
+if [[ -z $NOVATEK$NOEXTLIBS && ($CURDIR == */src/libtsduck || $CURDIR == */src/libtsduck/*) ]]; then
     if [[ -z $VATEK_CFLAGS ]]; then
         # Eliminate all our variables from the environment. Compilation options
         # would interfere with VATek build if we need to recompile the library.
@@ -798,8 +805,7 @@ LIBTSDUCK_LDLIBS="$LIBTSDUCK_LDLIBS $LDLIBS_PCSC"
 [[ -n $FREEBSD ]] && LIBTSCORE_LDLIBS="$LIBTSCORE_LDLIBS -lprocstat"
 [[ -n $OPENBSD$NETBSD$DRAGONFLYBSD ]] && LIBTSCORE_LDLIBS="$LIBTSCORE_LDLIBS -lkvm"
 [[ -n $LINUX ]] && LIBTSCORE_LDLIBS="$LIBTSCORE_LDLIBS -latomic"
-[[ -z $NOOPENSSL ]] && LIBTSCORE_LDLIBS="$LIBTSCORE_LDLIBS -lcrypto"
-[[ -n $NODTAPI ]] && LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -DTS_NO_DTAPI=1"
+[[ -z $NOOPENSSL ]] && LIBTSCORE_LDLIBS="$LIBTSCORE_LDLIBS -lssl -lcrypto"
 [[ -n $NOHIDES ]] && LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -DTS_NO_HIDES=1"
 [[ -n $NOVATEK ]] && LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -DTS_NO_VATEK=1"
 if [[ -n $NOEDITLINE ]]; then
@@ -823,6 +829,9 @@ if [[ -n $NOZLIB ]]; then
     LIBTSCORE_CXXFLAGS_INCLUDES="$LIBTSCORE_CXXFLAGS_INCLUDES -DTS_NO_ZLIB=1"
 else
     LIBTSCORE_LDLIBS="$LIBTSCORE_LDLIBS -lz"
+fi
+if [[ -n $NOSDEFL ]]; then
+    LIBTSCORE_CXXFLAGS_INCLUDES="$LIBTSCORE_CXXFLAGS_INCLUDES -DTS_NO_SDEFL=1"
 fi
 if [[ -n $NOSRT ]]; then
     LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -DTS_NO_SRT=1"
@@ -857,7 +866,8 @@ fi
 # List of libtsduck directories containing header files.
 # Done once only because it accesses the file system.
 if [[ -z $ALL_INCLUDES ]]; then
-    for dir in $(find $LIBTSCOREDIR $LIBTSDUCKDIR -type d); do
+    [[ -z $NODTAPI ]] && others="$LIBTSDEKTECDIR" || others=
+    for dir in $(find $LIBTSCOREDIR $LIBTSDUCKDIR $others -type d); do
         if [[ " $OTHER_OS " != *" $(fbasename $dir) "* && -n $(exist-wildcard $dir/*.h) ]]; then
             # This is a directory containing headers, not specific to another operating system.
             ALL_INCLUDES="$ALL_INCLUDES $dir"
@@ -877,30 +887,43 @@ for dir in $ALL_INCLUDES; do
             # Private directory in libtsduck. Only used when compiling libtsduck.
             LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -I$dir"
             ;;
+        */libtsdektec/*/private|*/libtsdektec/private)
+            # Private directory in libtsdektec. Only used when compiling libtsdektec.
+            LIBTSDEKTEC_CXXFLAGS_INCLUDES="$LIBTSDEKTEC_CXXFLAGS_INCLUDES -I$dir"
+            ;;
         */libtscore/*|*/libtscore)
             # Public directory in libtscore. Used everywhere.
             LIBTSCORE_INCLUDES="$LIBTSCORE_INCLUDES $dir"
             LIBTSCORE_CXXFLAGS_INCLUDES="$LIBTSCORE_CXXFLAGS_INCLUDES -I$dir"
             LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -I$dir"
+            LIBTSDEKTEC_CXXFLAGS_INCLUDES="$LIBTSDEKTEC_CXXFLAGS_INCLUDES -I$dir"
             APPS_CXXFLAGS_INCLUDES="$APPS_CXXFLAGS_INCLUDES -I$dir"
             ;;
         */libtsduck/*|*/libtsduck)
             # Public directory in libtsduck. Used everywhere, except when compiling libtscore.
             LIBTSDUCK_INCLUDES="$LIBTSDUCK_INCLUDES $dir"
             LIBTSDUCK_CXXFLAGS_INCLUDES="$LIBTSDUCK_CXXFLAGS_INCLUDES -I$dir"
+            LIBTSDEKTEC_CXXFLAGS_INCLUDES="$LIBTSDEKTEC_CXXFLAGS_INCLUDES -I$dir"
             APPS_CXXFLAGS_INCLUDES="$APPS_CXXFLAGS_INCLUDES -I$dir"
+            ;;
+        */libtsdektec/*|*/libtsdektec)
+            # Public directory in libtsdektec. Used everywhere, except when compiling libtscore.
+            LIBTSDEKTEC_INCLUDES="$LIBTSDEKTEC_INCLUDES $dir"
+            LIBTSDEKTEC_CXXFLAGS_INCLUDES="$LIBTSDEKTEC_CXXFLAGS_INCLUDES -I$dir"
+            DTAPPS_CXXFLAGS_INCLUDES="$DTAPPS_CXXFLAGS_INCLUDES -I$dir"
             ;;
     esac
 done
 
 # Obsolete plugins, were in separate shared libraries, now in libtsduck.so.
 # Maintenance: also update pkg/nsis/tsduck.nsi (Windows).
-NO_TSPLUGINS="tsplugin_dektec tsplugin_drop tsplugin_file tsplugin_fork tsplugin_hls tsplugin_http tsplugin_ip tsplugin_null tsplugin_psi tsplugin_rist tsplugin_skip tsplugin_srt tsplugin_table tsplugin_teletext"
+NO_TSPLUGINS="tsplugin_drop tsplugin_file tsplugin_fork tsplugin_hls tsplugin_http tsplugin_ip tsplugin_null tsplugin_psi tsplugin_rist tsplugin_srt tsplugin_table"
 
 # Build a list of tools and plugins to not build or deinstall from the system tree.
 NO_TSTOOLS=
 [[ -n $NOOPENSSL ]] && NO_TSPLUGINS="$NO_TSPLUGINS tsplugin_aes tsplugin_descrambler tsplugin_scrambler"
 [[ -n $NODTAPI ]] && NO_TSTOOLS="$NO_TSTOOLS tsdektec"
+[[ -n $NODTAPI ]] && NO_TSPLUGINS="$NO_TSPLUGINS tsplugin_dektec"
 [[ -n $NOHIDES ]] && NO_TSTOOLS="$NO_TSTOOLS tshides"
 [[ -n $NOHIDES ]] && NO_TSPLUGINS="$NO_TSPLUGINS tsplugin_hides"
 [[ -n $NOVATEK ]] && NO_TSTOOLS="$NO_TSTOOLS tsvatek"

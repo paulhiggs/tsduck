@@ -7,18 +7,21 @@
 //----------------------------------------------------------------------------
 //!
 //!  @file
-//!  Representation of an DSM-CC User-to-Network Message Table (DownloadServerInitiate, DownloadInfoIndication)
+//!  Representation of a DSM-CC User-to-Network Message Table.
 //!
 //----------------------------------------------------------------------------
 
 #pragma once
 #include "tsAbstractLongTable.h"
+#include "tsDSMCC.h"
+#include "tsDSMCCTap.h"
+#include "tsDSMCCCompatibilityDescriptor.h"
 
 namespace ts {
     //!
-    //! Representation of an DSM-CC User-to-Network Message Table (DownloadServerInitiate, DownloadInfoIndication)
-    //!
-    //! @see ISO/IEC 13818-6, ITU-T Rec. 9.2.2 and 9.2.7. ETSI TR 101 202 V1.2.1 (2003-01), A.1, A.3, A.4, B.
+    //! Representation of a DSM-CC User-to-Network Message Table (DownloadServerInitiate, DownloadInfoIndication).
+    //! @see ISO/IEC 13818-6, 9.2.2, 7.3.2, 7.3.6
+    //! @see ETSI TR 101 202, A.1, A.3, A.4, B.
     //! @ingroup libtsduck table
     //!
     class TSDUCKDLL DSMCCUserToNetworkMessage: public AbstractLongTable
@@ -49,22 +52,6 @@ namespace ts {
             void clear();
         };
 
-        //!
-        //! Representation of Tap structure
-        //! @see ETSI TR 101 202 V1.2.1 (2003-01), 4.7.2.5
-        //!
-        class TSDUCKDLL Tap
-        {
-        public:
-            Tap() = default;                    //!< Default constructor.
-            uint16_t id = 0x0000;               //!< This field is for private use (shall be set to zero if not used).
-            uint16_t use = 0x0016;              //!< Field indicating the usage of the Tap.
-            uint16_t association_tag = 0x0000;  //!< Field to associate the Tap with a particular (Elementary) Stream.
-            uint16_t selector_type = 0x0001;    //!< Optional selector, to select the associated data from the associated (Elementary) Stream.
-            uint32_t transaction_id = 0;        //!< Used for session integrity and error processing.
-            uint32_t timeout = 0;               //!< Defined in units of µs, specific to the construction of a particular carousel.
-        };
-
         //  *****************************************
         //  *** DownloadServerInitiate Structures ***
         //  *****************************************
@@ -87,7 +74,7 @@ namespace ts {
             ByteBlock object_key_data {};    //!< Identifies the object within the module in which it is broadcast.
 
             // DSMConnBinder context
-            Tap tap {};  //!< Tap structure
+            DSMCCTap tap {};                 //!< Tap structure
 
             // UnknownComponent context
             std::optional<ByteBlock> component_data {};  //!< Optional component data, for UnknownComponent.
@@ -136,14 +123,14 @@ namespace ts {
             TS_NO_DEFAULT_CONSTRUCTORS(Module);
             TS_DEFAULT_ASSIGMENTS(Module);
         public:
-            uint16_t       module_id = 0;       //!< Identifies the module.
-            uint32_t       module_size = 0;     //!< Length of the module in bytes.
-            uint8_t        module_version = 0;  //!< Identifies the version of the module.
-            uint32_t       module_timeout = 0;  //!< Time out value in microseconds that may be used to time out the acquisition of all Blocks of the Module.
-            uint32_t       block_timeout = 0;   //!< Time out value in microseconds that may be used to time out the reception of the next Block after a Block has been acquired.
-            uint32_t       min_block_time = 0;  //!< Indicates the minimum time period that exists between the delivery of two subsequent Blocks of the Module.
-            std::list<Tap> taps {};             //!< List of Taps.
-                                                //
+            uint16_t module_id = 0;       //!< Identifies the module.
+            uint32_t module_size = 0;     //!< Length of the module in bytes.
+            uint8_t  module_version = 0;  //!< Identifies the version of the module.
+            uint32_t module_timeout = 0;  //!< Time out value in microseconds that may be used to time out the acquisition of all Blocks of the Module.
+            uint32_t block_timeout = 0;   //!< Time out value in microseconds that may be used to time out the reception of the next Block after a Block has been acquired.
+            uint32_t min_block_time = 0;  //!< Indicates the minimum time period that exists between the delivery of two subsequent Blocks of the Module.
+            std::list<DSMCCTap> taps {};  //!< List of Taps.
+
             //!
             //! Constructor.
             //! @param [in] table Parent DSMCCUserToNetworkMessage Table.
@@ -151,15 +138,21 @@ namespace ts {
             explicit Module(const AbstractTable* table);
         };
 
-        MessageHeader header {};     //!< DSM-CC Message Header.
-        ByteBlock     server_id {};  //!< Field shall be set to 20 bytes with the value 0xFF.
-        IOR           ior {};        //!< Interoperable Object Reference (IOR) structure.
-
         //!
         //! List of Modules
         //!
-        using ModuleList = EntryWithDescriptorsList<Module>;
+        using ModuleList = AttachedEntryList<Module>;
 
+        // Common fields for all DSMCCUserToNetworkMessage:
+
+        MessageHeader                header {};                     //!< DSM-CC Message Header.
+        DSMCCCompatibilityDescriptor compatibility_descriptor {};   //!< DSM-CC compatibilityDescriptor.
+
+        // These fields apply to DSI:
+        ByteBlock  server_id {};     //!< Field shall be set to 20 bytes with the value 0xFF.
+        IOR        ior {};           //!< Interoperable Object Reference (IOR) structure.
+
+        // These fields apply to DII:
         uint32_t   download_id = 0;  //!< Same value as the downloadId field of the DownloadDataBlock() messages which carry the Blocks of the Module.
         uint16_t   block_size = 0;   //!< Block size of all the DownloadDataBlock() messages which convey the Blocks of the Modules.
         ModuleList modules;          //!< List of modules structures.
@@ -194,15 +187,5 @@ namespace ts {
 
     private:
         static constexpr size_t MESSAGE_HEADER_SIZE = 12;  //!< DSM-CC Message Header size w/o adaptation header.
-        static constexpr size_t SERVER_ID_SIZE = 20;       //!< Fixed size in bytes of server_id.
-
-        static constexpr uint8_t  DSMCC_PROTOCOL_DISCRIMINATOR = 0x11;     //!< Protocol Discriminator for DSM-CC.
-        static constexpr uint8_t  DSMCC_TYPE_DOWNLOAD_MESSAGE = 0x03;      //!< MPEG-2 DSM-CC Download Message.
-        static constexpr uint16_t DSMCC_MESSAGE_ID_DII = 0x1002;           //!< DownloadInfoIndication.
-        static constexpr uint16_t DSMCC_MESSAGE_ID_DSI = 0x1006;           //!< DownloadServerInitiate.
-        static constexpr uint32_t DSMCC_TAG_LITE_OPTIONS = 0x49534F05;     //!< TAG_LITE_OPTIONS (Lite Options Profile Body).
-        static constexpr uint32_t DSMCC_TAG_BIOP_PROFILE = 0x49534F06;     //!< TAG_BIOP (BIOP Profile Body).
-        static constexpr uint32_t DSMCC_TAG_CONN_BINDER = 0x49534F40;      //!< TAG_ConnBinder (DSM::ConnBinder).
-        static constexpr uint32_t DSMCC_TAG_OBJECT_LOCATION = 0x49534F50;  //!< TAG_ObjectLocation (BIOP::ObjectLocation).
     };
-}  // namespace ts
+}

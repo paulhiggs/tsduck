@@ -74,7 +74,7 @@ void ts::BAT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PS
 {
     // Display bouquet information
     disp << margin << UString::Format(u"Bouquet Id: %n", section.tableIdExtension()) << std::endl;
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
     disp.displayDescriptorListWithLength(section, context, true, buf, margin, u"Bouquet information:");
 
     // Transport stream loop
@@ -96,8 +96,8 @@ void ts::BAT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PS
 
 void ts::BAT::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     root->setIntAttribute(u"bouquet_id", bouquet_id, true);
     descs.toXML(duck, root);
 
@@ -121,8 +121,8 @@ bool ts::BAT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
     xml::ElementVector children;
     bool ok =
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-        element->getBoolAttribute(is_current, u"current", false, true) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+        element->getBoolAttribute(_is_current, u"current", false, true) &&
         element->getIntAttribute(bouquet_id, u"bouquet_id", true, 0, 0x0000, 0xFFFF) &&
         descs.fromXML(duck, children, element, u"transport_stream");
 

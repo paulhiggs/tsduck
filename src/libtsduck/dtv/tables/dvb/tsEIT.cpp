@@ -442,7 +442,7 @@ void ts::EIT::Fix(BinaryTable& table, FixMode mode)
 
 void ts::EIT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PSIBuffer& buf, const UString& margin)
 {
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
 
     // The time reference is UTC as defined by DVB, but can be non-standard.
     const UString zone(disp.duck().timeReferenceName());
@@ -482,8 +482,8 @@ void ts::EIT::buildXML(DuckContext& duck, xml::Element* root) const
     else {
         root->setIntAttribute(u"type", _table_id - (isActual() ? TID_EIT_S_ACT_MIN : TID_EIT_S_OTH_MIN));
     }
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     root->setBoolAttribute(u"actual", isActual());
     root->setIntAttribute(u"service_id", service_id, true);
     root->setIntAttribute(u"transport_stream_id", ts_id, true);
@@ -511,8 +511,8 @@ bool ts::EIT::analyzeXML(DuckContext& duck, const xml::Element* element)
     xml::ElementVector children;
     bool ok =
         getTableId(element) &&
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-        element->getBoolAttribute(is_current, u"current", false, true) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+        element->getBoolAttribute(_is_current, u"current", false, true) &&
         element->getIntAttribute(service_id, u"service_id", true, 0, 0x0000, 0xFFFF) &&
         element->getIntAttribute(ts_id, u"transport_stream_id", true, 0, 0x0000, 0xFFFF) &&
         element->getIntAttribute(onetw_id, u"original_network_id", true, 0, 0x00, 0xFFFF) &&

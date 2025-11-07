@@ -30,9 +30,10 @@ namespace ts {
         virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
-        bool                _ignoreErrors;  // Ignore encapsulation errors.
-        PID                 _pid;           // Input PID.
-        PacketDecapsulation _decap;         // Decapsulation engine.
+        bool _ignore_errors = false;
+        bool _mute_errors = false;
+        PID  _pid = PID_NULL;
+        PacketDecapsulation _decap {*this};
     };
 }
 
@@ -44,14 +45,15 @@ TS_REGISTER_PROCESSOR_PLUGIN(u"decap", ts::DecapPlugin);
 //----------------------------------------------------------------------------
 
 ts::DecapPlugin::DecapPlugin(TSP* tsp_) :
-    ProcessorPlugin(tsp_, u"Decapsulate TS packets from a PID produced by encap plugin", u"[options]"),
-    _ignoreErrors(false),
-    _pid(PID_NULL),
-    _decap()
+    ProcessorPlugin(tsp_, u"Decapsulate TS packets from a PID produced by encap plugin", u"[options]")
 {
     option(u"ignore-errors", 'i');
     help(u"ignore-errors",
          u"Ignore errors such malformed encapsulated stream.");
+
+    option(u"mute-errors", 'm');
+    help(u"mute-errors",
+         u"Same as --ignore-errors and also don't even display the error message.");
 
     option(u"pid", 'p', PIDVAL);
     help(u"pid",
@@ -66,8 +68,9 @@ ts::DecapPlugin::DecapPlugin(TSP* tsp_) :
 
 bool ts::DecapPlugin::getOptions()
 {
-    _ignoreErrors = present(u"ignore-errors");
-    _pid = intValue<PID>(u"pid", PID_NULL);
+    _mute_errors = present(u"mute-errors");
+    _ignore_errors = _mute_errors || present(u"ignore-errors");
+    getIntValue(_pid, u"pid", PID_NULL);
     return true;
 }
 
@@ -89,7 +92,13 @@ bool ts::DecapPlugin::start()
 
 ts::ProcessorPlugin::Status ts::DecapPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
-    if (_decap.processPacket(pkt) || _ignoreErrors || _decap.lastError().empty()) {
+    if (_decap.processPacket(pkt) || _ignore_errors || !_decap.hasError()) {
+        if (_decap.hasError()) {
+            if (!_mute_errors) {
+                error(_decap.lastError());
+            }
+            _decap.resetError();
+        }
         return TSP_OK;
     }
     else {

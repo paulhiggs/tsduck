@@ -163,7 +163,7 @@ namespace ts {
         virtual void reload(const void* content, size_t content_size, PID source_pid = PID_NULL) override;
         virtual void reload(const ByteBlock& content, PID source_pid = PID_NULL) override;
         virtual void reload(const ByteBlockPtr& content_ptr, PID source_pid = PID_NULL) override;
-        virtual Standards definingStandards() const override;
+        virtual Standards definingStandards(Standards current_standards = Standards::NONE) const override;
 
         //!
         //! Reload from full binary content.
@@ -256,7 +256,7 @@ namespace ts {
         //! Check if the section has valid content.
         //! @return True if the section has valid content.
         //!
-        bool isValid() const { return _status == VALID; }
+        virtual bool isValid() const override;
 
         //!
         //! Get the section status.

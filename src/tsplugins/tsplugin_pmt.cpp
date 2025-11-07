@@ -23,7 +23,6 @@
 #include "tsDVBAC3Descriptor.h"
 #include "tsDVBEnhancedAC3Descriptor.h"
 #include "tsCueIdentifierDescriptor.h"
-#include "tsAlgorithm.h"
 
 
 //----------------------------------------------------------------------------
@@ -62,6 +61,7 @@ namespace ts {
         std::vector<PID>     _removed_pids {};           // Set of PIDs to remove from PMT
         std::vector<DID>     _removed_desc_tags {};      // Set of descriptor tags to remove
         std::vector<uint8_t> _removed_stream_types {};   // Set of stream types to remove
+        std::vector<REGID>   _removed_registrations {};  // Set of registrations for which PID's are removed
         std::list<NewPID>    _added_pids {};             // List of PID to add
         std::map<PID,PID>    _moved_pids {};             // List of renamed PID's in PMT (key=old, value=new)
         bool                 _set_servid = false;        // Set a new service id
@@ -81,7 +81,7 @@ namespace ts {
 
         // Implementation of AbstractTablePlugin.
         virtual void createNewTable(BinaryTable& table) override;
-        virtual void modifyTable(BinaryTable& table, bool& is_target, bool& reinsert) override;
+        virtual void modifyTable(BinaryTable& table, bool& is_target, bool& reinsert, bool& replace_all) override;
 
         // Add a descriptor for a given PID in _add_pid_descs.
         void addComponentDescriptor(PID pid, const AbstractDescriptor& desc);
@@ -202,9 +202,14 @@ ts::PMTPlugin::PMTPlugin(TSP* tsp_) :
          u"--remove-pid options may be specified to remove several components.");
 
     option(u"remove-stream-type", 0, UINT8, 0, UNLIMITED_COUNT);
-    help(u"remove-stream-type", u"value[-value]",
+    help(u"remove-stream-type", u"value1[-value2]",
          u"Remove all components with a stream type matching the specified value (or in the specified range of values). "
          u"Several --remove-stream-type options may be specified.");
+
+    option(u"remove-with-registration", 0, UINT32, 0, UNLIMITED_COUNT);
+    help(u"remove-with-registration", u"value1[-value2]",
+         u"Remove all components with a registration descriptor containing the specified value (or in the specified range of values). "
+         u"Several --remove-with-registration options may be specified.");
 
     option(u"service", 's', STRING);
     help(u"service", u"name-or-id",
@@ -364,6 +369,7 @@ bool ts::PMTPlugin::start()
     getIntValues(_removed_pids, u"remove-pid");
     getIntValues(_removed_desc_tags, u"remove-descriptor");
     getIntValues(_removed_stream_types, u"remove-stream-type");
+    getIntValues(_removed_registrations, u"remove-with-registration");
 
     // Get list of components to add
     size_t opt_count = count(u"add-pid");
@@ -498,7 +504,7 @@ void ts::PMTPlugin::createNewTable(BinaryTable& table)
 // Invoked by the superclass when a table is found in the target PID.
 //----------------------------------------------------------------------------
 
-void ts::PMTPlugin::modifyTable(BinaryTable& table, bool& is_target, bool& reinsert)
+void ts::PMTPlugin::modifyTable(BinaryTable& table, bool& is_target, bool& reinsert, bool& replace_all)
 {
     // If not the PMT we are looking for, reinsert without modification.
     is_target = table.tableId() == TID_PMT && (!_service.hasId() || table.tableIdExtension() == _service.getId());
@@ -537,6 +543,18 @@ void ts::PMTPlugin::modifyTable(BinaryTable& table, bool& is_target, bool& reins
     for (auto rtype : _removed_stream_types) {
         for (auto str = pmt.streams.begin(); str != pmt.streams.end(); ) {
             if (str->second.stream_type == rtype) {
+                str = pmt.streams.erase(str);
+            }
+            else {
+                ++str;
+            }
+        }
+    }
+
+    // Remove components containing specific registration descriptors.
+    for (auto regid : _removed_registrations) {
+        for (auto str = pmt.streams.begin(); str != pmt.streams.end(); ) {
+            if (str->second.descs.containsRegistration(regid)) {
                 str = pmt.streams.erase(str);
             }
             else {

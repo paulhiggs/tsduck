@@ -353,7 +353,7 @@ void ts::VCT::serializePayload(BinaryTable& table, PSIBuffer& buf) const
 
 void ts::VCT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PSIBuffer& buf, const UString& margin)
 {
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
     disp << margin << UString::Format(u"Transport stream id: %n", section.tableIdExtension()) << std::endl;
 
     uint16_t num_channels = 0;
@@ -442,8 +442,8 @@ const ts::Names& ts::VCT::ServiceTypeEnum()
 
 void ts::VCT::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     root->setIntAttribute(u"transport_stream_id", transport_stream_id, true);
     root->setIntAttribute(u"protocol_version", protocol_version);
     descs.toXML(duck, root);
@@ -481,8 +481,8 @@ bool ts::VCT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
     xml::ElementVector children;
     bool ok =
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-        element->getBoolAttribute(is_current, u"current", false, true) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+        element->getBoolAttribute(_is_current, u"current", false, true) &&
         element->getIntAttribute(protocol_version, u"protocol_version", false, 0) &&
         element->getIntAttribute(transport_stream_id, u"transport_stream_id", true) &&
         descs.fromXML(duck, children, element, u"channel");

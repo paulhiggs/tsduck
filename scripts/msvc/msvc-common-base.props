@@ -10,7 +10,7 @@
     <IntDir>$(OutDir)$(ProjectName)\</IntDir>
   </PropertyGroup>
 
-  <!-- Locate all directories in libtscore and libtsduck (for inclusion of header files) -->
+  <!-- Locate all directories in sublibraries (for inclusion of header files) -->
 
   <ItemGroup>
     <LibCorePublicHeaders  Include="$(TSDuckRootDir)src\libtscore\**\*.h"
@@ -76,6 +76,22 @@
     <TSDuckLibDirsInternal>@(LibDuckPrivateDirs)</TSDuckLibDirsInternal>
   </PropertyGroup>
 
+  <ItemGroup>
+    <LibDektecPublicHeaders  Include="$(TSDuckRootDir)src\libtsdektec\**\*.h"
+                             Exclude="$(TSDuckRootDir)src\libtsdektec\**\private\**;
+                                      $(TSDuckRootDir)src\libtsdektec\**\__pycache__\**"/>
+    <LibDektecPrivateHeaders Include="$(TSDuckRootDir)src\libtsdektec\**\private\**\*.h"/>
+    <LibDektecSources        Include="$(TSDuckRootDir)src\libtsdektec\**\*.cpp"
+                             Exclude="$(TSDuckRootDir)src\libtsdektec\**\__pycache__\**"/>
+    <LibDektecPublicDirs     Include="@(LibDektecPublicHeaders->'%(RootDir)%(Directory)'->Distinct())"/>
+    <LibDektecPrivateDirs    Include="@(LibDektecPrivateHeaders->'%(RootDir)%(Directory)'->Distinct())"/>
+  </ItemGroup>
+
+  <PropertyGroup Label="Configuration">
+    <TSDektecLibDirs>@(LibDektecPublicDirs)</TSDektecLibDirs>
+    <TSDektecLibDirsInternal>@(LibDektecPrivateDirs)</TSDektecLibDirsInternal>
+  </PropertyGroup>
+
   <!-- Common build options -->
 
   <ItemDefinitionGroup>
@@ -106,6 +122,10 @@
     <ClCompile>
       <PreprocessorDefinitions>WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <Link>
+      <!-- /SAFESEH is incompatible with DTAPI on Win32 -->
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+    </Link>
   </ItemDefinitionGroup>
 
   <ItemDefinitionGroup Condition="'$(TS_KEEP_ASSERTIONS)'!=''">
@@ -142,6 +162,8 @@
       <PreprocessorDefinitions>DEBUG;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <!-- Required with LinkIncremental == false -->
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>TS_WINVER_FILEFLAGS=VS_FF_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>

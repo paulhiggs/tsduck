@@ -173,7 +173,7 @@ void ts::ATSCEIT::DisplaySection(TablesDisplay& disp, const ts::Section& section
         disp << UString::Format(u", number of events: %d", event_count = buf.getUInt8()) << std::endl;
 
         // Loop on all event definitions.
-        DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+        DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
         while (buf.canReadBytes(8) && event_count-- > 0) {
             buf.skipBits(2);
             disp << margin << UString::Format(u"- Event Id: %n", buf.getBits<uint16_t>(14)) << std::endl;
@@ -194,7 +194,7 @@ void ts::ATSCEIT::DisplaySection(TablesDisplay& disp, const ts::Section& section
 
 void ts::ATSCEIT::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
+    root->setIntAttribute(u"version", _version);
     root->setIntAttribute(u"source_id", source_id, true);
     root->setIntAttribute(u"protocol_version", protocol_version);
 
@@ -218,7 +218,7 @@ bool ts::ATSCEIT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
     xml::ElementVector xevent;
     bool ok =
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
         element->getIntAttribute(source_id, u"source_id", true) &&
         element->getIntAttribute(protocol_version, u"protocol_version", false, 0) &&
         element->getChildren(xevent, u"event");

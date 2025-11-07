@@ -65,6 +65,27 @@ A shortcut for `--model tsduck.channels.model.xml`.
 This option verifies that the input files are valid channel configuration files.
 
 [.opt]
+*-e* +
+*--expand-environment*
+
+[.optdoc]
+Expand environment variables in the input XML files.
+Environment variables must be referenced as `${name}`.
+
+[.optdoc]
+See also option `--expand-patch-xml` to expand environment variables in patch files.
+
+[.opt]
+*--expand-patch-xml*
+
+[.optdoc]
+Expand environment variables in the XML patch files before patching.
+Environment variables must be referenced as `${name}`.
+
+[.optdoc]
+See also option `--expand-environment` to expand environment variables in input files.
+
+[.opt]
 *-f* +
 *--from-json*
 
@@ -137,10 +158,16 @@ The file is automatically searched in the directories for TSDuck configuration f
 *--monitor*
 
 [.optdoc]
-A shortcut for `--model tsduck.monitor.model.xml`.
+A shortcut for `--model tscore.monitor.model.xml`.
 
 [.optdoc]
 This option verifies that the input files are valid resource monitoring configuration files.
+
+[.opt]
+*--no-yaml-header*
+
+[.optdoc]
+With `--yaml`, do not add the standard YAML header and trailer.
 
 [.opt]
 *-o* _filename_ +
@@ -150,7 +177,7 @@ This option verifies that the input files are valid resource monitoring configur
 Specify the name of the output file (standard output by default).
 
 [.optdoc]
-An output file is produced only if `--patch`, `--reformat` or `--json` are specified.
+An output file is produced only if at least one of `--patch`, `--reformat`, `--json`, `--yaml` is specified.
 
 [.opt]
 *-p* _filename_ +
@@ -215,6 +242,12 @@ Output each transformed input XML file as one single XML line in the message log
 [.optdoc]
 The optional string parameter specifies a prefix to prepend on the log line before the XML text
 to facilitate the filtering of the appropriate line in the logs.
+
+[.opt]
+*--yaml*
+
+[.optdoc]
+Convert the XML content to YAML (experimental).
 
 include::{docdir}/opt/group-xml-tweaks.adoc[tags=!*]
 include::{docdir}/opt/group-json-output.adoc[tags=!*]

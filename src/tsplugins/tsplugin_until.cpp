@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------------
 
 #include "tsPluginRepository.h"
+#include "tsTSClock.h"
 #include "tsTime.h"
 
 
@@ -31,19 +32,20 @@ namespace ts {
 
     private:
         // Command line options:
-        bool             _exclude_last = false;  // Exclude packet which triggers the condition
-        PacketCounter    _pack_max = 0;          // Stop at Nth packet
-        PacketCounter    _unit_start_max = 0;    // Stop at Nth packet with payload unit start
-        PacketCounter    _null_seq_max = 0;      // Stop at Nth sequence of null packets
-        cn::milliseconds _msec_max {};           // Stop after N milli-seconds
+        bool             _exclude_last = false;
+        PacketCounter    _packet_max = 0;
+        PacketCounter    _unit_start_max = 0;
+        PacketCounter    _null_seq_max = 0;
+        cn::milliseconds _msec_max {};
+        TSClockArgs      _ts_clock_args {};
 
         // Working data:
-        PacketCounter _unit_start_cnt = 0;       // Payload unit start counter
-        PacketCounter _null_seq_cnt = 0;         // Sequence of null packets counter
-        Time          _start_time {};            // Time of first packet reception
-        PID           _previous_pid = PID_NULL;  // PID of previous packet
-        bool          _terminated = false;       // Final condition is met
-        bool          _transparent = false;      // Pass all packets, no longer check conditions
+        PacketCounter    _unit_start_cnt = 0;       // Payload unit start counter
+        PacketCounter    _null_seq_cnt = 0;         // Sequence of null packets counter
+        PID              _previous_pid = PID_NULL;  // PID of previous packet
+        bool             _terminated = false;       // Final condition is met
+        bool             _transparent = false;      // Pass all packets, no longer check conditions
+        TSClock          _ts_clock {duck};          // Compute playout time
     };
 }
 
@@ -70,7 +72,9 @@ ts::UntilPlugin::UntilPlugin (TSP* tsp_) :
 
     option<cn::milliseconds>(u"milli-seconds", 'm');
     help(u"milli-seconds",
-         u"Stop the specified number of milli-seconds after receiving the first packet.");
+         u"Stop the specified number of milli-seconds after receiving the first packet. "
+         u"By default, this is wall-clock time (real time). "
+         u"See also option --pcr-based.");
 
     option(u"null-sequence-count", 'n', UNSIGNED);
     help(u"null-sequence-count",
@@ -79,8 +83,22 @@ ts::UntilPlugin::UntilPlugin (TSP* tsp_) :
     option(u"packets", 'p', UNSIGNED);
     help(u"packets", u"Stop after the specified number of packets.");
 
+    option(u"pcr-based");
+    help(u"pcr-based",
+         u"With --seconds or --milli-seconds, use playout time based on PCR values. "
+         u"By default, the time is based on the wall-clock time (real time).");
+
+    option(u"timestamp-based");
+    help(u"timestamp-based",
+         u"With --seconds or --milli-seconds, use playout time based on timestamp values from the input plugin. "
+         u"When input timestamps are not available or not monotonic, fallback to --pcr-based. "
+         u"By default, the time is based on the wall-clock time (real time).");
+
     option<cn::seconds>(u"seconds", 's');
-    help(u"seconds", u"Stop the specified number of seconds after receiving the first packet.");
+    help(u"seconds",
+         u"Stop the specified number of seconds after receiving the first packet. "
+         u"By default, this is wall-clock time (real time). "
+         u"See also option --pcr-based.");
 
     option(u"unit-start-count", 'u', UNSIGNED);
     help(u"unit-start-count",
@@ -95,9 +113,11 @@ ts::UntilPlugin::UntilPlugin (TSP* tsp_) :
 bool ts::UntilPlugin::getOptions()
 {
     _exclude_last = present(u"exclude-last");
-    getIntValue(_unit_start_max,u"unit-start-count");
+    _ts_clock_args.pcr_based = present(u"pcr-based");
+    _ts_clock_args.timestamp_based = present(u"timestamp-based");
+    getIntValue(_unit_start_max, u"unit-start-count");
     getIntValue(_null_seq_max, u"null-sequence-count");
-    getIntValue(_pack_max, u"packets", (intValue<PacketCounter>(u"bytes") + PKT_SIZE - 1) / PKT_SIZE);
+    getIntValue(_packet_max, u"packets", (intValue<PacketCounter>(u"bytes") + PKT_SIZE - 1) / PKT_SIZE);
     cn::milliseconds sec, msec;
     getChronoValue(sec, u"seconds");
     getChronoValue(msec, u"milli-seconds");
@@ -118,6 +138,7 @@ bool ts::UntilPlugin::start()
     _previous_pid = PID_MAX; // Invalid value
     _terminated = false;
     _transparent = false;
+    _ts_clock.reset(_ts_clock_args);
     return true;
 }
 
@@ -145,10 +166,8 @@ ts::ProcessorPlugin::Status ts::UntilPlugin::processPacket(TSPacket& pkt, TSPack
         }
     }
 
-    // Record time of first packet.
-    if (tsp->pluginPackets() == 0) {
-        _start_time = Time::CurrentUTC();
-    }
+    // Compute time.
+    _ts_clock.feedPacket(pkt, pkt_data);
 
     // Update context information.
     if (pkt.getPID() == PID_NULL && _previous_pid != PID_NULL) {
@@ -159,10 +178,10 @@ ts::ProcessorPlugin::Status ts::UntilPlugin::processPacket(TSPacket& pkt, TSPack
     }
 
     // Check if the packet matches one of the selected conditions.
-    _terminated = (_pack_max > 0 && tsp->pluginPackets() + 1 >= _pack_max) ||
+    _terminated = (_packet_max > 0 && tsp->pluginPackets() + 1 >= _packet_max) ||
                   (_null_seq_max > 0 && _null_seq_cnt >= _null_seq_max) ||
                   (_unit_start_max > 0 && _unit_start_cnt >= _unit_start_max) ||
-                  (_msec_max > cn::milliseconds::zero() && Time::CurrentUTC() >= _start_time + _msec_max);
+                  (_msec_max > cn::milliseconds::zero() && _ts_clock.durationMS() >= _msec_max);
 
     // Update context information for next packet.
     _previous_pid = pkt.getPID();

@@ -26,8 +26,9 @@ Live transport streams can be read by TSDuck from:
 * HLS (HTTP Live Streaming) with transport stream segments (not fMP4).
 * SRT and RIST transport protocols.
 
-See the documentation of the plugins `dvb`, `dektec`, `ip`, `http`, `hls`, `srt`, `rist` for
-more details on the reception of live transport streams.
+See the documentation of the plugins xref:dvb-plugin[`dvb`], xref:dektec-input[`dektec`], xref:ip-input[`ip`],
+xref:http-input[`http`], xref:hls-input[`hls`], xref:srt-input[`srt`], xref:rist-input[`rist`]
+in xref:chap-plugins[xrefstyle=short] for more details on the reception of live transport streams.
 
 The same plugins can also transmit live streams on Dektec devices, on UDP/IP streams (multicast or
 unicast), SRT and RIST transport protocols.
@@ -53,12 +54,11 @@ The supported formats are listed in the table below.
 
 The command line option `--format _name_` can be used to specify a precise file format.
 
-On input, the file format is automatically detected for each file.
-But the auto-detection may fail in some cases (for instance when the first timestamp of an M2TS file
-starts with `0x47` in which case the file would be incorrectly identified as TS).
-Using the option `--format` forces a specific format to avoid ambiguities.
-
-On output, the default format is a standard TS file.
+* On input, the file format is automatically detected for each file.
+  But the auto-detection may fail in some cases (for instance when the first timestamp of an M2TS file
+  starts with `0x47` in which case the file would be incorrectly identified as TS).
+  Using the option `--format` forces a specific format to avoid ambiguities.
+* On output, the default format is a standard TS file. Use an explicit option `--format` to generate other formats.
 
 The table below lists all possible format names as used with the option `--format`.
 
@@ -90,17 +90,17 @@ endif::[]
 
 |M2TS
 |Blu-ray compatible format. Also found in recording files from some DVR devices.
- This is the same as TS format, except that each 188-byte TS packet is preceded by a 4-byte time stamp.
+ This is the same as TS format, except that each 188-byte TS packet is preceded by a 4-byte timestamp.
  The 2 most significant bits are copy control indicators and are ignored.
- The 30 least significant bits represent a time stamp in 27 MHz unit (same unit as PCR values).
- Note that those time stamps wrap up every 39 seconds approximately since they use only 30 bits
+ The 30 least significant bits represent a timestamp in 27 MHz unit (same unit as PCR values).
+ Note that those timestamps wrap up every 39 seconds approximately since they use only 30 bits
  while full PCR values use 42 bits.
 
 |duck
 |This is a TSDuck proprietary format.
  It is similar to M2TS except that the header before each TS packet uses 14 bytes and contains all packet metada.
  Since this is a TSDuck proprietary format, it can be used only in pipes between instances of tsp.
- The only advantage of this format is to transport complete original time stamps,
+ The only advantage of this format is to transport complete original timestamps,
  packet labels and other metadata between instances of `tsp`.
  Note that 16-byte trailers from `RS204` input files are lost.
 |===
@@ -135,14 +135,14 @@ modulation information later, typically to reinject the stream in a modulator.
 
 Starting with version 3.39, TSDuck extracts the 16-byte trailers, when present, from various input formats.
 The 16-byte trailer is propagated all along the plugin chain in a `tsp` command.
-The trailer is not not part of its packet.
+The trailer is not part of its packet.
 It is stored in the _packet metadata_, which also store the input timestamp and
 the packet labels (see the documentation of the `tsp` command).
 Then, output plugins can reinject the trailer after each packet when necessary.
 
 The following table lists all `tsp` plugins which manipulate the 16-byte trailer of 204-byte packets.
 The default behavior is described as well as how to enforce 204-byte packet support.
-Read the reference documentation section of each plugin for more details.
+Read the reference documentation section of each plugin in xref:chap-plugins[xrefstyle=short] for more details.
 
 .Plugins with 204-byte packet support
 [cols="<1m,^1,<1,<1",stripes=none,options="autowidth"]
@@ -242,7 +242,7 @@ Read the reference documentation section of each plugin for more details.
 |===
 
 [#bitrates]
-=== Bit rates
+=== Bitrates
 
 ==== Interpretation
 
@@ -310,7 +310,9 @@ Special symbols and linker dependencies are generated to prevent mixing binaries
 To select a different representation of bitrates, simply define the corresponding {cpp} macro in the build system.
 See the source file `src/libtsduck/base/types/tsBitRate.h` for the various macros.
 
-On Linux and macOS, the `make` command accepts direct parameters, one of the following:
+On Linux and macOS, the `make` command accepts direct parameters.
+Each of the following commands rebuilds TSDuck with a specific representation for bitrates.
+Use the appropriate one for your needs.
 
 [source,shell]
 ----
@@ -320,7 +322,8 @@ make -j10 BITRATE_INTEGER=1
 make -j10 BITRATE_FIXED=1 BITRATE_DECIMALS=3
 ----
 
-The last command rebuilds with fixed-point and three decimal digits instead of one.
+When using a fixed-point representation for bitrates, it is possible to specify the number of decimal digits.
+As an example, the last command rebuilds with fixed-point and three decimal digits instead of one.
 
 [#psisi-sig]
 === PSI/SI signalization
@@ -329,24 +332,33 @@ TSDuck can manipulate PSI/SI sections and tables outside of transport streams.
 Sections and tables can be extracted from a transport stream, saved and manipulated
 in various file formats and injected in other transport streams.
 
-There are two main file formats for PSI/SI: binary section files and XML text files.
+There are three main file formats for PSI/SI: binary section files, XML and JSON text files.
 
-These two formats are documented in the next sections.
+These formats are documented in the next sections.
 In the general case, tools which extract PSI/SI sections and tables can save in any format
 and tools which use PSI/SI can read them from any format as well.
-The utility `tstabcomp`, the table compiler, can translate between the two formats.
+The utility `tstabcomp`, the table compiler, can translate between the various formats.
 
-Some key differences between the two formats are:
+Some key differences between the formats are summarized in the following table.
 
-* Binary section files contain collections of individual sections in any order, not necessarily complete tables.
-  XML files contain complete tables only.
-* Binary section files contain the exact representation, byte by byte, of sections which were extracted from a transport stream.
-  XML files contain a higher-level representation.
-* Binary section files are not easily modifiable.
-  XML files contain text which can be manually edited using any text editor or XML tool.
+.Differences between binary, XML, and JSON formats
 
-There is a third possible format: JSON.
-This format is formally equivalent to XML.
+[cols="<1,<1",stripes=none]
+|===
+|Binary section format |XML and JSON format
+
+|Collections of individual sections in any order, not necessarily complete tables.
+|Complete tables only.
+
+|Exact representation, byte by byte, of sections which were extracted from a transport stream.
+|High-level representation of tables.
+
+|Not easily modifiable.
+|Text which can be manually edited using any text editor or XML/JSON edition tool.
+
+|===
+
+Note that the JSON format is formally equivalent to XML.
 In practice, TSDuck uses XML as internal representation and performs an automated conversion between XML and JSON when necessary.
 See xref:xml-json-conv[xrefstyle=short] for more details on this conversion process.
 In this document, the only documented format for tables and descriptors is XML.
@@ -390,16 +402,23 @@ The sections are packetized or injected in their order of appearance in the file
 
 Finally, binary section files can also be decompiled by `tstabcomp` to recreate the corresponding XML files from the binary tables.
 But note that XML files contain complete tables only.
-This means that tables can be recreated only when their sections are contiguous and in increasing order of section number in the binary file.
+This means that tables can be recreated only when their sections are contiguous
+and in increasing order of section number in the binary file.
 
 [#psi-xml-format]
 ==== PSI/SI XML format
 
-An XML file containing PSI/SI tables for TSDuck uses `<tsduck>` as root node.
+An XML file containing PSI/SI tables for TSDuck shall be encoded in UTF-8 format to allow
+international character sets in service names or event descriptions for instance.
+The initial declaration line `<?xml version="1.0" encoding="UTF-8"?>` is optional but recommended.
+
+All XML files use `<tsduck>` as root node.
 The root node contains any number of tables.
 
 Unlike binary files which may contain individual sections, XML files can only contain complete tables.
 The XML format represents a higher-level view of a table, regardless of the binary implementation in one or more sections.
+
+The complete definition of the XML model can be found in xref:chap-sixmlref[xrefstyle=short].
 
 The following sample XML file contains the definition for simple (and incomplete) PAT and PMT.
 
@@ -426,11 +445,6 @@ The following sample XML file contains the definition for simple (and incomplete
 
 </tsduck>
 ----
-
-All XML files shall be encoded in UTF-8 format to allow
-international character sets in service names or event descriptions for instance.
-The initial declaration line `<?xml version="1.0" encoding="UTF-8"?>` is optional but recommended.
-The complete definition of the XML model can be found in xref:chap-sixmlref[xrefstyle=short].
 
 [#compat-standards]
 === Compatibility and conflicts between standards
@@ -459,13 +473,15 @@ Note that these standards are also used in other parts of the world, in addition
 The third layer is made of ANSI/SCTE standards.
 They are application-level standards such as emergency alerts <<SCTE-18>>,
 splice signalization for advertisement <<SCTE-35>> or encryption <<SCTE-52>>.
-These standards were originally designed to complement ATSC in the USA but they are sometimes used in conjunction with DVB (especially <<SCTE-35>>).
+These standards were originally designed to complement ATSC in the USA
+but they are sometimes used in conjunction with DVB (especially <<SCTE-35>>).
 Parts of the <<SCTE-52>> standard were also reused in ATIS-defined standards for IP-TV encryption.
 
 DVB and ATSC are independent and mutually exclusive standards.
 They are never used together in the same transport stream.
 Most of their table ids and descriptor tags use distinct ranges.
-It is consequently easy to "guess" the second layer of standard of a transport stream, when one of their specific sections or descriptors is used.
+It is consequently easy to "guess" the second layer of standard of a transport stream,
+when one of their specific sections or descriptors is used.
 
 DVB adds a non-ambiguous concept of _private descriptors_ where properly registered entities,
 operators or industries may define their own privately defined descriptors.
@@ -473,7 +489,7 @@ operators or industries may define their own privately defined descriptors.
 ISDB is the troublemaker which makes things complicated and often requires manual setup using
 TSDuck command line options or default configuration.
 
-* ISDB was originally defined in Japan by ARIB in two flavors, ISDB-T and ISDB-S.
+* ISDB was originally defined in Japan by ARIB in two flavors, ISDB-T for terrestrial TV and ISDB-S for satellite.
 * ISDB was later adopted by other countries, starting with Brazil, for terrestrial TV.
   At this time, the standards were redefined by ABNT (Brazil) under the name ISDB-Tb,
   to amend features which were too Japanese-specific, creating two branches of ISDB.
@@ -592,6 +608,10 @@ endif::[]
 |0x414F4D53
 |Alliance for Open Media
 
+|Astra
+|0x00000001
+|SES Astra European satellite provider
+
 |Australia
 |0x00003200
 |Free TV Australia
@@ -681,6 +701,21 @@ The use case is the following: A stream is initially recognized as DVB.
 This is not incompatible with ISDB.
 When a table or descriptor id is which is unused in DVB but valid with ISDB is found, the stream becomes an ISDB one.
 The option `--dvb` disables the switch to ISDB and such a table or descriptor is only reported as "unknown".
+
+[.opt]
+*--fix-missing-pds*
+
+[.optdoc]
+When serializing XML MPEG or DVB private descriptors, automatically add missing
+registration descriptors and private data specifier descriptors.
+
+[.optdoc]
+When a XML table is manually built, the private descriptors (MPEG or DVB) have their
+specific names and it is easy to forget that they are private descriptors and that
+they require a preceding `registration_descriptor` (MPEG private descriptors) or
+`private_data_specifier_descriptor` (DVB private descriptors).
+Using this option, the required preceding descriptors are automatically added when
+necessary.
 
 [.opt]
 *--ignore-leap-seconds*
@@ -825,10 +860,10 @@ With DVB and ISDB, there are several types of ambiguities:
 
 * The ISDB signalization reuses some DVB-defined tables and descriptors,
   but texts are represented with a non-DVB character encoding.
-  When analyzing or creating such structures, the context (DVB vs. ISDB)
+  When analyzing or creating such structures, the context (DVB vs. ISDB, and which ISDB variant)
   must be known to select the appropriate encoding method.
 * Invalid DVB encoding: According to <<ETSI-300-468>>, the default DVB character set
-  (without explicit character table code) is ISO-6937.
+  (without explicit leading character table code) is ISO-6937.
   However, some bogus signalization may assume that the default character set is different,
   typically the usual local character table for the region of the operator.
   The non-standard default character table must be specified using an option.
@@ -867,7 +902,7 @@ They are briefly repeated in the documentation of all commands to which they app
 A synonym for `--default-charset RAW-ISO-8859-15`.
 
 [.optdoc]
-All strings are interpreted and generated as ISO-8859-15 without explicit leading table code.
+All strings are interpreted and generated as ISO-8859-15 without explicit leading character table code.
 
 [.optdoc]
 This is a handy shortcut when working on South American ISDB-Tb transport streams.
@@ -876,29 +911,39 @@ This is a handy shortcut when working on South American ISDB-Tb transport stream
 *--default-charset* _name_
 
 [.optdoc]
+This option specifies the default character set to use when reading or generating binary sections.
+The usage is slightly different depending on whether a section is read (deserialized) or generated (serialized).
+
+[.optdoc]
+The default is ISO-6937, the default DVB character set.
+See xref:charset-names[xrefstyle=short] below for a list of available character set names.
+
+[.optdoc]
 When reading binary sections, this option specifies the default character set to use when
-interpreting strings from tables and descriptors, when there is no initial DVB sequence for
-character table selection. This overrides the DVB defaults and should be used with invalid
-streams which omit the initial DVB sequence for character table selection when using a
-non-default character set.
+interpreting strings from tables and descriptors,
+when there is no initial DVB binary sequence for character table selection.
+This overrides the DVB defaults and should be used either with non-DVB streams or
+with invalid DVB streams which omit the initial DVB binary sequence for character table selection
+when using a non-default character set.
 
 [.optdoc]
 By default, standard DVB encoding is used and ISO-6937 encoding is assumed in the absence of
-initial sequence for character set selection.
+initial DVB binary sequence for character set selection.
 
 [.optdoc]
-When generating binary sections (from XML or JSON files for instance), this option specifies
-the preferred character encoding. The DVB rules are applied : when a non-default DVB
-character set is selected, the appropriate initial DVB sequence for character table selection is
-inserted.
+When generating binary sections (from XML or JSON files for instance),
+this option specifies the preferred character encoding.
+When the character set is a DVB one (see xref:charset-names[xrefstyle=short]),
+the DVB rules are applied: when a non-default DVB character set is selected,
+the appropriate initial DVB binary sequence for character table selection is always inserted.
 
 [.optdoc]
-By default, TSDuck tries several character sets until one is capable of encoding the string.
-The order of selection is ISO-6937 (DVB default character set), ISO-8859-15 (convenient with most European languages) and UTF-8.
-Since UTF-8 can encode everything, the string will always be successfully encoded.
-
-[.optdoc]
-See xref:charset-names[xrefstyle=short] below for a list of available character set names.
+By default, TSDuck tries several DVB character sets until one is capable of encoding the string,
+starting with ISO-6937, the default DVB character set.
+The option specifies which character set is tried first.
+If the selected character set is a DVB one and is not able to encode a string,
+then the list of all other DVB character sets is used.
+See xref:charset-order[xrefstyle=short] below for the exact order in which the DVB character sets are tried.
 
 [.opt]
 *--europe*
@@ -907,14 +952,14 @@ See xref:charset-names[xrefstyle=short] below for a list of available character 
 A synonym for `--default-charset ISO-8859-15`.
 
 [.optdoc]
-Using this option, all DVB strings without explicit leading table code are assumed to use ISO-8859-15
+Using this option, all DVB strings without explicit leading character table code are assumed to use ISO-8859-15
 instead of the standard ISO-6937 encoding.
 
 [.optdoc]
 This is a handy shortcut for commonly incorrect DVB signalization on some European satellites.
-In that signalization, the default character encoding (without leading table code) is ISO-8859-15,
+In that signalization, the default character encoding (without leading character table code) is ISO-8859-15,
 the most common encoding for Latin & Western Europe languages.
-When an explicit leading table code is present, then the corresponding character set is used.
+When an explicit leading character table code is present, then the corresponding character set is used.
 
 [.opt]
 *--japan*
@@ -937,7 +982,7 @@ such as the use of JST time instead of UTC or different semantics for component 
 A synonym for `--default-charset RAW-UTF-8`.
 
 [.optdoc]
-All strings are interpreted and generated as UTF-8 without explicit leading table code.
+All strings are interpreted and generated as UTF-8 without explicit leading character table code.
 
 [.optdoc]
 This is a handy shortcut when working on Philippines transport streams.
@@ -945,11 +990,11 @@ This is a handy shortcut when working on Philippines transport streams.
 [#charset-names]
 ==== Character set names
 
-The available table names for option `--default-charset` are listed below.
+The available character table names for option `--default-charset` are listed below.
 
 * DVB character sets. The name specifies a standard DVB encoding with a different default character set.
-  Without leading table code, the specified character set is used.
-  But if a leading table code is present, the appropriate character set for that table code is used.
+  Without leading character table code, the specified character set is used.
+  But if a leading character table code is present, the appropriate character set for that character table code is used.
 [.compact-list]
 ** `ISO-6937`
 ** `DVB` (synonym for `ISO-6937`)
@@ -968,13 +1013,14 @@ The available table names for option `--default-charset` are listed below.
 ** `ISO-8859-14`
 ** `ISO-8859-15`
 ** `UTF-8`
-** `UNICODE` (in fact `UTF-16`)
+** `UTF-16`
+** `UNICODE` (synonym for `UTF-16`)
 * ARIB character sets (Japan):
 [.compact-list]
 ** `ARIB-STD-B24`
 ** `ARIB` (synonym for `ARIB-STD-B24`)
 * Raw character sets.
-  They use the same encoding as their DVB-defined counterpart but without any leading table code.
+  They use the same encoding as their DVB-defined counterpart but without any leading character table code.
   No leading code is interpreted, the specified case is unconditionally used.
   Using these character sets shall be reserved to specific situations.
 [.compact-list]
@@ -994,12 +1040,50 @@ The available table names for option `--default-charset` are listed below.
 ** `RAW-ISO-8859-14`
 ** `RAW-ISO-8859-15`
 ** `RAW-UTF-8`
-** `RAW-UNICODE` (in fact `UTF-16`)
+** `RAW-UTF-16`
+** `RAW-UNICODE` (synonym for `RAW-UTF-16`)
 * Debug character set.
 [.compact-list]
-** `DUMP`
+** `DUMP` (see xref:dump-charset[xrefstyle=short])
 
-The `DUMP` character set can be used for debugging.
+[#charset-order]
+===== DVB character sets encoding order
+
+When encoding a string and the default character set is a DVB one, this default character set is tried first.
+However, most DVB character sets are limited to a small subset of all Unicode characters.
+If the default character set cannot encode the string, several other DVB character sets are tried,
+until one can encode the string.
+
+The exact order is the following:
+
+[.compact-table]
+[cols="<1m,<1",frame=none,grid=none,stripes=none,options="autowidth,noheader"]
+|===
+|ISO-6937 |Default DVB table, ISO-6937 with addition of the Euro symbol
+|ISO-8859-15 |Latin-9, Latin/Western European alphabet
+|ISO-8859-10 |Latin-6, Latin/Nordic alphabet
+|ISO-8859-13 |Latin-7, Latin/Baltic Rim alphabet
+|ISO-8859-14 |Latin-8, Latin/Celtic alphabet
+|ISO-8859-5 |Latin/Cyrillic alphabet
+|ISO-8859-7 |Latin/Greek alphabet
+|ISO-8859-8 |Latin/Hebrew alphabet
+|ISO-8859-9 |Latin-5, Latin/Turkish alphabet
+|ISO-8859-6 |Latin/Arabic alphabet
+|ISO-8859-11 |Latin/Thai alphabet
+|ISO-8859-1 |West European alphabet
+|ISO-8859-2 |East European alphabet
+|ISO-8859-3 |South European alphabet
+|ISO-8859-4 |North and North-East European alphabet
+|UTF-8 |Last chance, full Unicode, can encode any string, used when no other match
+|===
+
+The first one, ISO-6937, is the DVB default character set.
+The last one, UTF-8, can encode everything and is used as a last-chance alternative.
+
+[#dump-charset]
+===== The DUMP pseudo-character set
+
+The DUMP character set can be used for debugging.
 This is not a real character set in the sense that it does not return a Unicode string from a binary representation.
 
 With this character set, _decoding_ binary data returns a string containing a hexadecimal dump of the binary data.
@@ -1035,7 +1119,7 @@ They describe the characteristics of UHF and VHF frequency bands by region
 (`tsduck.hfbands.xml`, see xref:chap-userconfig[xrefstyle=short], xref:hfband-config[xrefstyle=short]),
 the technical specifications of various models of LNB's for satellite dishes
 (`tsduck.lnbs.xml`, see xref:chap-userconfig[xrefstyle=short], xref:lnb-config[xrefstyle=short])
-or resource monitoring configurations (`tsduck.monitor.xml`, see xref:chap-monconfig[xrefstyle=short]).
+or resource monitoring configurations (`tscore.monitor.xml`, see xref:chap-monconfig[xrefstyle=short]).
 These configuration files are augmented when new information is available.
 Do not hesitate to request enhancement of these files through the TSDuck issue tracker (see <<TSDuck-Issues>>).
 
@@ -1202,7 +1286,7 @@ However, `!="400"` is not a valid XML syntax.
 
 ===== Special attributes
 
-In the XML structure, _special attributes_ have a name starting with `"x-"`.
+In the XML structure, _special attributes_ have a name starting with `x-`.
 They have a special interpretation; they are not used for attribute matching.
 
 The following table summarizes the special attributes.
@@ -1369,7 +1453,7 @@ when the splice is an "out of network" command.
 In [1], the symbol `NULLIFY` is undefined. This is a cleanup operation in the case
 it was defined during the processing of a previous table.
 
-In [2], a `<splice_insert>` element is deleted when its attribute `out_of_network=` is `true`.
+In [2], a `<splice_insert>` element is deleted when its attribute `out_of_network` is `true`.
 This is a regular attribute matching, as defined earlier.
 Additionally, the symbol `NULLIFY` is defined when such an element is found.
 
@@ -1382,12 +1466,37 @@ node when a previous `<splice_insert>` was deleted. This type of descriptor
 is typically used with a `<splice_insert>` command but is useless with a
 `<splice_null>` command.
 
-=== JSON and "normalized" report formats
+[#xml-envexpand]
+==== Expansion of environment variables in XML files
+
+It is possible to expand the value of environment variables in XML files, typically in XML patch files.
+This is useful to reference a PID number, for instance, which is not known when the patch file is written.
+
+A reference to a an environment variable must be in the form `${NAME}` where `NAME` is the name of
+an environment variable.
+
+The basic form `$NAME`, as used in the shell, is not recognized as a reference because it would attempt to
+replace something each time a `$` symbol is used in a XML file, which is considered harmful.
+To use a literal string `${NAME}` without substitution, you need to escape the `$` sign as
+in `substituted: ${NAME}, not substituted: \${VIDEO}`.
+
+By default, to avoid accidental substitutions,
+the XML files are left unmodified and no reference to environment variables is processed.
+Use the option `--expand-patch-xml` to force the expansion of environment variables in patch files,
+in addition to the option `--patch-xml` which specifies the patch files.
+
+A reference to an environment variable is allowed in XML attribute values, in text nodes, in comments,
+and even in element names.
+
+See an example in xref:sample-envpatch[xrefstyle=short] which combines the plugin `identify`
+which define an environment variable and the plugin `pmt` which uses it in a patch file.
+
+=== JSON and normalized report formats
 
 TSDuck uses various text formats for report files.
 They are briefly described here.
 
-==== "Normalized" reports
+==== Normalized reports
 
 The name _normalized report_ refers to a predictable text format which can be easily parsed using scripts to automate operations.
 This is an alternative output format for tools which otherwise produce reports in a human-friendly readable format

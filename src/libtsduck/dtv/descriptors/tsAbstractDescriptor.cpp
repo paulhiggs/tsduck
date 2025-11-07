@@ -33,7 +33,7 @@ ts::AbstractDescriptor::~AbstractDescriptor()
 // Inherited methods.
 //----------------------------------------------------------------------------
 
-ts::Standards ts::AbstractDescriptor::definingStandards() const
+ts::Standards ts::AbstractDescriptor::definingStandards(Standards current_standards) const
 {
     return _edid.standards();
 }
@@ -68,6 +68,9 @@ bool ts::AbstractDescriptor::serialize(DuckContext& duck, Descriptor& bin) const
         return false;
     }
     else {
+        // Add defining standards of the descriptor to the context.
+        duck.addStandards(definingStandards());
+
         // Allocate a byte block of the maximum descriptor size.
         ByteBlockPtr bbp(new ByteBlock(MAX_DESCRIPTOR_SIZE));
         CheckNonNull(bbp.get());

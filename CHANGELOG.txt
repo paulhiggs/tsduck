@@ -2,13 +2,135 @@ TSDUCK CHANGE LOG AND RELEASE NOTES
 
 -------------------------------------------------------------------------------
 
-VERSION 3.41-4179 (Mar 2025)
+VERSION 3.43-4467 (October 2025)
+
+[NEW] New commands and plugins:
+
+  * Added plugin "iat":  Analyze  Inter-packet Arrival Time (IAT) for datagram-
+    based input plugins.
 
 [IMP] Improvements on existing commands and plugins:
 
+  * With  "tsp", in real-time mode, the default values are now set to 7 packets
+    for  options  --max-input-packets  and  --max-flushed-packets. This is more
+    consistent with UDP/IP and streaming modes.
+  * Enhanced and custom identification of sources in plugin "influx".
+  * In  plugin  "influx",  TR 101 290 error counters are now also available per
+    PID or per service.
+  * In  plugin  "influx",  Inter-packet  Arrival  Time (IAT) for datagram-based
+    inputs are available for InfluxDB.
+  * In plugin "splicemonitor",  it is now possible to send all detected SCTE-35
+    splice events to an InfluxDB server.
+  * New options in existing commands and plugins:
+    - Option --summary in plugin "mpe".
+    - Options --iat, --tag in plugin "influx".
+    - Options --yaml, --no-yaml-header in "tsxml" (experimental).
+    - Option --ignore-pid-conflict in plugin "spliceinject".
+    - Option --duration in "tstables" and plugin "tables".
+    - Options --influx* in plugin "splicemonitor".
+
+[BUG] Bug fixes:
+
+  * With plugin "mpe",  with  option  --log  but  without  --dump-datagram  and
+    --dump-udp,  the content of the extracted datagram was displayed instead of
+    the expected one-line description of the datagram.
+  * Fixed issue #1667:  In plugin "spliceinject", PID conflicts between the new
+    splice  information PID and existing input PID's were not detected. Now, an
+    an  error is generated, unless the new option --ignore-pid-conflict is set.
+  * Fixed issue #1668:  In  plugin "pat", when a new input PAT with a new TS id
+    was  found,  two occurrences of the PAT were passed, one with the old TS id
+    and  one  with  the new TS id. The same problem existed with SDT Actual and
+    NIT Actual. The plugins "sdt" and "nit" were fixed accordingly.
+  * Fixed issue #1677:  In plugin "descrambler", using the fake ECM's for test,
+    and  scrambling  modes  AES-CBC  or AES-CTR, the descrambling failed due to
+    improper initialization of the IV.
+  * Fixed issue #1680: On Windows, when non-ASCII characters were passed on the
+    command line  to any TSDuck command, they were converted by Windows to '?'.
+    A workaround  has been applied to get all exact characters from the command
+    line.
+
+-------------------------------------------------------------------------------
+
+VERSION 3.42-4421 (August 2025)
+
+[NEW] New commands and plugins:
+
+  * Added plugin "influx": Send live TS metrics to InfluxDB, a data source  for
+    Grafana and other analytics applications.
+
+[IMP] Improvements on existing commands and plugins:
+
+  * With "tstables" and plugin "tables", the option --multiple-files  now  also
+    applies to XML and JSON files. Previously, it applied to binary files only.
+  * Satellite reception: added support for DiSEqC 1.1 and Unicable on Linux.
+  * Added secure control input. Replaced insecure TCP or UDP ports  to  control
+    "tsp", "tsswitch" and others with TLS-protected Web API with authentication
+    token.
+  * New options in existing commands and plugins:
+    - Option --tag in plugins "history", "splicemonitor".
+    - Option --pcr-based, --timestamp-based in plugin "until".
+    - Options  --bytes,  --milli-seconds,   --null-sequence-count,   --packets,
+      --pcr-based, --timestamp-based, --seconds, --unit-start-count  in  plugin
+      "skip". The previous parameter is  replaced  with  option  --packets  but
+      still accepted for compatibility.
+    - Option --ffplay in output plugin "play".
+    - Options --multiple and  --restart-delay  in  input  plugin  "srt".  These
+      options already existed in the corresponding output plugin.
+    - Option --unicable in "tsscan" and input plugin "dvb".
+    - Options   --remote-tls,   --remote-certificate-path,   --remote-key-path,
+      --remote-store, --remote-token in "tsswitch".
+    - Options --control, --control-tls, --control-certificate-path,  --control-
+      key-path, --control-store, --control-token in "tsp".  Options  --control-
+      local and --control-port are now legacy and superseded by --control.
+    - Options --tls, --insecure, --token in "tspcontrol".
+
+[BUG] Bug fixes:
+
+  * Fixed issue #1637: Encryption using CTR mode incorrectly  failed  when  the
+    plain text size was not a multiple of the block size. The typical use  case
+    is the non-standard AES-CTR TS scrambling on 184-byte packet payload.
+
+-------------------------------------------------------------------------------
+
+VERSION 3.41-4299 (May 2025)
+
+[NEW] New commands and plugins:
+
+  * Added plugin "identify": Identify PID's based on various criteria.
+  * Added plugin "splicerestamp": Restamp PTS in SCTE 35 splice information.
+  * Added plugin "pcrduplicate": Duplicate PCR values from a  PID  into  a  new
+    PCR-only PID
+
+[IMP] Improvements on existing commands and plugins:
+
+  * When encoding DVB strings, try all supported DVB character sets  until  one
+    can encode the string. Previously, without --default-charset  option,  only
+    ISO-6937, ISO-8859-15, and UTF-8 were used in the encoding process.
+  * Added missing ATSC and ISDB tables and descriptors.
+  * Added optional expansion of  environment  variables  in  XML  patch  files.
+    Combined with the plugin "identify" which  defines  environement  variables
+    with PID values which were just identified, this opens the  possibility  to
+    define XML patch files without knowing precise PID values in advance.
+  * Added handling of Astra-defined way of handling logical channel numbers.
+  * When "less" is used as output pager command, the option -S is  added.  This
+    is convenient for wide output.
   * New options in existing commands and plugins:
     - Option --no-link-local in "tsdump", "tstabdump" and plugins "ip" (input),
       "cutoff", "mpeinject".
+    - Options --summary, --epg-dump, --detailed, --width in plugin "eit".
+    - Options --expand-environment, --expand-patch-xml in "tsxml".
+    - Option --expand-patch-xml in plugins "bat, "cat",  "nit",  "pat",  "pmt",
+      "sdt", "sections".
+    - Options --default-pds, --default-registration in "tstabcomp". Useful when
+      decompiling binary tables with missing PDS descriptors.
+    - Option --fix-missing-pds  in  "tsp",  "tstabcomp",  plugins  "eitinject",
+      "inject".
+    - Options --dump-psi-repository,  --list-dvb-charset-order,  --list-tables,
+      --list-descriptors in "tstables".
+    - Option --remove-with-registration in plugin "pmt".
+    - Options --label, --pcr-label, --drop-initial in plugin "encap".
+    - Option --mute-errors in plugin "decap".
+    - Option --original-network-id in plugin "nit".
 
 [BUG] Bug fixes:
 
@@ -24,7 +146,7 @@ VERSION 3.40-4165 (Feb 2025)
   * Added plugin "isdbinfo": Extract ISDB-T information from the stream.
   * For third-party application developers, the TSDuck library has  been  split
     into TSCore and TSDuck. The former is a subset for applications  not  using
-    Digital TV features. See the developer's guide for more details.
+    Digital TV features. See the developer guide for more details.
 
 [IMP] Improvements on existing commands and plugins:
 
@@ -130,7 +252,7 @@ VERSION 3.38-3822 (Aug 2024)
 [IMP] Improvements on existing commands and plugins:
 
   * The  documentation  has  been  reorganized  and  is now built from asciidoc
-    format.  The  user guide is now installed in HTML format. A new developer's
+    format.  The  user  guide  is now installed in HTML format. A new developer
     guide  is  also available in HTML format and installed with the development
     environment. The PDF versions are available online.
   * New options in existing commands and plugins:
@@ -870,7 +992,7 @@ VERSION 3.20-1689 (Mar 2020)
 
   * Added command "tspcontrol" to send control commands to a running "tsp".
   * Added  input  and  output plugins "srt" for Secure Reliable Transport (code
-    contribution  from  Anthony  Delannoy).  This plugin is not compiled on all
+    contribution  from  Lola  Delannoy).  This  plugin  is  not compiled on all
     platforms (subject to availability of libsrt).
   * For  developers,  the  features  of  "tsp"  and  "tsswitch"  are now easily
     accessible  from  the  TSDuck  library.  See  classes  ts::TSProcessor  and
@@ -1036,7 +1158,7 @@ VERSION 3.17-1189 (Apr 2019)
       now accepts ATSC channel ids (major.minor).
     - The  old  "zap" format which was inherited from some Linux scanning tools
       is  no  longer  supported by TSDuck. Instead, a more generic and portable
-      XML format is used. See the user's guide for more details. Impact:
+      XML format is used. See the user guide for more details. Impact:
       . In  plugin  "dvb"  and  command  "tsscan":  Added option --tuning-file,
         removed options --tune and --zap-config-file.
       . In plugin "nitscan" and command "tsscan", added options --save-channels
@@ -1188,7 +1310,7 @@ VERSION 3.13-834 (Jul 2018)
   * Added input plugin "http" to receive a transport stream using a URL.
   * Added  support  for  HiDes UT-100C modulator device using utility "tshides"
     and output plugin "hides". Be sure to install the right device drivers from
-    https://tsduck.io/download/hides/
+    https://tsduck.io/hides/
 
 [IMP] Improvements on existing commands and plugins:
 
@@ -1233,7 +1355,7 @@ VERSION 3.12-781 (Jun 2018)
   * Added  options  --log-protocol  and  --log-data  to  "tsecmg", "tsemmg" and
     plugins "scrambler", "datainject".
   * Added options --udp and --unregulated to plugin "datainject".
-  * Many more descriptors are supported. See the user's guide.
+  * Many more descriptors are supported. See the user guide.
   * In  "tsemmg",  sending UDP data to a broadcast address was not allowed. Now
     it  is  possible  to  send  data to a local broadcast address. Using routed
     broadcast remains not possible (because this is usually not a good thing to
@@ -1333,7 +1455,7 @@ VERSION 3.9-619 (Mar 2018)
   * Precompiled binaries are now provided for Raspbian on Raspberry Pi.
   * Added  plugins "mpe" and "mpeinject" to respectively extract and inject MPE
     (Multi-Protocol Encapsulation) datagrams to/from UDP/IP. A complete example
-    is provided in the user's guide.
+    is provided in the user guide.
 
 [IMP] Improvements on existing commands and plugins:
 
@@ -1348,7 +1470,7 @@ VERSION 3.9-619 (Mar 2018)
   * Added signalization for data broadcast and MPE.
   * Improved display of Dektec devices capabilities.
   * In all TSDuck commands, parameters can be read from a file using the syntax
-    "@filename" anywhere in the command line. See the user's guide for details.
+    "@filename" anywhere in the command line. See the user guide for details.
   * Added  possibility  to specify a GitHub authentication token in "tsversion"
     to avoid "API rate limit exceeded" errors.
 

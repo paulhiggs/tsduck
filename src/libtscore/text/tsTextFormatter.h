@@ -91,7 +91,7 @@ namespace ts {
         //! Get the end-of-line mode.
         //! @return The current end-of-line mode.
         //!
-        EndOfLineMode endOfLineMode() const { return _eolMode; }
+        EndOfLineMode endOfLineMode() const { return _eol_mode; }
 
         //!
         //! Set the end-of-line mode.
@@ -162,6 +162,19 @@ namespace ts {
         void close();
 
         //!
+        //! Get the current margin, at current level of indentation.
+        //! @return The current margin.
+        //!
+        size_t currentMargin() const { return _cur_margin; }
+
+        //!
+        //! Get the current column.
+        //! A flush is forced to update the column.
+        //! @return The current column.
+        //!
+        size_t currentColumn();
+
+        //!
         //! Insert all necessary new-lines and spaces to move to the current margin.
         //! @return A reference to this object.
         //! @see I/O manipulator ts::margin()
@@ -198,7 +211,7 @@ namespace ts {
         //!
         TextFormatter& indent()
         {
-            _curMargin += _indent;
+            _cur_margin += _indent;
             return*this;
         }
 
@@ -209,7 +222,7 @@ namespace ts {
         //!
         TextFormatter& unindent()
         {
-            _curMargin -= std::min(_curMargin, _indent);
+            _cur_margin -= std::min(_cur_margin, _indent);
             return*this;
         }
 
@@ -219,17 +232,17 @@ namespace ts {
 
     private:
         Report&            _report;              // Where to report errors.
-        std::ofstream      _outFile {};          // Own stream when output to a file we created.
-        std::ostringstream _outString {};        // Internal string buffer.
+        std::ofstream      _out_file {};         // Own stream when output to a file we created.
+        std::ostringstream _out_string {};       // Internal string buffer.
         std::ostream*      _out;                 // Address of current output stream. Never null.
         size_t             _margin = 0;          // Margin size for outer-most element.
-        size_t             _indent {2};          // Indent size for inner elements.
-        EndOfLineMode      _eolMode {EndOfLineMode::NATIVE}; // Current end-of-line mode.
+        size_t             _indent = 2;          // Indent size for inner elements.
+        EndOfLineMode      _eol_mode = EndOfLineMode::NATIVE; // Current end-of-line mode.
         bool               _formatting = true;   // Apply margin and column formatting.
-        size_t             _curMargin = 0;       // Current margin size.
-        size_t             _tabSize {8};         // Tabulation size in characters.
+        size_t             _cur_margin = 0;      // Current margin size.
+        size_t             _tab_size = 8;        // Tabulation size in characters.
         size_t             _column = 0;          // Current column in line, starting at 0.
-        bool               _afterSpace = false;  // After initial spaces in line.
+        bool               _after_space = false; // After initial spaces in line.
     };
 
     //!

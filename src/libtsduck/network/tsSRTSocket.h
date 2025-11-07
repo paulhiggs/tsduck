@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2020-2025, Anthony Delannoy
+// Copyright (c) 2020-2025, Lola Delannoy
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -133,6 +133,15 @@ namespace ts {
         {
             return setAddressesInternal(listener, caller, local, true, report);
         }
+
+        //!
+        //! Get the socket peers, local and remote.
+        //! @param [out] local Local socket address.
+        //! @param [out] remote Remote socket address.
+        //! @param [in,out] report Where to report error.
+        //! @return True on success, false on error.
+        //!
+        bool getPeers(IPSocketAddress& local, IPSocketAddress& remote, Report& report = CERR);
 
         //!
         //! Send a message to the default destination address and port.

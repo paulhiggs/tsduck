@@ -14,6 +14,7 @@
 #include "tsArgs.h"
 #include "tsTelnetConnection.h"
 #include "tsTSPControlCommand.h"
+#include "tsRestClient.h"
 TS_MAIN(MainCode);
 
 
@@ -30,7 +31,7 @@ namespace {
 
         ts::TSPControlCommand cmdline {*this};
         ts::UString           command {};
-        ts::IPSocketAddress   tsp_address {};
+        ts::RestArgs          rest {u"tsp process"};
 
         // Inherited methods.
         virtual ts::UString getHelpText(HelpFormat format, size_t line_width = DEFAULT_LINE_WIDTH) const override;
@@ -42,13 +43,15 @@ Options::Options(int argc, char *argv[]) :
 {
     cmdline.setShell(ts::Args::GetAppName(argc, argv));
 
+    rest.defineClientArgs(*this);
+
     option(u"", 0, STRING, 1, UNLIMITED_COUNT);
     help(u"", u"The control command to send to tsp.");
 
     option(u"tsp", 't', IPSOCKADDR_OA, 1, 1);
     help(u"tsp",
          u"Specify the IP address (or host name) and port where the tsp process "
-         u"expects control commands (tsp option --control-port). "
+         u"expects control commands (tsp option --control). "
          u"If the IP address is omitted, the local host is used. "
          u"This is a required parameter, there is no default.");
 
@@ -56,8 +59,8 @@ Options::Options(int argc, char *argv[]) :
 
     // Build command line.
     ts::UStringVector args;
+    rest.loadClientArgs(*this, u"tsp");
     getValues(args, u"");
-    getSocketValue(tsp_address, u"tsp", ts::IPSocketAddress(ts::IPAddress::LocalHost4, ts::IPAddress::AnyPort));
     command.quotedLine(args);
 
     // Validate the control command. It will be validated inside tsp anyway
@@ -94,23 +97,37 @@ int MainCode(int argc, char *argv[])
     // Decode command line.
     Options opt(argc, argv);
 
-    // Open a text connection to the tsp server.
-    ts::TelnetConnection conn;
-    ts::IPSocketAddress addr;
-    ts::UString resp;
-
-    if (conn.open(opt.tsp_address.generation(), opt) &&
-        conn.bind(addr, opt) &&
-        conn.connect(opt.tsp_address, opt) &&
-        conn.sendLine(opt.command, opt) &&
-        conn.closeWriter(opt))
-    {
-        // Request successfully sent, read the responses.
-        while (conn.receiveLine(resp, nullptr, opt)) {
-            std::cout << resp << std::endl;
+    if (opt.rest.use_tls) {
+        // Use a Web API.
+        ts::RestClient api(opt.rest, opt);
+        api.setAcceptTypes(u"text/plain");
+        if (api.call(u"/", opt.command)) {
+            ts::UString resp;
+            api.getResponseText(resp);
+            if (!resp.empty()) {
+                std::cout << resp << std::endl;
+            }
         }
-        conn.close(opt);
     }
+    else {
+        // Open a text connection to the tsp server.
+        ts::TCPConnection client;
+        ts::TelnetConnection telnet(client);
+        ts::IPSocketAddress addr;
+        ts::UString resp;
 
+        if (client.open(opt.rest.server_addr.generation(), opt) &&
+            client.bind(addr, opt) &&
+            client.connect(opt.rest.server_addr, opt) &&
+            telnet.sendLine(opt.command, opt) &&
+            client.closeWriter(opt))
+        {
+            // Request successfully sent, read the responses.
+            while (telnet.receiveLine(resp, nullptr, opt)) {
+                std::cout << resp << std::endl;
+            }
+            client.close(NULLREP);
+        }
+    }
     return opt.valid() ? EXIT_SUCCESS : EXIT_FAILURE;
 }

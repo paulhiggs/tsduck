@@ -222,7 +222,7 @@ void ts::RNT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PS
 
     if (buf.canReadBytes(3)) {
         disp << margin << "Context id type: " << DataName(MY_XML_NAME, u"ContextIdType", buf.getUInt8(), NamesFlags::HEX_VALUE_NAME) << std::endl;
-        DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+        DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
         disp.displayDescriptorListWithLength(section, context, true, buf, margin, u"RNT top-level descriptors:", u"None");
 
         // Loop on resolution providers.
@@ -258,8 +258,8 @@ void ts::RNT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PS
 
 void ts::RNT::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     root->setIntAttribute(u"context_id", context_id, true);
     root->setIntAttribute(u"context_id_type", context_id_type, true);
     descs.toXML(duck, root);
@@ -285,8 +285,8 @@ bool ts::RNT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
     xml::ElementVector xprov;
     bool ok =
-        element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-        element->getBoolAttribute(is_current, u"current", false, true) &&
+        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+        element->getBoolAttribute(_is_current, u"current", false, true) &&
         element->getIntAttribute(context_id, u"context_id", true) &&
         element->getIntAttribute(context_id_type, u"context_id_type", true) &&
         descs.fromXML(duck, xprov, element, u"resolution_provider");

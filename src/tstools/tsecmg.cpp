@@ -161,7 +161,7 @@ ECMGOptions::ECMGOptions(int argc, char *argv[]) :
 
     analyze(argc, argv);
 
-    logArgs.loadArgs(duck, *this);
+    logArgs.loadArgs(*this);
     serverAddress.setPort(intValue<uint16_t>(u"port", DEFAULT_SERVER_PORT));
     once = present(u"once");
     reusePort = !present(u"no-reuse-port");
@@ -304,7 +304,7 @@ private:
     // Send a response message.
     bool send(const ts::tlv::Message* msg)
     {
-        return _conn->send(*msg, _shared->logger());
+        return _conn->sendMessage(*msg, _shared->logger());
     }
 
     // Send an error related to the msg.
@@ -352,7 +352,7 @@ void ECMGClientHandler::main()
     // Loop on message reception
     ts::tlv::MessagePtr msg;
     bool ok = true;
-    while (ok && _conn->receive(msg, nullptr, _shared->logger())) {
+    while (ok && _conn->receiveMessage(msg, nullptr, _shared->logger())) {
         switch (msg->tag()) {
             case ts::ecmgscs::Tags::channel_setup:
                 ok = handleChannelSetup(dynamic_cast<ts::ecmgscs::ChannelSetup*>(msg.get()));

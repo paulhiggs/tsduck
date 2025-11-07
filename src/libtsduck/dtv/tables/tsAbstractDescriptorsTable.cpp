@@ -103,7 +103,7 @@ void ts::AbstractDescriptorsTable::serializePayload(BinaryTable& table, PSIBuffe
 
 void ts::AbstractDescriptorsTable::DisplaySection(TablesDisplay& disp, const ts::Section& section, PSIBuffer& buf, const UString& margin)
 {
-    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards());
+    DescriptorContext context(disp.duck(), section.tableId(), section.definingStandards(disp.duck().standards()));
     disp.displayDescriptorList(section, context, true, buf, margin);
 }
 
@@ -114,8 +114,8 @@ void ts::AbstractDescriptorsTable::DisplaySection(TablesDisplay& disp, const ts:
 
 void ts::AbstractDescriptorsTable::buildXML(DuckContext& duck, xml::Element* root) const
 {
-    root->setIntAttribute(u"version", version);
-    root->setBoolAttribute(u"current", is_current);
+    root->setIntAttribute(u"version", _version);
+    root->setBoolAttribute(u"current", _is_current);
     descs.toXML(duck, root);
 }
 
@@ -126,7 +126,7 @@ void ts::AbstractDescriptorsTable::buildXML(DuckContext& duck, xml::Element* roo
 
 bool ts::AbstractDescriptorsTable::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    return element->getIntAttribute(version, u"version", false, 0, 0, 31) &&
-           element->getBoolAttribute(is_current, u"current", false, true) &&
+    return element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+           element->getBoolAttribute(_is_current, u"current", false, true) &&
            descs.fromXML(duck, element);
 }

@@ -90,6 +90,7 @@ namespace ts {
         int                 _rt_signal = -1;          // Receive timeout signal number
         ::timer_t           _rt_timer = nullptr;      // Receive timeout timer
         bool                _rt_timer_valid = false;  // Receive timeout timer was created
+        bool                _voltage_on = false;      // Satellite tuner voltage was turned on
 
         // Clear tuner, return true on success, false on error
         bool dtvClear();
@@ -108,6 +109,9 @@ namespace ts {
 
         // Setup the dish for satellite tuners.
         bool dishControl(const ModulationArgs&, const LNB::Transposition&);
+
+        // Setup the Unicable multiswitch for satellite
+        bool configUnicableSwitch(const ModulationArgs&);
 
         // Extract DTV_STAT_* properties and store it into a SignalState.
         static void GetStat(SignalState& state, std::optional<SignalState::Value> SignalState::* field, const DTVProperties& props, uint32_t cmd);

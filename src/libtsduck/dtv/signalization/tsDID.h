@@ -204,8 +204,9 @@ namespace ts {
 
         // Valid in DVB MHP/HbbTV object carousel context (ETSI TS 102 727, ETSI TS 102 809):
 
-        DID_DSMCC_LABEL             = 0x70, //!< DID for DSM-CC U-N Message DII label_descriptor.
-        DID_DSMCC_CACHING_PRIORITY  = 0x71, //!< DID for DSM-CC U-N Message DII caching_priority_descriptor.
+        DID_DSMCC_LABEL            = 0x70, //!< DID for DSM-CC U-N Message DII label_descriptor.
+        DID_DSMCC_CACHING_PRIORITY = 0x71, //!< DID for DSM-CC U-N Message DII caching_priority_descriptor.
+        DID_DSMCC_CONTENT_TYPE     = 0x72, //!< DID for DSM-CC U-N Message DII content_type_descriptor.
 
         // Valid only in a DVB INT (IP/MAC Notification Table, ETSI EN 301 192):
 
@@ -374,6 +375,12 @@ namespace ts {
         DID_CPLUS_DATA_COMPONENT_FD   = 0xFD,  //!< DID for Canal+ data_component_descriptor
         DID_CPLUS_SYSTEM_MGMT_FE      = 0xFE,  //!< DID for Canal+ system_management_descriptor
 
+        // Valid in DVB context after PDS_ASTRA private_data_specifier
+
+        DID_ASTRA_SERVICE_LIST_NAME   = 0x88,  //!< DID for SES Astra service_list_name_descriptor
+        DID_ASTRA_BOUQUET_LIST        = 0x93,  //!< DID for SES Astra bouquet_list_descriptor
+        DID_ASTRA_VIRTUAL_SERVICE_ID  = 0xD1,  //!< DID for SES Astra virtual_service_id_descriptor
+
         // Valid in DVB context after PDS_BSKYB private_data_specifier
 
         DID_SKY_LCN     = 0xB1,  //!< DID for BskyB logical_channel_number_by_region_descriptor
@@ -396,6 +403,10 @@ namespace ts {
 
         DID_AOM_AV1_VIDEO = 0x80,  //!< DID for AV1 video descriptor, as defined in https://aomediacodec.github.io/av1-mpeg2-ts/
 
+        // Valid in MPEG context after REGID_VANC registration id / format identifier
+
+        DID_SMPTE_ANC_DATA = 0xC4,  //!< DID for SMPTE anc_data_descriptor
+
         // Valid in ATSC / SCTE context:
 
         DID_ATSC_STUFFING       = 0x80,  //!< DID for ATSC stuffing_descriptor
@@ -404,11 +415,12 @@ namespace ts {
         DID_ATSC_CAPTION        = 0x86,  //!< DID for ATSC caption_service_descriptor
         DID_ATSC_CONTENT_ADVIS  = 0x87,  //!< DID for ATSC content_advisory_descriptor
         DID_CUE_IDENTIFIER      = 0x8A,  //!< DID for SCTE 35 cue_identifier_descriptor
+        DID_ATSC_PARAM_SERVICE  = 0x8D,  //!< DID for ATSC parameterized_service_descriptor (A/71)
         DID_ATSC_EXT_CHAN_NAME  = 0xA0,  //!< DID for ATSC extended_channel_name_descriptor
         DID_ATSC_SERVICE_LOC    = 0xA1,  //!< DID for ATSC service_location_descriptor
         DID_ATSC_TIME_SHIFT     = 0xA2,  //!< DID for ATSC time_shifted_event_descriptor
         DID_ATSC_COMPONENT_NAME = 0xA3,  //!< DID for ATSC component_name_descriptor
-        DID_ATSC_DATA_BRDCST    = 0xA4,  //!< DID for ATSC data_broadcast_descriptor
+        DID_ATSC_DATA_SERVICE   = 0xA4,  //!< DID for ATSC data_service_descriptor
         DID_ATSC_PID_COUNT      = 0xA5,  //!< DID for ATSC pid_count_descriptor
         DID_ATSC_DOWNLOAD       = 0xA6,  //!< DID for ATSC download_descriptor
         DID_ATSC_MPROTO_ENCAPS  = 0xA7,  //!< DID for ATSC multiprotocol_encapsulation_descriptor
@@ -417,6 +429,10 @@ namespace ts {
         DID_ATSC_REDIST_CONTROL = 0xAA,  //!< DID for ATSC redistribution_control_descriptor
         DID_ATSC_GENRE          = 0xAB,  //!< DID for ATSC genre_descriptor
         DID_ATSC_PRIVATE_INFO   = 0xAD,  //!< DID for ATSC private_information_descriptor
+        DID_ATSC_MODULE_LINK    = 0xB4,  //!< DID for ATSC module_link_descriptor
+        DID_ATSC_CRC32          = 0xB5,  //!< DID for ATSC CRC32_descriptor
+        DID_ATSC_GROUP_LINK     = 0xB8,  //!< DID for ATSC group_link_descriptor
+        DID_ATSC_COMPONENT_LIST = 0xBB,  //!< DID for ATSC component_list_descriptor (A/71)
         DID_ATSC_ENHANCED_AC3   = 0xCC,  //!< DID for ATSC E-AC-3_audio_stream_descriptor
 
         // Valid in SCTE EAS (Emergency Alert System, SCTE 18).
@@ -477,8 +493,8 @@ namespace ts {
         DID_ISDB_CA_STARTUP     = 0xE4,  //!< DID for ISDB CA startup descriptor
         DID_ISDB_CHAR_CODE      = 0xE5,  //!< DID for ISDB character code descriptor
         DID_ISDB_WMCTDS         = 0xF3,  //!< DID for ISDB Wired multi-carrier transmission distribution system descriptor
-        DID_ISDB_ADV_WDS        = 0xF4,  //!< DID for ISDB Advanced wired distribution system descriptor
-        DID_ISDB_SCRAMBLE_METH  = 0xF5,  //!< DID for ISDB Scramble method descriptor
+        DID_ISDB_ADV_WDS        = 0xF4,  //!< DID for ISDB Advanced cable delivery system descriptor
+        DID_ISDB_SCRAMBLER      = 0xF5,  //!< DID for ISDB Scrambler descriptor
         DID_ISDB_CA             = 0xF6,  //!< DID for ISDB Access control descriptor
         DID_ISDB_CAROUSEL_COMP  = 0xF7,  //!< DID for ISDB Carousel compatible composite descriptor
         DID_ISDB_COND_PLAYBACK  = 0xF8,  //!< DID for ISDB Conditional playback descriptor

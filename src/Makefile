@@ -11,13 +11,11 @@
 include ../Makefile.inc
 
 default:
-	+@$(call RECURSE,libtscore libtsduck tsplugins tstools $(if $(NOTEST),,utest) $(if $(CROSS),,utils))
-	@$(MAKE) -C libtsduck/config post-build
+	+@$(call RECURSE,libtscore libtsduck $(if $(NODTAPI),,libtsdektec) tsplugins tstools $(if $(NOTEST),,utest) $(if $(CROSS),,utils))
 
 .PHONY: install install-tools install-devel
 install: install-tools install-devel
 install-tools:
-	@$(call RECURSE,libtscore libtsduck tsplugins tstools utils)
-	@$(MAKE) -C libtsduck/config install-post-build
+	@$(call RECURSE,libtscore libtsduck $(if $(NODTAPI),,libtsdektec) tsplugins tstools utils)
 install-devel:
-	@$(call RECURSE,libtscore libtsduck)
+	@$(call RECURSE,libtscore libtsduck $(if $(NODTAPI),,libtsdektec))

@@ -439,6 +439,7 @@ The following `make` variables can be defined:
 |NOVATEK |No VATek device support (modulators based on VATek chips), remove dependency to `libvatek`.
 |NOOPENSSL |No cryptographic support, remove dependency to `openssl`.
 |NOZLIB |Don't use zlib, use embedded "Small Deflate" instead, remove dependency to `zlib`.
+|NOSDEFL |Don't build "Small Deflate", only in case of compilation issue.
 |NOCURL |No HTTP support, remove dependency to `libcurl`.
 |NOPCSC |No smartcard support, remove dependency to `pcsc-lite`.
 |NOEDITLINE |No interactive line editing, remove dependency to `libedit`.
@@ -469,6 +470,23 @@ the Java bindings are not built anyway, even without explicit `NOJAVA`.
 For a complete list of the variables which are used by `make`, see the file `CONFIG.txt`
 at the root of the TSDuck source tree.
 
+IMPORTANT: When a set of `make` variables are used to build TSDuck, the exact same set of variables shall be used in all `make` commands on this build. For instance, if TSDuck is built using `make NOSRT=1 NORIST=1`, the installation package shall be built using `make installer NOSRT=1 NORIST=1`. Failing to provide a consistent set of variables across successible `make` commands on the same build may produce unexpected results.
+
+You may create independent builds with distinct options.
+You simply need to redirect the produced binaries in distinct subdirectories.
+For instance, the following commands build two separate versions of TSDuck in two subdirectories,
+one without SRT support, the other without RIST support.
+
+[source,shell]
+----
+$ make -j10 NOSRT=1 BINDIR_SUFFIX=-nosrt
+$ make -j10 NORIST=1 BINDIR_SUFFIX=-norist
+$ make installer NORIST=1 BINDIR_SUFFIX=-norist
+----
+
+The last command builds a binary package for the version without RIST support.
+Note that the same set of variables shall be used to locate the right binaries and options.
+
 [#builddebug]
 ===== Building with specific debug capabilities
 
@@ -483,6 +501,13 @@ The following additional `make` variables can be defined to enable specific debu
 |ASAN |Compile with code sanitizing using AddressSanitizer with default optimization.
 |UBSAN |Compile with code sanitizing using UndefinedBehaviorSanitizer with default optimization.
 |===
+
+All these options produce binaries in distinct subdirectories.
+Therefore, they can be considered as independent builds which do not interfere with each other.
+
+Release builds are created in directories starting with `bin/release-...`.
+Debug builds (`DEBUG=1`) are created in directories starting with `bin/debug-...`.
+The other above-listed options redefine `BINDIR_SUFFIX` with a meaningful suffix.
 
 [#buildverbose]
 ===== Displaying full build commands
@@ -517,6 +542,11 @@ For convenience and compatibility with some tradition, `V` can be used instead o
 
 Execute the command `make installer` at top level to build all packages.
 
+[source,shell]
+----
+$ make installer
+----
+
 Depending on the platform, the packages can be `.deb` or `.rpm` files.
 There is currently no support to build an installation package on other Linux distros and BSD systems.
 
@@ -526,6 +556,21 @@ Building the binaries, when necessary, is part of the installer build.
 All installation packages are dropped into the subdirectory `pkg/installers`.
 The packages are not deleted by the cleanup procedures.
 They are not pushed into the git repository either.
+
+After building the installation packages, it is possible to collect them into one single
+"tarball" archive using the command `make installer-tarball`.
+The resulting archive file is also dropped into `pkg/installers`.
+
+The name of the installation packages and the tarball archive depend on the package manager,
+the processor architecture, and the version of TSDuck.
+The name of the packages cannot be changed because they need to follow the rules of the
+corresponding package manager.
+However, the name of the tarball can be changed as follow:
+
+[source,shell]
+----
+$ make installer-tarball INSTALLER_TARBALL=/tmp/tsduck.tgz
+----
 
 NOTE: On macOS, there is no binary package for TSDuck on macOS.
 On this platform, TSDuck is installed using https://brew.sh[Homebrew],
@@ -824,8 +869,8 @@ On macOS systems, the Homebrew package `tsduck` installs all components.
 There are three sets of TSDuck documents:
 
 [.compact-list]
-1. TSDuck User's Guide (HTML and PDF)
-2. TSDuck Developer's Guide (HTML and PDF)
+1. TSDuck User Guide (HTML and PDF)
+2. TSDuck Developer Guide (HTML and PDF)
 3. TSDuck Programming Reference (HTML only)
 
 The first two documents are written in https://asciidoc.org[Asciidoc] format.
@@ -850,7 +895,7 @@ Every night, a fresh copy is generated and published online at {home}doxy[].
 
 ==== Building on {unix}
 
-The user's guide and the developer's guide are built using the target `docs`.
+The user guide and the developer guide are built using the target `docs`.
 The HTML and PDF files are built in subdirectory `bin/doc`.
 
 [source,shell]
@@ -866,21 +911,21 @@ The following targets are also available to build a subset of the guides:
 [.compact-table]
 [cols="<1m,<1",frame=none,grid=none,stripes=none,options="autowidth,noheader"]
 |===
-|userguide-html |Build the user's guide HTML version
-|userguide-pdf |Build the user's guide PDF version
-|userguide |Build the user's guide HTML and PDF versions
-|open-userguide-html |Build the user's guide HTML version and opens it with the default HTML viewer
-|open-userguide-pdf |Build the user's guide PDF version and opens it with the default PDF viewer
-|open-userguide |Build the user's guide HTML and PDF versions and opens them with their default viewers
-|devguide-html |Build the developer's guide HTML version
-|devguide-pdf |Build the developer's guide PDF version
-|devguide |Build the developer's guide HTML and PDF versions
-|open-devguide-html |Build the developer's guide HTML version and opens it with the default HTML viewer
-|open-devguide-pdf |Build the developer's guide PDF version and opens it with the default PDF viewer
-|open-devguide |Build the developer's guide HTML and PDF versions and opens them with their default viewers
+|userguide-html |Build the user guide HTML version
+|userguide-pdf |Build the user guide PDF version
+|userguide |Build the user guide HTML and PDF versions
+|open-userguide-html |Build the user guide HTML version and opens it with the default HTML viewer
+|open-userguide-pdf |Build the user guide PDF version and opens it with the default PDF viewer
+|open-userguide |Build the user guide HTML and PDF versions and opens them with their default viewers
+|devguide-html |Build the developer guide HTML version
+|devguide-pdf |Build the developer guide PDF version
+|devguide |Build the developer guide HTML and PDF versions
+|open-devguide-html |Build the developer guide HTML version and opens it with the default HTML viewer
+|open-devguide-pdf |Build the developer guide PDF version and opens it with the default PDF viewer
+|open-devguide |Build the developer guide HTML and PDF versions and opens them with their default viewers
 |docs |Build the four document, user and developer, HTML and PDF
-|docs-html |Build the user and developer's guide in HTML format
-|docs-pdf |Build the user and developer's guide in PDF format
+|docs-html |Build the user and developer guide in HTML format
+|docs-pdf |Build the user and developer guide in PDF format
 |===
 
 The programming reference is built using the target `doxygen`.
@@ -894,7 +939,7 @@ The set of files is built in subdirectory `bin/doxy/html`.
 
 ==== Building on Windows
 
-The user's guide and the developer's guide are built using the PowerShell script `doc\build-doc.ps1`.
+The user guide and the developer guide are built using the PowerShell script `doc\build-doc.ps1`.
 The HTML and PDF files are built in subdirectory `bin\doc`.
 By default, they are automatically opened using the default HTML and PDF viewers of the system.
 
@@ -942,7 +987,7 @@ PS C:\> winget install tsduck
 [#windownload]
 ===== Download an installer
 
-{home}download/tsduck[Executable binary installers for the latest TSDuck version]
+{home}tsduck-binaries[Executable binary installers for the latest TSDuck version]
 are available for 64-bit Windows on Intel systems.
 
 All tools, plugins and development environments are in the same installer.
@@ -957,7 +1002,7 @@ Running the installer provides several options:
 
 {repo}releases[Older versions of TSDuck] remain available on GitHub.
 
-{home}download/prerelease[Nightly builds and pre-releases] can be found on the TSDuck Web site.
+{home}prerelease[Nightly builds and pre-releases] can be found on the TSDuck Web site.
 
 To automate the installation, the executable binary installer can be run from the command line or a script.
 
@@ -1014,7 +1059,8 @@ To uninstall TSDuck:
 $ brew uninstall tsduck
 ----
 
-If you would like to install the lastest test version (HEAD version) use the following command.
+If you would like to install the latest test version from the source repository
+(HEAD version) use the following command.
 Be aware that it takes time since TSDuck is locally recompiled.
 
 [source,shell]
@@ -1025,7 +1071,7 @@ $ brew install --HEAD tsduck
 [#linuxinstall]
 ==== Installing on Linux
 
-{home}download/tsduck[Pre-build packages for the latest TSDuck version]
+{home}tsduck-binaries[Pre-build packages for the latest TSDuck version]
 are available for the following configurations:
 
 [.compact-list]
@@ -1043,7 +1089,7 @@ the `tsduck` package installs the TSDuck commands, plugins, Java and Python bind
 the `tsduck-devel` or `tsduck-dev` package installs the development environment for {cpp} programmers.
 
 {repo}releases[Older versions of TSDuck] remain available on GitHub.
-{home}download/prerelease[Nightly builds and pre-releases] for Ubuntu can be found on the TSDuck Web site.
+{home}prerelease[Nightly builds and pre-releases] for Ubuntu can be found on the TSDuck Web site.
 
 To use older versions of the above distros, rebuilding the packages is easy:
 
@@ -1072,7 +1118,7 @@ $ sudo make install NOSRT=1 NORIST=1
 ----
 
 When building an installer package (`.rpm`, `.deb`) or when directly installing TSDuck,
-the HTML version of the user's guide and developer's guide are included.
+the HTML version of the user guide and developer guide are included.
 
 If the documentation was not built yet, the command `make install` rebuilds the HTML files first.
 To avoid running Asciidoc under the superuser account, the examples above use `make default docs-html` first.

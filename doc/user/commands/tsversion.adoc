@@ -15,7 +15,7 @@ Check version, download and upgrade TSDuck
 By default, this utility simply displays the TSDuck version.
 
 Additionally, in prebuilt binary packages of TSDuck as available from
-{home}download/tsduck[tsduck.io] or {repo}releases[github.com],
+{home}tsduck-binaries[tsduck.io] or {repo}releases[github.com],
 the `tsversion` command can also connect to GitHub to list all available releases of TSDuck,
 check for a new version, download it or upgrade TSDuck to the latest version.
 
@@ -77,7 +77,7 @@ However, it may be compiled with specific `make` options such as `NODEKTEC=1` or
 The option `--support` can be used to test if a feature is available.
 
 [.optdoc]
-The feature name must be one of `all`, `dektec`, `hides`, `http`, `pcsc`, `rist`, `srt`, `vatek`.
+The feature name must be one of `all`, `crypto`, `dektec`, `hides`, `http`, `pcsc`, `rist`, `srt`, `tls`, `vatek`.
 
 [.optdoc]
 Using `all` displays all features.
@@ -86,21 +86,10 @@ Using `all` displays all features.
 With any other option, `tsversion` simply exits with a success or failure status, depending if the corresponding feature is implemented or not.
 
 [.usage]
-Debug options
-
-[.opt]
-*--xdump-psi-repository*
-
-[.optdoc]
-Dump the internal state of the PSI repository (tables and descriptors).
-This is a debug function which is useless to most users.
-It can be helpful to troubleshoot TSDuck extensions which fail to correctly declare their own tables or descriptors.
-
-[.usage]
 Upgrade options
 
 The following options are available in prebuilt binary packages of TSDuck from
-{home}download/tsduck[tsduck.io] or {repo}releases[github.com].
+{home}tsduck-binaries[tsduck.io] or {repo}releases[github.com].
 They may be disabled in TSDuck packages which are available through a package manager on Linux or through Homebrew on macOS.
 
 [.opt]

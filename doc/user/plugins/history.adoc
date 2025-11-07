@@ -15,8 +15,7 @@ Report a history of major events on the transport stream
 This plugin reports a history of the major events on the transport stream:
 new PID's, new tables, clear {d-arrow} scrambled transitions, suspended and restarted PID's, etc.
 
-[.usage]
-Event reporting format
+==== Event reporting format
 
 By default, the messages are reported, like all other `tsp` messages, on the standard error file.
 Each output line is formatted as follow:
@@ -46,8 +45,7 @@ In this case, the sort command becomes:
 $ sort -n output-file-name
 ----
 
-[.usage]
-Reported events
+==== Reported events
 
 By default, the following events are reported:
 
@@ -78,6 +76,8 @@ Without option `--ignore-stream-id-change`:
 
 [.compact-list]
 * Change of PES stream id in a PID.
+
+==== Command line syntax
 
 [.usage]
 Usage
@@ -148,6 +148,13 @@ By default, report history lines on standard error using the `tsp` logging mecha
 Number of packets in the TS after which a PID is considered as suspended.
 By default, if no packet is found in a PID during 60 seconds (according to the TS bitrate),
 the PID is considered as suspended.
+
+[.opt]
+*--tag* _'string'_
+
+[.optdoc]
+Leading tag to be displayed with each message.
+Useful when the plugin is used several times in the same process.
 
 [.opt]
 *-t* +

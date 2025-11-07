@@ -31,6 +31,8 @@ namespace ts {
     class RST;
     class TDT;
     class TOT;
+    class SAT;
+    class SGT;
     // ATSC-defined tables:
     class MGT;
     class VCT;
@@ -38,7 +40,6 @@ namespace ts {
     class TVCT;
     class RRT;
     class STT;
-    class SAT;
 
     //!
     //! General-purpose signalization handler interface.
@@ -148,6 +149,12 @@ namespace ts {
         //! @param [in] pid The PID on which the table was found.
         //!
         virtual void handleSTT(const STT& table, PID pid);
+        //!
+        //! This hook is invoked when the transport stream is known or has changed.
+        //! @param [in] ts_id The new TS id.
+        //! @param [in] tid The table id into which the TS id was found.
+        //!
+        virtual void handleTSId(uint16_t ts_id, TID tid);
         //!
         //! This hook is invoked when a new UTC time is available.
         //! @param [in] utc The new UTC time.

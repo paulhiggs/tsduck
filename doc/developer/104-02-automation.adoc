@@ -14,7 +14,7 @@ TSDuck is a free open-source project which is maintained on spare time by very f
 As a consequence, the maintenance of the project is driven by the lack of time and resource.
 To face these constraints, automation is essential.
 
-This is briefly explained in {home}download/docs/tsduck-project.pdf[this presentation].
+This is briefly explained in {home}docs/tsduck-project.pdf[this presentation].
 
 For future maintainers or contributors, this page lists a few automation procedures which are used by the project.
 
@@ -33,14 +33,14 @@ that the project can be built on most supported platforms and contains no regres
 ** The unitary tests are run.
 ** The full test-suite is downloaded and run.
 ** The sample programs are built using a typical TSDuck installation of the binaries which were just built (Linux and macOS only).
-* The documentation is rebuilt: user's guide, developer's guide, programming reference using doxygen.
+* The documentation is rebuilt: user guide, developer guide, programming reference using doxygen.
   Missing documentation for new features can be found in the log. This is done on Ubuntu only.
 
 [#auto_nightly]
 ==== Nightly builds
 
 Every night, if there were any modification in the TSDuck repo during the last day,
-"nightly builds" are automatically produced and published on the {home}download/prerelease/[TSDuck web site].
+"nightly builds" are automatically produced and published on the {home}prerelease/[TSDuck web site].
 No manual action is required, everything is automated.
 
 The workflow `.github/workflows/nightly-build.yml` is automatically run every day at 00:40 UTC.
@@ -49,7 +49,7 @@ The workflow `.github/workflows/nightly-build.yml` is automatically run every da
   for the current state of the master branch in the repository.
 * The produced binaries are installed on the CI/CD system.
 * The full test-suite is downloaded and run.
-* The complete set documentation (user's guide, developer's guide, programming reference)
+* The complete set documentation (user guide, developer guide, programming reference)
   is built and packaged in an archive. If the installed version of doxygen is known
   to contain bugs in the generation of the TSDuck documentation (many were found),
   the source code for a known good version of doxygen is downloaded and rebuilt first.
@@ -61,7 +61,7 @@ The workflow `.github/workflows/nightly-build.yml` is automatically run every da
 At the end of the `nightly-build.yml` workflow, when all build jobs are completed,
 the update job triggers a signal on the {home}[TSDuck web site].
 A PHP script is automatically run on the web site to retrieve, download and publish the
-latest {home}download/prerelease/[nighly binaries] and documentation.
+latest {home}prerelease/[nighly binaries] and documentation.
 
 [#auto_release]
 ==== Release creation
@@ -77,7 +77,7 @@ as long as there is no issue in the CI process and no major development or fix i
 
 As a rule of thumb, a new release is produced every 3 to 6 months, when enough
 new features or fixes are available, based on the
-{home}download/changelog/[CHANGELOG file].
+{home}changelog/[CHANGELOG file].
 
 ===== Building the various binaries
 

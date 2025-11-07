@@ -141,8 +141,7 @@ Section "Tools & Plugins" SectionTools
     Delete "$INSTDIR\bin\tsduck.time.xml"
 
     ; Delete obsolete plugins from previous versions.
-    ; Maintenance: also update Makefile.inc
-    Delete "$INSTDIR\bin\tsplugin_dektec.dll"
+    ; Maintenance: also update scripts/make-config.sh
     Delete "$INSTDIR\bin\tsplugin_drop.dll"
     Delete "$INSTDIR\bin\tsplugin_file.dll"
     Delete "$INSTDIR\bin\tsplugin_fork.dll"
@@ -152,10 +151,8 @@ Section "Tools & Plugins" SectionTools
     Delete "$INSTDIR\bin\tsplugin_null.dll"
     Delete "$INSTDIR\bin\tsplugin_psi.dll"
     Delete "$INSTDIR\bin\tsplugin_rist.dll"
-    Delete "$INSTDIR\bin\tsplugin_skip.dll"
     Delete "$INSTDIR\bin\tsplugin_srt.dll"
     Delete "$INSTDIR\bin\tsplugin_tables.dll"
-    Delete "$INSTDIR\bin\tsplugin_teletext.dll"
 
     ; Create folder for binaries
     CreateDirectory "$INSTDIR\bin"
@@ -187,8 +184,8 @@ Section "Documentation" SectionDocumentation
 
     ; Create shortcuts in start menu.
     CreateDirectory "$SMPROGRAMS\TSDuck"
-    CreateShortCut "$SMPROGRAMS\TSDuck\TSDuck User's Guide.lnk" "$INSTDIR\doc\tsduck.html"
-    CreateShortCut "$SMPROGRAMS\TSDuck\TSDuck Developer's Guide.lnk" "$INSTDIR\doc\tsduck-dev.html"
+    CreateShortCut "$SMPROGRAMS\TSDuck\TSDuck User Guide.lnk" "$INSTDIR\doc\tsduck.html"
+    CreateShortCut "$SMPROGRAMS\TSDuck\TSDuck Developer Guide.lnk" "$INSTDIR\doc\tsduck-dev.html"
     CreateShortCut "$SMPROGRAMS\TSDuck\TSDuck Release Notes.lnk" "$INSTDIR\doc\CHANGELOG.txt"
 
 SectionEnd
@@ -431,7 +428,7 @@ SectionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionTools} \
         "TSDuck command-line tools and plugins."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDocumentation} \
-        "TSDuck user's guide."
+        "TSDuck user guide."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionPython} \
         "TSDuck Python bindings."
 !ifdef JarFile

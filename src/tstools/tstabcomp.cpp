@@ -52,6 +52,8 @@ Options::Options(int argc, char *argv[]) :
     duck.defineArgsForStandards(*this);
     duck.defineArgsForTimeReference(*this);
     duck.defineArgsForCharset(*this);
+    duck.defineArgsForPDS(*this);
+    duck.defineArgsForFixingPDS(*this);
     sectionOptions.defineArgs(*this);
     xmlTweaks.defineArgs(*this);
 
@@ -114,7 +116,7 @@ Options::Options(int argc, char *argv[]) :
 
     duck.loadArgs(*this);
     sectionOptions.loadArgs(duck, *this);
-    xmlTweaks.loadArgs(duck, *this);
+    xmlTweaks.loadArgs(*this);
 
     getValues(inFiles, u"");
     getPathValue(outFile, u"output");

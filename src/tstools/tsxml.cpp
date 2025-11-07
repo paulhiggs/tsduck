@@ -16,6 +16,7 @@
 #include "tsxmlElement.h"
 #include "tsxmlJSONConverter.h"
 #include "tsjsonOutputArgs.h"
+#include "tsjsonYAML.h"
 #include "tsSectionFile.h"
 #include "tsOutputRedirector.h"
 TS_MAIN(MainCode);
@@ -47,6 +48,10 @@ namespace {
         bool                     use_model = false;     // There is a model to use.
         bool                     from_json = false;     // Perform an automated JSON-to-XML conversion on input.
         bool                     merge_inputs = false;  // Merge all input XML files as one.
+        bool                     expand_input = false;  // Expand environment variables in input files.
+        bool                     expand_patch = false;  // Expand environment variables in patch files.
+        bool                     yaml_output = false;   // Generate an output in YAML format.
+        bool                     no_yaml_head = false;  // No YAML header and trailer.
         bool                     need_output = false;   // An output file is needed.
         ts::UString              xml_prefix {};         // Prefix in XML line.
         size_t                   indent = 2;            // Output indentation.
@@ -80,6 +85,18 @@ Options::Options(int argc, char *argv[]) :
     help(u"channel",
          u"A shortcut for '--model tsduck.channels.model.xml'. "
          u"It verifies that the input files are valid channel configuration files.");
+
+    option(u"expand-environment", 'e');
+    help(u"expand-environment",
+         u"Expand environment variables in the input XML files. "
+         u"Environment variables must be referenced as '${name}'. "
+         u"See also option --expand-patch-xml for patch files.");
+
+    option(u"expand-patch-xml");
+    help(u"expand-patch-xml",
+         u"With --patch, expand all environment variables in the patch files before patching. "
+         u"Environment variables must be referenced as '${name}'. "
+         u"See also option --expand-environment for input XML files.");
 
     option(u"from-json", 'f');
     help(u"from-json",
@@ -119,7 +136,7 @@ Options::Options(int argc, char *argv[]) :
     option(u"output", 'o', FILENAME);
     help(u"output", u"filename",
          u"Specify the name of the output file (standard output by default). "
-         u"An output file is produced only if --patch, --reformat or --json are specified.");
+         u"An output file is produced only if at least one of --patch, --reformat, --json, --yaml is specified.");
 
     option(u"patch", 'p', FILENAME, 0, UNLIMITED_COUNT);
     help(u"patch", u"filename",
@@ -153,10 +170,18 @@ Options::Options(int argc, char *argv[]) :
          u"The optional string parameter specifies a prefix to prepend on the log "
          u"line before the XML text to locate the appropriate line in the logs.");
 
+    option(u"yaml", 'y');
+    help(u"yaml",
+         u"Convert the XML content to YAML (experimental).");
+
+    option(u"no-yaml-header");
+    help(u"no-yaml-header",
+         u"With --yaml, do not add the standard YAML header and trailer.");
+
     analyze(argc, argv);
 
-    json.loadArgs(duck, *this);
-    xml_tweaks.loadArgs(duck, *this);
+    json.loadArgs(*this);
+    xml_tweaks.loadArgs(*this);
 
     getValues(infiles, u"");
     getValues(patches, u"patch");
@@ -168,7 +193,11 @@ Options::Options(int argc, char *argv[]) :
     reformat = present(u"reformat") || !patches.empty();
     xml_line = present(u"xml-line");
     from_json = present(u"from-json");
+    yaml_output = present(u"yaml");
+    no_yaml_head = present(u"no-yaml-header");
     merge_inputs = present(u"merge");
+    expand_input = present(u"expand-environment");
+    expand_patch = present(u"expand-patch-xml");
     uncomment = present(u"uncomment");
 
     // Get model file.
@@ -196,7 +225,7 @@ Options::Options(int argc, char *argv[]) :
     }
 
     // An output file wil be produced.
-    need_output = reformat || uncomment || merge_inputs || json.useFile() || from_json;
+    need_output = reformat || uncomment || merge_inputs || json.useFile() || yaml_output || from_json || expand_input;
 
     exitOnError();
 }
@@ -245,6 +274,11 @@ namespace {
 namespace {
     void ProcessDocument(Options& opt, const ts::TablePatchXML& patch, ts::xml::Document& doc)
     {
+        // Expand environment variables.
+        if (opt.expand_input) {
+            doc.expandEnvironment(true);
+        }
+
         // Apply all patches one by one.
         patch.applyPatches(doc);
 
@@ -275,11 +309,18 @@ namespace {
             // Output XML result as one line on error log.
             opt.info(opt.xml_prefix + doc.oneLiner());
         }
-        if (opt.json.useJSON()) {
+        if (opt.json.useJSON() || opt.yaml_output) {
             // Perform XML to JSON conversion.
             const ts::json::ValuePtr jobj(model.convertToJSON(doc));
-            // Output JSON result.
-            opt.json.report(*jobj, std::cout, opt);
+            // Output JSON and/or YAML result.
+            if (opt.json.useJSON()) {
+                opt.json.report(*jobj, std::cout, opt);
+            }
+            if (opt.yaml_output) {
+                ts::TextFormatter text(opt);
+                text.setStream(std::cout);
+                ts::json::YAML::PrintAsYAML(text, *jobj, !opt.no_yaml_head);
+            }
         }
         else if (opt.need_output) {
             // Same XML output on stdout (possibly already redirected to a file).
@@ -316,6 +357,7 @@ int MainCode(int argc, char *argv[])
 
     // Load patch files.
     ts::TablePatchXML patch(opt.duck);
+    patch.setExpandEnvironment(opt.expand_patch);
     patch.addPatchFileNames(opt.patches);
     patch.loadPatchFiles(opt.xml_tweaks);
     opt.exitOnError();

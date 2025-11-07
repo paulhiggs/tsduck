@@ -28,6 +28,7 @@ bool ts::EnvironmentExists(const UString& name)
     std::array<::WCHAR, 2> unused;
     return ::GetEnvironmentVariableW(name.wc_str(), unused.data(), ::DWORD(unused.size())) != 0;
 #else
+    // Flawfinder: ignore: we get environment on purpose.
     return ::getenv(name.toUTF8().c_str()) != nullptr;
 #endif
 }
@@ -52,6 +53,7 @@ ts::UString ts::GetEnvironment(const UString& name, const UString& def)
     }
     return size <= 0 ? def : UString(value, size);
 #else
+    // Flawfinder: ignore: we get environment on purpose.
     const char* value = ::getenv(name.toUTF8().c_str());
     return value != nullptr ? UString::FromUTF8(value) : def;
 #endif
@@ -100,7 +102,7 @@ bool ts::DeleteEnvironment(const UString& name)
 // A combination \$ is interpreted as a literal $, not an environment variable reference.
 //----------------------------------------------------------------------------
 
-ts::UString ts::ExpandEnvironment(const UString& path)
+ts::UString ts::ExpandEnvironment(const UString& path, ExpandOptions options)
 {
     const size_t len = path.length();
     UString expanded;
@@ -108,46 +110,29 @@ ts::UString ts::ExpandEnvironment(const UString& path)
     size_t index = 0;
     while (index < len) {
         if (path[index] == '\\' && index+1 < len && path[index+1] == '$') {
-            // Escaped dollar
+            // Escaped '$'.
             expanded += '$';
             index += 2;
         }
         else if (path[index] != '$') {
-            // Regular character
+            // Regular character.
             expanded += path[index++];
         }
+        else if (bool(options & ExpandOptions::BRACES) && index+1 < len && path[index+1] == '{') {
+            // '${name}' format.
+            const size_t last = std::min(len, path.find('}', index + 2));
+            expanded += GetEnvironment(path.substr(index + 2, last - index - 2));
+            index = last + 1;
+        }
+        else if (bool(options & ExpandOptions::DOLLAR) && (index+1 == len || path[index+1] != '{')) {
+            // '$name' format.
+            const size_t last = std::min(len, path.find_first_not_of(u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", index + 1));
+            expanded += GetEnvironment(path.substr(index + 1, last - index - 1));
+            index = last;
+        }
         else {
-            // Environment variable reference.
-            // First, locate variable name and move index in path.
-            UString varname;
-            if (++index < len) {
-                if (path[index] == '{') {
-                    // '${name}' format
-                    const size_t last = path.find('}', index);
-                    if (last == NPOS) {
-                        varname = path.substr(index + 1);
-                        index = len;
-                    }
-                    else {
-                        varname = path.substr(index + 1, last - index - 1);
-                        index = last + 1;
-                    }
-                }
-                else {
-                    // '$name' format
-                    const size_t last = path.find_first_not_of(u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", index);
-                    if (last == NPOS) {
-                        varname = path.substr(index);
-                        index = len;
-                    }
-                    else {
-                        varname = path.substr(index, last - index);
-                        index = last;
-                    }
-                }
-            }
-            // Second, replace environment variable
-            expanded += GetEnvironment(varname);
+            // No replacement allowed, copy the '$'.
+            expanded += path[index++];
         }
     }
     return expanded;
@@ -218,7 +203,7 @@ void ts::GetEnvironment(Environment& env)
 #if defined(TS_WINDOWS)
 
     const ::LPWCH strings = ::GetEnvironmentStringsW();
-    if (strings != 0) {
+    if (strings != nullptr) {
         size_t len;
         for (const ::WCHAR* p = strings; (len = ::wcslen(p)) != 0; p += len + 1) {
             assert(sizeof(::WCHAR) == sizeof(UChar));

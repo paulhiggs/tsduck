@@ -7,6 +7,7 @@
 //----------------------------------------------------------------------------
 
 <<<
+[#srt-input]
 === srt (input)
 
 [.cmd-header]
@@ -29,7 +30,7 @@ Typically, this plugin is available on macOS, Windows, Fedora 31 onwards, Ubuntu
 [.usage]
 Acknowledgement
 
-This plugin is a contribution from Anthony Delannoy.
+The original version of this plugin is a contribution from Lola Delannoy.
 
 [.usage]
 Input timestamps
@@ -67,6 +68,19 @@ By default, the real-time input bitrate is never evaluated and
 the input bitrate is evaluated from the PCR in the input packets.
 
 [.opt]
+*-m* +
+*--multiple*
+
+[.optdoc]
+When the sender peer disconnects, wait for another one and continue.
+
+[.opt]
+*--restart-delay* _milliseconds_
+
+[.optdoc]
+With `--multiple`, wait the specified number of milliseconds before restarting.
+
+[.opt]
 *--rs204*
 
 [.optdoc]
@@ -90,8 +104,8 @@ The possible timestamp sources are:
 
 [.optdoc]
 [.compact-list]
-* `rtp` : The RTP time stamp, when the UDP packet is an RTP packet.
-* `srt` : SRT source time stamp.
+* `rtp` : The RTP timestamp, when the UDP packet is an RTP packet.
+* `srt` : SRT source timestamp.
 * `tsp` : A software timestamp, provided by `tsp` when the input plugin returns a chunk of packets.
   The `tsp`-provided timestamp is always available, always comes last and is less precise.
 

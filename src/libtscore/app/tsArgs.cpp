@@ -7,6 +7,7 @@
 //----------------------------------------------------------------------------
 
 #include "tsArgs.h"
+#include "tsNullReport.h"
 #include "tsIntegerUtils.h"
 #include "tsFileUtils.h"
 #include "tsEnvironment.h"
@@ -25,12 +26,12 @@
 const ts::Names& ts::Args::HelpFormatEnum()
 {
     static const Names data({
-        {u"name", ts::Args::HELP_NAME},
+        {u"name",        ts::Args::HELP_NAME},
         {u"description", ts::Args::HELP_DESCRIPTION},
-        {u"usage", ts::Args::HELP_USAGE},
-        {u"syntax", ts::Args::HELP_SYNTAX},
-        {u"full", ts::Args::HELP_FULL},
-        {u"options", ts::Args::HELP_OPTIONS},
+        {u"usage",       ts::Args::HELP_USAGE},
+        {u"syntax",      ts::Args::HELP_SYNTAX},
+        {u"full",        ts::Args::HELP_FULL},
+        {u"options",     ts::Args::HELP_OPTIONS},
     });
     return data;
 }
@@ -170,6 +171,7 @@ ts::Args::IOption::IOption(Args*           parent,
     }
 }
 
+// Constructor, enumeration values.
 ts::Args::IOption::IOption(Args*        parent,
                            const UChar* name_,
                            UChar        short_name_,
@@ -195,6 +197,18 @@ ts::Args::IOption::IOption(Args*        parent,
     // Handle invalid values
     if (max_occur < min_occur) {
         parent->fatalArgError(u"invalid occurences for " + display());
+    }
+}
+
+// Constructor, legacy option.
+ts::Args::IOption::IOption(Args* parent, const UChar* name_, const UChar* new_name_) :
+    name(name_ == nullptr ? UString() : name_),
+    new_name(new_name_ == nullptr ? UString() : new_name_),
+    flags(IOPT_NOHELP | IOPT_LEGACY)
+{
+    // Check that the new name exists.
+    if (!parent->_iopts.contains(new_name)) {
+        parent->fatalArgError(u"new name '" + new_name + u"' not found for legacy " + display());
     }
 }
 
@@ -554,22 +568,24 @@ ts::UString ts::Args::formatHelpOptions(size_t line_width) const
     bool titleDone = false;
     for (auto& it : _iopts) {
         const IOption& opt(it.second);
-        if (!text.empty()) {
-            text += LINE_FEED;
+        if ((opt.flags & IOPT_NOHELP) == 0) {
+            if (!text.empty()) {
+                text += LINE_FEED;
+            }
+            // When this is an option, add 'Options:' the first time.
+            if (!titleDone && !opt.name.empty()) {
+                titleDone = true;
+                text += HelpLines(TITLE, u"Options:", line_width);
+                text += LINE_FEED;
+            }
+            text += opt.helpText(line_width);
         }
-        // When this is an option, add 'Options:' the first time.
-        if (!titleDone && !opt.name.empty()) {
-            titleDone = true;
-            text += HelpLines(TITLE, u"Options:", line_width);
-            text += LINE_FEED;
-        }
-        text += opt.helpText(line_width);
     }
 
     // Set final text.
     if (!_tail.empty()) {
         text += LINE_FEED;
-        text.append(HelpLines(TITLE, _tail, line_width));
+        text += HelpLines(TITLE, _tail, line_width);
     }
     return text;
 }
@@ -748,11 +764,14 @@ ts::Args::IOption& ts::Args::getIOption(const UChar* name)
 {
     const UString name1(name == nullptr ? u"" : name);
     auto it = _iopts.find(name1);
-    if (it != _iopts.end()) {
-        return it->second;
+    if (it == _iopts.end()) {
+        fatalArgError(name1, u"undefined");
+    }
+    else if (it->second.flags & IOPT_LEGACY) {
+        return getIOption(it->second.new_name.c_str());
     }
     else {
-        fatalArgError(name1, u"undefined");
+        return it->second;
     }
 }
 
@@ -904,46 +923,64 @@ ts::ByteBlock ts::Args::hexaValue(const UChar* name, const ByteBlock& def_value,
 // Get the value of an option as an IP address or socket address.
 //----------------------------------------------------------------------------
 
-void ts::Args::getIPValue(IPAddress& value, const UChar* name, const IPAddress& def_value, size_t index) const
+void ts::Args::getIPValue(IPAddress& value, const UChar* name, const IPAddress& def_value, size_t index, IP preferred) const
 {
     const IOption& opt(getIOption(name));
     if (opt.type != IPADDR && opt.type != IPSOCKADDR && opt.type != IPSOCKADDR_OA && opt.type != IPSOCKADDR_OP && opt.type != IPSOCKADDR_OAP) {
         fatalArgError(opt.name, u"is not declared as IP address");
     }
-    if (index >= opt.values.size() || !opt.values[index].address.hasAddress()) {
+    else if (index >= opt.values.size() || !opt.values[index].address.hasAddress()) {
         value.setAddress(def_value);
     }
+    else if (preferred != IP::Any && opt.values[index].address.generation() != preferred) {
+        // The parameter was initially resolved with another IP generation.
+        // Try to resolve it again with the preferred generation.
+        if (!value.resolve(opt.values[index].string.value(), NULLREP, preferred)) {
+            // Could not resolve, use initial address, even if not the same generation.
+            value.setAddress(opt.values[index].address);
+        }
+    }
     else {
+        // Use the initially resolved address.
         value.setAddress(opt.values[index].address);
     }
 }
 
-ts::IPAddress ts::Args::ipValue(const UChar* name, const IPAddress& def_value, size_t index) const
+ts::IPAddress ts::Args::ipValue(const UChar* name, const IPAddress& def_value, size_t index, IP preferred) const
 {
     IPAddress value;
-    getIPValue(value, name, def_value, index);
+    getIPValue(value, name, def_value, index, preferred);
     return value;
 }
 
-void ts::Args::getSocketValue(IPSocketAddress& value, const UChar* name, const IPSocketAddress& def_value, size_t index) const
+void ts::Args::getSocketValue(IPSocketAddress& value, const UChar* name, const IPSocketAddress& def_value, size_t index, IP preferred) const
 {
     const IOption& opt(getIOption(name));
     if (opt.type != IPSOCKADDR && opt.type != IPSOCKADDR_OA && opt.type != IPSOCKADDR_OP && opt.type != IPSOCKADDR_OAP) {
         fatalArgError(opt.name, u"is not declared as IP socket address");
     }
-    value = index >= opt.values.size() ? def_value : opt.values[index].address;
-    if (!value.hasAddress() && def_value.hasAddress()) {
-        value.setAddress(def_value);
+    else if (index >= opt.values.size()) {
+        value = def_value;
     }
-    if (!value.hasPort() && def_value.hasPort()) {
-        value.setPort(def_value.port());
+    else {
+        // If there is a prefered IP generation and the parameter was initially resolved with another IP generation, try to
+        // resolve it again with the preferred generation. If it fails, use initial address, even if not the same generation.
+        if (preferred == IP::Any || opt.values[index].address.generation() == preferred || !value.resolve(opt.values[index].string.value(), NULLREP, preferred)) {
+            value = opt.values[index].address;
+        }
+        if (!value.hasAddress() && def_value.hasAddress()) {
+            value.setAddress(def_value);
+        }
+        if (!value.hasPort() && def_value.hasPort()) {
+            value.setPort(def_value.port());
+        }
     }
 }
 
-ts::IPSocketAddress ts::Args::socketValue(const UChar* name, const IPSocketAddress& def_value, size_t index) const
+ts::IPSocketAddress ts::Args::socketValue(const UChar* name, const IPSocketAddress& def_value, size_t index, IP preferred) const
 {
     IPSocketAddress value;
-    getSocketValue(value, name, def_value, index);
+    getSocketValue(value, name, def_value, index, preferred);
     return value;
 }
 
@@ -1099,6 +1136,16 @@ bool ts::Args::analyze(const UString& app_name, const UStringVector& arguments, 
 
         // If IOption found...
         if (opt != nullptr) {
+
+            // Resolve new name for legacy options.
+            while (opt->flags & IOPT_LEGACY) {
+                auto it = _iopts.find(opt->new_name);
+                if (it == _iopts.end()) {
+                    fatalArgError(u"new name '" + opt->new_name + u"' not found for legacy " + opt->display());
+                }
+                opt = &it->second;
+            }
+
             // Get the value string from short option, if present
             if (short_opt_arg != NPOS && opt->type != NONE) {
                 assert(!val.has_value());

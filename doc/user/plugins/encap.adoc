@@ -17,6 +17,11 @@ This plugin encapsulates all packets from several PID's into one single PID.
 This unique output PID replaces all input PID's in the transport stream.
 The output PID is called the _tunnel_ or _outer_ PID through which all original or _inner_ PID's are conveyed.
 
+It is possible to encapsulate all packets from a list of PID's (option `--pid`)
+or all packets with a label (option `--label`).
+The two options can be used together to encapsulate all packets from any of the
+specified PID's and also all packets with any of the specified labels.
+
 The reverse operation, the decapsulation, is performed by the `decap` plugin.
 It replaces the tunnel PID by all original PID's.
 
@@ -28,7 +33,8 @@ the structure of the original stream or could damage its original structure.
 
 Because of the encapsulation overhead, the total volume of encapsulated packets is slightly greater
 (by approximately 2%) than the original PID's.
-The encapsulation operation consequently needs some null packets in the original transport stream in addition to the original packets.
+The encapsulation operation consequently needs some null packets in the original transport stream
+in addition to the original packets.
 The output tunnel PID replaces all original packets from the encapsulated PID's plus some null packets.
 If the original input stream has no stuffing at all,
 then the `tsp` option `--add-input-stuffing 1/50` is sufficient to reserve the additional overhead.
@@ -45,6 +51,16 @@ $ tsp -P encap [options]
 Options
 
 [.opt]
+*--drop-initial*
+
+[.optdoc]
+In synchronous PES mode, all outer packets must contain a PTS.
+However, a PTS cannot be computed before getting the first PCR.
+If initial input packets arrive before the first PCR, they cannot be immediately encapsulated.
+By default, they are delayed until the first PCR is found, when PTS can be computed.
+Using this option, these initial input packets are dropped instead of being delayed.
+
+[.opt]
 *-i* +
 *--ignore-errors*
 
@@ -54,6 +70,16 @@ Ignore errors such as PID conflict or packet overflow.
 [.optdoc]
 By default, a PID conflict is reported when the output PID is already present on input but not encapsulated.
 A packet overflow is reported when the input stream does not contain enough null packets to absorb the encapsulation overhead.
+
+[.opt]
+*-l* _label1[-label2]_ +
+*--label* _label1[-label2]_
+
+[.optdoc]
+Encapsulate packets with the specified labels.
+
+[.optdoc]
+Several `--label` options may be specified.
 
 [.opt]
 *-m* _value_ +
@@ -99,6 +125,14 @@ With a zero value the distance is disabled (ie. the distance between input packe
 The value 1 is equivalent to not using the pack mode since outer packets are emitted after one TS packet.
 
 [.opt]
+*--pcr-label* _value_
+
+[.optdoc]
+Specify a label for reference packets containing PCR's.
+The output PID will contain PCR's, based on the same clock.
+By default, the output PID does not contain any PCR.
+
+[.opt]
 *--pcr-pid* _value_
 
 [.optdoc]
@@ -128,7 +162,7 @@ The recommended values are between -90000 and +90000 (1 second).
 The value 0 is equivalent to use the Asynchronous PES encapsulation.
 
 [.optdoc]
-It requires to use the PCR option `--pcr-pid`.
+It requires to use a PCR option, `--pcr-pid` or `--pcr-label`.
 
 [.opt]
 *-p* _pid1[-pid2]_ +
@@ -143,8 +177,7 @@ The null PID 0x1FFF cannot be encapsulated.
 
 include::{docdir}/opt/group-common-plugins.adoc[tags=!*]
 
-[.usage]
-Encapsulation format
+==== Encapsulation format
 
 This section describes the private encapsulation format.
 It is informative only.
@@ -158,8 +191,7 @@ The plain mode is more compact but its structure is specific to TSDuck.
 The PES mode uses more overhead but it encapsulates the TS packets into PES packets,
 which may be easier to process in some cases.
 
-[.usage]
-Plain encapsulation format
+==== Plain encapsulation format
 
 We define the output elementary stream (ES) as the concatenation of all payloads of all TS packets in the output tunnel PID.
 In this ES, all input TS packets are contiguous, without encapsulation.
@@ -171,8 +203,7 @@ When the PUSI bit is set, the first byte of the payload is a _pointer field_ to 
 This packetization method is directly adapted from the standard packetization process for sections,
 with 187-byte packets instead of sections.
 
-[.usage]
-PES encapsulation format
+==== PES encapsulation format
 
 The same plain elementary stream is used, but with a PES envelope.
 This reduces the payload size for encapsulated packets but this makes the outer encapsulation more transparent.
@@ -231,8 +262,7 @@ This PID component shall be described as follow in the PMT of the service:
 * Descriptors:
 ** Add a registration descriptor for "KLVA" (0x4B4C5641)
 
-[.usage]
-Example
+==== Example
 
 We encapsulate several PID's in outer PID 7777.
 We attach this outer PID to service id 100.
