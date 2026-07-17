@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -232,12 +232,12 @@ namespace ts {
 
         //!
         //! Set the optional input time stamp of the packet.
-        //! @param [in] time_stamp Input time stamp value. This value should be taken from a monotonic clock.
+        //! @param [in] timestamp Input time stamp value. This value should be taken from a monotonic clock.
         //! @param [in] source Identification of time stamp source.
         //! @see getInputTimeStamp()
         //!
         template <class Rep, class Period>
-        void setInputTimeStamp(const cn::duration<Rep,Period>& time_stamp, TimeSource source);
+        void setInputTimeStamp(const cn::duration<Rep,Period>& timestamp, TimeSource source);
 
         //!
         //! Get the input time stamp as a string, typically for debug messages.
@@ -381,6 +381,7 @@ namespace ts {
         bool             _datagram : 1;         // Packet was originally extracted from a datagram of several TS packets.
         TS_PUSH_WARNING()
         TS_LLVM_NOWARNING(unused-private-field)
+        TS_LLVM_NOWARNING(ms-bitfield-padding)  // Microsoft padding ??!!
         unsigned int     _pad1 : 3;             // Padding to next byte.
         unsigned int     _pad2 : 8;             // Padding to next multiple of 4 bytes -1.
         TS_POP_WARNING()
@@ -409,10 +410,10 @@ namespace ts {
 
 // Set the optional input time stamp of the packet.
 template <class Rep, class Period>
-void ts::TSPacketMetadata::setInputTimeStamp(const cn::duration<Rep,Period>& time_stamp, TimeSource source)
+void ts::TSPacketMetadata::setInputTimeStamp(const cn::duration<Rep,Period>& timestamp, TimeSource source)
 {
     _time_source = source;
-    const PCR pcr = cn::duration_cast<PCR>(time_stamp);
+    const PCR pcr = cn::duration_cast<PCR>(timestamp);
     // Make sure we remain in the usual PCR range.
     // This can create an issue if the input value wraps up at 2^64.
     // In which case, the PCR value will warp at another value than PCR_SCALE.

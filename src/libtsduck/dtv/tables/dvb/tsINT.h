@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -21,13 +21,13 @@ namespace ts {
     //! @see ETSI EN 301 192, 8.4.3
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL INT : public AbstractLongTable
+    class TSDUCKDLL INT: public AbstractLongTable
     {
     public:
         //!
         //! Description of a device.
         //!
-        class TSDUCKDLL Device : public AttachedEntry
+        class TSDUCKDLL Device: public AttachedEntry
         {
         public:
             DescriptorList target_descs;       //!< Target descriptor loop, describes the target device.

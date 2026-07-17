@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -43,7 +43,11 @@ namespace ts {
 
     //!
     //! Data type for socket descriptors as returned by the socket() system call.
+    //! On Windows, this type is not directly compatible with SysHandleType (file handles are pointers
+    //! while socket descriptors are integer). However, the two are guaranteed to have the same size and
+    //! can be safely converted on some operations.
     //! @ingroup net
+    //! @see SysHandleType
     //!
 #if defined(DOXYGEN)
     using SysSocketType = platform_specific;
@@ -405,9 +409,11 @@ namespace ts {
     TSCOREDLL inline int SysCloseSocket(SysSocketType sock)
     {
 #if defined(TS_WINDOWS)
-        return ::closesocket(sock);
+        const int res = ::closesocket(sock);
+        return res == 0 ? 0 : ::WSAGetLastError();
 #elif defined(TS_UNIX)
-        return ::close(sock);
+        const int res = ::close(sock);
+        return res == 0 ? 0 : errno;
 #else
         #error "Unsupported operating system"
 #endif

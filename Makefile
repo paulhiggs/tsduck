@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  Root makefile for the TSDuck project.
@@ -40,12 +40,18 @@ valgrind valgrind-shared valgrind-static:
 .PHONY: test-suite
 test-suite: default
 	@if [[ -d ../tsduck-test/.git ]]; then \
-	   cd ../tsduck-test; git pull; ./run-all-tests.sh --bin "$(BINDIR)"; \
+	   cd ../tsduck-test; git pull; ./run-all-tests.sh --bin "$(BINDIR)" $(TEST_SUITE_FLAGS); \
 	 elif [[ -x ../tsduck-test/run-all-tests.sh ]]; then \
-	   ../tsduck-test/run-all-tests.sh --bin "$(BINDIR)"; \
+	   ../tsduck-test/run-all-tests.sh --bin "$(BINDIR)" $(TEST_SUITE_FLAGS); \
 	 else \
 	   echo >&2 "No test repository in ../tsduck-test"; \
 	 fi
+
+# Execute the same TSDuck test suite, but only PSI/SI tests.
+
+.PHONY: si-test-suite
+si-test-suite: TEST_SUITE_FLAGS = --si-only
+si-test-suite: test-suite
 
 # Alternative target to build with cross-compilation
 
@@ -89,6 +95,13 @@ gprof:
 m32:
 	+@$(MAKE) M32=true
 
+# Build without all removeable external library dependencies.
+
+.PHONY: nodep
+nodep:
+	+@$(MAKE) BINDIR_SUFFIX=-nodep NODEKTEC=1 NODTAPI=1 NOHIDES=1 NOVATEK=1 NOCURL=1 NOPCSC=1 \
+	    NOOPENSSL=1 NOZLIB=1 NOSRT=1 NORIST=1 NOJAVA=1 NOPYTHON=1 NOEDITLINE=1 NOHWACCEL=1
+
 # Generate the documentation.
 
 DOC_TARGETS = doxygen docs docs-html docs-pdf \
@@ -115,7 +128,7 @@ clean distclean:
 
 .PHONY: sample
 sample:
-	@$(MAKE) -C sample $@
+	@$(MAKE) -C sample
 
 # Display the built version
 

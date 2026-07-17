@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -110,15 +110,15 @@ void ts::SignalState::toJSON(json::Object& obj) const
 {
     obj.add(u"signal-locked", json::Bool(signal_locked));
     if (signal_strength.has_value()) {
-        obj.add(u"strength", signal_strength.value().toString());
+        obj.add(u"strength", signal_strength->toString());
     }
     if (signal_noise_ratio.has_value()) {
-        obj.add(u"snr", signal_noise_ratio.value().toString());
+        obj.add(u"snr", signal_noise_ratio->toString());
     }
     if (bit_error_rate.has_value()) {
-        obj.add(u"ber", bit_error_rate.value().toString());
+        obj.add(u"ber", bit_error_rate->toString());
     }
     if (packet_error_rate.has_value()) {
-        obj.add(u"per", packet_error_rate.value().toString());
+        obj.add(u"per", packet_error_rate->toString());
     }
 }

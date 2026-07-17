@@ -1,13 +1,12 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tsPCRMerger.h"
-#include "tsFatal.h"
 
 
 //----------------------------------------------------------------------------
@@ -173,8 +172,7 @@ ts::PCRMerger::PIDContextPtr ts::PCRMerger::getContext(PID pid)
         return ctx->second;
     }
     else {
-        PIDContextPtr ptr(new PIDContext(pid));
-        CheckNonNull(ptr.get());
+        PIDContextPtr ptr = std::make_shared<PIDContext>(pid);
         _pid_ctx[pid] = ptr;
         return ptr;
     }

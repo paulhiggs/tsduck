@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ namespace ts {
     //! Abstract base class for plugins which process one type of table (PAT, CAT, etc.)
     //! @ingroup libtsduck plugin
     //!
-    class TSDUCKDLL AbstractTablePlugin : public ProcessorPlugin, protected TableHandlerInterface
+    class TSDUCKDLL AbstractTablePlugin: public ProcessorPlugin, protected TableHandlerInterface
     {
         TS_NOBUILD_NOCOPY(AbstractTablePlugin);
     public:
@@ -30,7 +30,7 @@ namespace ts {
         // If overridden by subclass, superclass must be explicitly invoked.
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
         //!
         //! Default bitrate of new PID if a table is created.
@@ -41,8 +41,8 @@ namespace ts {
         //!
         //! Constructor for subclasses.
         //! @param [in] tsp Object to communicate with the Transport Stream Processor main executable.
-        //! @param [in] description A short one-line description, eg. "Descrambler for 'xyz' CAS".
-        //! @param [in] syntax A short one-line syntax summary, default: u"[options] [service]".
+        //! @param [in] description A short one-line description.
+        //! @param [in] syntax A short one-line syntax summary.
         //! @param [in] table_name Name of the table to process (for help text).
         //! @param [in] pid PID containing the tables to process. Does nothing when PID_NULL.
         //! @param [in] default_bitrate Default bitrate of new PID if a table is created.

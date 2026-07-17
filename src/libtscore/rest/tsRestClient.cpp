@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -10,12 +10,26 @@
 
 
 //----------------------------------------------------------------------------
-// Constructor.
+// Constructors and destructor.
 //----------------------------------------------------------------------------
 
-ts::RestClient::RestClient(const RestArgs& args, Report& report) :
-    _args(args),
-    _report(report)
+ts::RestClient::RestClient(const RestArgs& args, Object* owner) :
+    ReporterBase(&NULLREP, owner),
+    _args(args)
+{
+}
+ts::RestClient::RestClient(Report* report, const RestArgs& args, Object* owner) :
+    ReporterBase(report, owner),
+    _args(args)
+{
+}
+ts::RestClient::RestClient(ReporterBase* delegate, const RestArgs& args, Object* owner) :
+    ReporterBase(delegate, owner),
+    _args(args)
+{
+}
+
+ts::RestClient::~RestClient()
 {
 }
 
@@ -88,5 +102,5 @@ bool ts::RestClient::getResponseJSON(json::ValuePtr& value) const
 {
     UString text;
     getResponseText(text);
-    return json::Parse(value, text, _report);
+    return json::Parse(value, text, report());
 }

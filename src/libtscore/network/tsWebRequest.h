@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------------
 
 #pragma once
+#include "tsReporterBase.h"
 #include "tsWebRequestArgs.h"
 #include "tsReport.h"
 #include "tsByteBlock.h"
@@ -34,26 +35,29 @@ namespace ts {
     //! is used (system configuration on Windows, http_proxy environment on
     //! Unix systems).
     //!
-    class TSCOREDLL WebRequest
+    class TSCOREDLL WebRequest: public ReporterBase
     {
         TS_NOBUILD_NOCOPY(WebRequest);
     public:
         //!
         //! Constructor.
-        //! @param [in,out] report Where to report errors.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists or setReport() is used with another Report object. If @a report is null, log messages are discarded.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
         //!
-        WebRequest(Report& report);
+        explicit WebRequest(Report* report, Object* owner = nullptr);
+
+        //!
+        //! Constructor.
+        //! @param [in] delegate Use the report of another ReporterBase. If @a delegate is null, log messages are discarded.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        explicit WebRequest(ReporterBase* delegate, Object* owner = nullptr);
 
         //!
         //! Destructor.
         //!
-        virtual ~WebRequest();
-
-        //!
-        //! Use the Report object of this instance.
-        //! @return A reference to the Report object of this instance.
-        //!
-        Report& report() { return _report; }
+        virtual ~WebRequest() override;
 
         //!
         //! Default TCP port for HTTP.
@@ -131,12 +135,12 @@ namespace ts {
 
         //!
         //! Enable the use of cookies for all requests using this instance.
-        //! @param [in] fileName The name of the file to use to load and store cookies.
+        //! @param [in] file_name The name of the file to use to load and store cookies.
         //! On Windows, there is an implicit per-user cookie repository and @a fileName
         //! is ignored. On Unix systems, this file is used to store and retrieve cookies
         //! in the libcurl format. When @a fileName is empty, use a temporary file name.
         //!
-        void enableCookies(const fs::path& fileName = fs::path());
+        void enableCookies(const fs::path& file_name = fs::path());
 
         //!
         //! Disable the use of cookies for all requests.
@@ -276,15 +280,27 @@ namespace ts {
         //! - 5xx server error – the server failed to fulfil an apparently valid request
         //! @return True if the HTTP status code indicates success.
         //!
-        int httpSuccess() const { return _http_status < 400; }
+        bool httpSuccess() const { return _http_status < 400; }
+
+        //!
+        //! Check if the HTTP status code indicates a client error.
+        //! @return True if the HTTP status code indicates a client error.
+        //!
+        bool httpClientError() const { return _http_status >= 400 && _http_status < 500; }
+
+        //!
+        //! Check if the HTTP status code indicates a server error.
+        //! @return True if the HTTP status code indicates a server error.
+        //!
+        bool httpServerError() const { return _http_status >= 500 && _http_status < 600; }
 
         //!
         //! Get the announced content size in bytes.
         //! This is the value which was sent in the content headers.
-        //! This mat  be zero, this may not be the actual size of the content to download.
+        //! This may be zero, this may not be the actual size of the content to download.
         //! @return Announced content size in bytes.
         //!
-        size_t announdedContentSize() const { return _header_content_size; }
+        size_t announcedContentSize() const { return _header_content_size; }
 
         //!
         //! Get all response headers.
@@ -373,10 +389,10 @@ namespace ts {
         //! The open/read/close session is embedded in this method.
         //! @param [in] url The complete URL to fetch.
         //! @param [out] data The content of the URL.
-        //! @param [in] chunkSize Individual download chunk size.
+        //! @param [in] chunk_size Individual download chunk size.
         //! @return True on success, false on error.
         //!
-        bool downloadBinaryContent(const UString& url, ByteBlock& data, size_t chunkSize = DEFAULT_CHUNK_SIZE);
+        bool downloadBinaryContent(const UString& url, ByteBlock& data, size_t chunk_size = DEFAULT_CHUNK_SIZE);
 
         //!
         //! Download the content of the URL as text in one operation.
@@ -385,21 +401,21 @@ namespace ts {
         //! End of lines are normalized as LF.
         //! @param [in] url The complete URL to fetch.
         //! @param [out] text The content of the URL.
-        //! @param [in] chunkSize Individual download chunk size.
+        //! @param [in] chunk_size Individual download chunk size.
         //! @return True on success, false on error.
         //!
-        bool downloadTextContent(const UString& url, UString& text, size_t chunkSize = DEFAULT_CHUNK_SIZE);
+        bool downloadTextContent(const UString& url, UString& text, size_t chunk_size = DEFAULT_CHUNK_SIZE);
 
         //!
         //! Download the content of the URL in a file in one operation.
         //! The open/read/close session is embedded in this method..
         //! No transformation is applied to the data.
         //! @param [in] url The complete URL to fetch.
-        //! @param [in] fileName Name of the file to create.
-        //! @param [in] chunkSize Individual download chunk size.
+        //! @param [in] file_name Name of the file to create.
+        //! @param [in] chunk_size Individual download chunk size.
         //! @return True on success, false on error.
         //!
-        bool downloadFile(const UString& url, const fs::path& fileName, size_t chunkSize = DEFAULT_CHUNK_SIZE);
+        bool downloadFile(const UString& url, const fs::path& file_name, size_t chunk_size = DEFAULT_CHUNK_SIZE);
 
         //!
         //! Get the version of the underlying HTTP library.
@@ -412,7 +428,6 @@ namespace ts {
         // This is done to avoid inclusion of specialized headers in this public file.
         class SystemGuts;
 
-        Report&          _report;
         UString          _user_agent {DEFAULT_USER_AGENT};
         UString          _original_url {};
         UString          _final_url {};

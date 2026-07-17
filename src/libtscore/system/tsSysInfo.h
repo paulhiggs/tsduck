@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -101,6 +101,13 @@ namespace ts {
         //!
         int systemMajorVersion() const { return _systemMajorVersion; }
         //!
+        //! Get the operating system build as an integer.
+        //! The exact meaning of this number is system dependent.
+        //! On Windows, it returns the Windows build number.
+        //! @return The operating system build or -1 if unknown.
+        //!
+        int systemBuild() const { return _systemBuild; }
+        //!
         //! Get the operating system name.
         //! @return The operating system name.
         //!
@@ -115,6 +122,15 @@ namespace ts {
         //! @return The name of the CPU architecure.
         //!
         UString cpuName() const { return _cpuName; }
+        //!
+        //! Get the number of CPU cores.
+        //! This is typically the number of logical cores, which can be different from the number
+        //! of physical cores when they implement some form of hyperthreading. The result can be
+        //! the same as std::thread::hardware_concurrency() but the latter is documented to be
+        //! considered as a hint only and not accurate.
+        //! @return The number of CPU cores.
+        //!
+        size_t cpuCoreCount() const { return _cpuCoreCount; }
         //!
         //! Get system memory page size.
         //! @return The system memory page size in bytes.
@@ -146,9 +162,11 @@ namespace ts {
         SysFlavor _osFlavor = UNKNOWN;
         bool      _crcInstructions = false;
         int       _systemMajorVersion = -1;
+        int       _systemBuild = -1;
         UString   _systemVersion {};
         UString   _systemName {};
         UString   _hostName {};
+        size_t    _cpuCoreCount = 0;
         size_t    _memoryPageSize = 0;
     };
 }

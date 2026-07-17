@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -42,7 +42,7 @@ namespace ts {
     //! ---------------------------
     //!
     //! A plugin can decide to terminate tsp on its own (returning end of
-    //! input, output error or @link ts::ProcessorPlugin::TSP_END @endlink). The termination is unconditional,
+    //! input, output error or @link ts::TSP_END @endlink). The termination is unconditional,
     //! regardless of the state of the other plugins.
     //!
     //! The idea behind "joint termination" is to terminate tsp when several

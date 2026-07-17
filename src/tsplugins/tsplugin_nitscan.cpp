@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -33,10 +33,10 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
-        UString       _output_name {};                // Output file name
+        fs::path      _output_name {};                // Output file name
         std::ofstream _output_stream {};              // Output file stream
         std::ostream* _output = nullptr;              // Actual output stream
         UString       _comment_prefix {};             // Prefix for comment lines
@@ -52,7 +52,7 @@ namespace ts {
         size_t        _nit_count = 0;                 // Number of analyzed NIT's
         SectionDemux  _demux {duck, this};            // Section demux
         ChannelFile   _channels {};                   // Channel database
-        UString       _channel_file {};               // Name of channel configuration file.
+        fs::path      _channel_file {};               // Name of channel configuration file.
         bool          _save_channel_file = false;     // Save a fresh new version of channel configuration file.
         bool          _update_channel_file = false;   // Update previous content of channel configuration file.
         bool          _default_channel_file = false;  // Use default channel configuration file.
@@ -149,21 +149,21 @@ bool ts::NITScanPlugin::getOptions()
 {
     // Get option values
     duck.loadArgs(*this);
-    _output_name = value(u"output-file");
     _all_nits = present(u"all-nits");
     _terminate = present(u"terminate");
     _dvb_options = present(u"dvb-options");
     _nit_other = present(u"network-id");
-    _network_id = intValue<uint16_t>(u"network-id");
-    _nit_pid = intValue<PID>(u"pid", PID_NULL);
     _use_comment = present(u"comment");
-    _comment_prefix = value(u"comment", u"# ");
     _use_variable = present(u"variable");
-    _variable_prefix = value(u"variable", u"TS");
+    getPathValue(_output_name, u"output-file");
+    getIntValue(_network_id, u"network-id");
+    getIntValue(_nit_pid, u"pid", PID_NULL);
+    getValue(_comment_prefix, u"comment", u"# ");
+    getValue(_variable_prefix, u"variable", u"TS");
 
     _save_channel_file = present(u"save-channels");
     _update_channel_file = present(u"update-channels");
-    _channel_file = _update_channel_file ? value(u"update-channels") : value(u"save-channels");
+    getPathValue(_channel_file, _update_channel_file ? u"update-channels" : u"save-channels");
     _default_channel_file = (_save_channel_file || _update_channel_file) && (_channel_file.empty() || _channel_file == u"-");
 
     if (_save_channel_file && _update_channel_file) {
@@ -208,7 +208,7 @@ bool ts::NITScanPlugin::start()
     }
     else {
         _output = &_output_stream;
-        _output_stream.open(_output_name.toUTF8().c_str());
+        _output_stream.open(_output_name);
         if (!_output_stream) {
             error(u"cannot create file %s", _output_name);
             return false;
@@ -318,7 +318,7 @@ void ts::NITScanPlugin::processNIT(const NIT& nit)
 
     // Try to get input tuning parameter, and specifically the delivery system.
     const ObjectPtr input_params(ObjectRepository::Instance().retrieve(u"tsp.dvb.params"));
-    const ModulationArgs* input = dynamic_cast<const ModulationArgs*>(input_params.get());
+    const auto input = std::dynamic_pointer_cast<ModulationArgs>(input_params);
     const DeliverySystem delsys = input == nullptr ? DS_UNDEFINED : input->delivery_system.value_or(DS_UNDEFINED);
 
     // Process each TS descriptor list
@@ -367,7 +367,7 @@ void ts::NITScanPlugin::processNIT(const NIT& nit)
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::NITScanPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::NITScanPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Filter interesting sections
     _demux.feedPacket(pkt);

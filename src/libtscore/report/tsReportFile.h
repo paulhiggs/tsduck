@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -99,5 +99,5 @@ template <ts::ThreadSafety SAFETY>
 void ts::ReportFile<SAFETY>::writeLog(int severity, const UString& message)
 {
     std::lock_guard<MutexType> lock(_mutex);
-    _file << Severity::Header(severity) << message << std::endl;
+    _file << Severity::AddHeader(severity, message) << std::endl;
 }

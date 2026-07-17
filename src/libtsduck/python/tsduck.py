@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  TSDuck Python bindings
@@ -22,11 +22,12 @@ import ctypes.util
 
 # This internal function searches the TSDuck shared library.
 def _searchLibTSDuck():
-    if os.name == 'nt':
+    system = platform.system().lower()
+    if system.startswith('windows'):
         base = 'tsduck.dll'
         search = [os.getenv('TSDUCK','')]
         search.extend(os.getenv('Path','').split(os.pathsep))
-    elif platform.system() == 'Darwin':
+    elif system.startswith('darwin'):
         base = 'libtsduck.dylib'
         # On macOS, LD_LIBRARY_PATH is not passed to shell-scripts for security reasons.
         # A backup version LD_LIBRARY_PATH2 is defined to test development versions.
@@ -35,6 +36,13 @@ def _searchLibTSDuck():
     else:
         base = 'libtsduck.so'
         search = os.getenv('LD_LIBRARY_PATH','').split(os.pathsep)
+        # On FreeBSD, OpenBSD, DragonFlyBSD, the Python function ctypes.util.find_library()
+        # is not able to find a .so without a major version (typically a symbolic link).
+        # See https://tedboy.github.io/python_stdlib/_modules/ctypes/util.html
+        # On those systems, libtsduck.so in the default location (/usr/local/lib) will
+        # never be found. We need to add it as a fallback in the search list.
+        if system.startswith('freebsd') or system.startswith('openbsd') or system.startswith('dragonfly'):
+            search.append('/usr/local/lib')
 
     # Search the TSDuck library.
     path = ''
@@ -1746,7 +1754,7 @@ class VersionMismatch(Exception):
 ## @cond nodoxygen
 
 __author__ = 'Thierry Lelegard'
-__copyright__ = '2005-2025, Thierry Lelegard'
+__copyright__ = '2005-2026, Thierry Lelegard'
 __version__ = version()
 
 # Minimum required version for TSDuck library. Must be incremented when

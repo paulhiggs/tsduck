@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //-----------------------------------------------------------------------------
@@ -9,7 +9,6 @@
 #include "tsRegistry.h"
 #include "tsMemory.h"
 #include "tsSysUtils.h"
-#include "tsFatal.h"
 
 
 //-----------------------------------------------------------------------------
@@ -153,7 +152,6 @@ ts::UString ts::Registry::GetValue(const UString& key, const UString& value_name
     // Allocate new buffer and actually get the value
     ::DWORD bufsize = size + 10;
     ::BYTE* buf = new ::BYTE[size = bufsize];
-    CheckNonNull(buf);
     hr = ::RegQueryValueExW(hkey, value_name.wc_str(), nullptr, &type, buf, &size);
     ::RegCloseKey(hkey);
     if (hr != ERROR_SUCCESS) {

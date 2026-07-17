@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ namespace ts {
     //! @see ARIB STD-B21, 12.2.1.1
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL NetworkDownloadContentDescriptor : public AbstractDownloadContentDescriptor
+    class TSDUCKDLL NetworkDownloadContentDescriptor: public AbstractDownloadContentDescriptor
     {
     public:
         // NetworkDownloadContentDescriptor public members:

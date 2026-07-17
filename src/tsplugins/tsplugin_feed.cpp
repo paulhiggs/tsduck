@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -38,7 +38,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Command line options:
@@ -54,7 +54,7 @@ namespace ts {
         bool              _sync = false;                // Synchronized extraction of packets.
         uint8_t           _last_cc = 0xFF;              // Continuity counter from last packet in the PID.
         PID               _extract_pid = PID_NULL;      // PID carrying the T2-MI encapsulation.
-        TSFile            _outfile {};                  // Output file for extracted stream.
+        TSFile            _outfile {this};              // Output file for extracted stream.
         ByteBlock         _outdata {};                  // Output data buffer.
         SectionDemux      _demux {duck, this};          // A demux to extract all interesting tables.
         std::set<uint16_t>          _all_services {};   // All declared service ids in the TS.
@@ -158,7 +158,7 @@ bool ts::FeedPlugin::start()
     _outdata.reserve(8 * PKT_SIZE);
 
     // Open output file if present.
-    return _replace_ts || _outfile.open(_outfile_name, _outfile_flags , *this);
+    return _replace_ts || _outfile.open(_outfile_name, _outfile_flags);
 }
 
 
@@ -169,7 +169,7 @@ bool ts::FeedPlugin::start()
 bool ts::FeedPlugin::stop()
 {
     if (_outfile.isOpen()) {
-        _outfile.close(*this);
+        _outfile.close();
     }
     return true;
 }
@@ -300,7 +300,7 @@ void ts::FeedPlugin::resyncBuffer()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::FeedPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::FeedPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Feed the signalization demux as long as we haven't identified the tunnel PID.
     if (_extract_pid == PID_NULL) {
@@ -327,7 +327,7 @@ ts::ProcessorPlugin::Status ts::FeedPlugin::processPacket(TSPacket& pkt, TSPacke
     }
 
     // Predicted status.
-    Status status = _replace_ts ? TSP_DROP : TSP_OK;
+    PacketProcessStatus status = _replace_ts ? TSP_DROP : TSP_OK;
 
     // Process extracted packets.
     if (_outdata.size() >= PKT_SIZE) {
@@ -345,7 +345,7 @@ ts::ProcessorPlugin::Status ts::FeedPlugin::processPacket(TSPacket& pkt, TSPacke
             while (end + PKT_SIZE <= _outdata.size() && _outdata[end] == SYNC_BYTE) {
                 end += PKT_SIZE;
             }
-            if (!_outfile.writePackets(reinterpret_cast<const TSPacket*>(_outdata.data()), nullptr, end / PKT_SIZE, *this)) {
+            if (!_outfile.writePackets(reinterpret_cast<const TSPacket*>(_outdata.data()), nullptr, end / PKT_SIZE)) {
                 // Write error on output file.
                 return TSP_END;
             }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -167,6 +167,17 @@ namespace ts {
     TSCOREDLL UString HTTPStatusText(int status);
 
     //------------------------------------------------------------------------
+    // Transport Layer Security (TLS), formerly SSL.
+    //------------------------------------------------------------------------
+
+    //!
+    //! Maximum size of a TLS packet.
+    //! Max TLS message size is 2^14 (16384).
+    //! Extra overhead includes header/mac/padding (overestimated at 512).
+    //!
+    constexpr size_t TLS_MAX_PACKET_SIZE = 16384 + 512;
+
+    //------------------------------------------------------------------------
     // VLAN encapsulation.
     //------------------------------------------------------------------------
 
@@ -202,7 +213,7 @@ namespace ts {
     //!
     TS_PUSH_WARNING()
     TS_GCC_NOWARNING(non-virtual-dtor) // The derived class allocates nothing and we only need the base destructor
-    class TSCOREDLL VLANIdStack : public std::vector<VLANId>, public StringifyInterface
+    class TSCOREDLL VLANIdStack: public std::vector<VLANId>, public StringifyInterface
     {
         TS_DEFAULT_COPY_MOVE(VLANIdStack);
     public:

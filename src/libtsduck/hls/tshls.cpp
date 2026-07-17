@@ -1,12 +1,29 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tshls.h"
+
+
+//----------------------------------------------------------------------------
+// Enumeration description of ts::hls::PlayListType.
+//----------------------------------------------------------------------------
+
+const ts::Names& ts::hls::PlayListTypeNames()
+{
+    static const Names data {
+        {u"Unknown", PlayListType::UNKNOWN},
+        {u"Master",  PlayListType::MASTER},
+        {u"VoD",     PlayListType::VOD},
+        {u"Event",   PlayListType::EVENT},
+        {u"Live",    PlayListType::LIVE},
+    };
+    return data;
+}
 
 
 //----------------------------------------------------------------------------

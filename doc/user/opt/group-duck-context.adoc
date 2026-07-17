@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 // Documentation for options in class ts::DuckContext.
@@ -243,18 +243,6 @@ When serializing XML MPEG or DVB private descriptors, automatically add missing
 registration descriptors and private data specifier descriptors.
 See xref:opt-default-std[xrefstyle=short] for more details.
 // end::fixpds[]
-
-
-//----------------------------------------------------------------------------
-
-// tag::pds[]
-[.opt]
-*--default-pds* _value_
-
-[.optdoc]
-Default DVB-defined private data specifier (PDS).
-See xref:opt-default-std[xrefstyle=short] for more details.
-// end::pds[]
 
 //----------------------------------------------------------------------------
 // option --hf-band-region (optionally -r)

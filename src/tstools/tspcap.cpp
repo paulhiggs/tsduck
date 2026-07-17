@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -38,9 +38,9 @@ namespace {
         Options(int argc, char *argv[]);
 
         ts::DuckContext       duck {this};
-        ts::PagerArgs         pager {true, true};
-        ts::UString           input_file {};
-        ts::UString           output_file {};
+        ts::PagerArgs         pager {this, true, true};
+        fs::path              input_file {};
+        fs::path              output_file {};
         bool                  print_summary = false;
         bool                  list_streams = false;
         bool                  print_intervals = false;
@@ -125,8 +125,8 @@ Options::Options(int argc, char *argv[]) :
 
     // Load option values.
     pager.loadArgs(*this);
-    getValue(input_file, u"");
-    getValue(output_file, u"output-tcp-stream");
+    getPathValue(input_file, u"");
+    getPathValue(output_file, u"output-tcp-stream");
     save_tcp = present(u"output-tcp-stream");
     getSocketValue(dest_filter, u"destination");
     getSocketValue(source_filter, u"source");
@@ -761,7 +761,7 @@ bool TCPSessionDump::save()
         out = &std::cout;
     }
     else {
-        outfile.open(_opt.output_file.toUTF8(), std::ios::out | std::ios::binary);
+        outfile.open(_opt.output_file, std::ios::out | std::ios::binary);
         ok = bool(outfile);
         if (!ok) {
             _opt.error(u"error creating %s", _opt.output_file);
@@ -806,7 +806,7 @@ int MainCode(int argc, char *argv[])
     bool status = true;
 
     // Output device, may be paginated.
-    std::ostream& out(opt.save_tcp ? std::cout : opt.pager.output(opt));
+    std::ostream& out(opt.save_tcp ? std::cout : opt.pager.output());
 
     if (opt.extract_tcp) {
         // TCP session dump.

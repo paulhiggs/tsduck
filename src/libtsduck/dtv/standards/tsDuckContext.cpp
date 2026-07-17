@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -18,11 +18,11 @@
 
 
 //----------------------------------------------------------------------------
-// Constructor and destructors.
+// Constructors and destructor.
 //----------------------------------------------------------------------------
 
-ts::DuckContext::DuckContext(Report* report, std::ostream* output) :
-    _report(report != nullptr ? report : &CERR),
+ts::DuckContext::DuckContext(Report* report, std::ostream* output, Object* owner) :
+    ReporterBase(report != nullptr ? report : &CERR, owner),
     _initial_out(output != nullptr ? output : &std::cout),
     _out(_initial_out),
     _charset_in(&DVBCharset::DVB),  // default DVB charset
@@ -50,6 +50,10 @@ ts::DuckContext::DuckContext(Report* report, std::ostream* output) :
     }
 }
 
+ts::DuckContext::~DuckContext()
+{
+}
+
 
 //----------------------------------------------------------------------------
 // Reset the TSDuck context to initial configuration.
@@ -74,16 +78,6 @@ void ts::DuckContext::reset()
 
 
 //----------------------------------------------------------------------------
-// Set a new report for log and error messages.
-//----------------------------------------------------------------------------
-
-void ts::DuckContext::setReport(Report* report)
-{
-    _report = report != nullptr ? report : &CERR;
-}
-
-
-//----------------------------------------------------------------------------
 // Set the DVB character sets (default DVB character set if null).
 //----------------------------------------------------------------------------
 
@@ -104,8 +98,8 @@ void ts::DuckContext::setDefaultCharsetOut(const Charset* charset)
 
 void ts::DuckContext::addStandards(Standards mask)
 {
-    if (_report->debug() && (_acc_standards | mask) != _acc_standards) {
-        _report->debug(u"adding standards %s to %s", StandardsNames(mask), StandardsNames(_acc_standards));
+    if (report().debug() && (_acc_standards | mask) != _acc_standards) {
+        report().debug(u"adding standards %s to %s", StandardsNames(mask), StandardsNames(_acc_standards));
     }
     _acc_standards |= mask;
 }
@@ -114,8 +108,8 @@ void ts::DuckContext::resetStandards(Standards mask)
 {
     _acc_standards = _cmd_standards | mask;
 
-    if (_report->debug()) {
-        _report->debug(u"resetting standards to %s", StandardsNames(_acc_standards));
+    if (report().debug()) {
+        report().debug(u"resetting standards to %s", StandardsNames(_acc_standards));
     }
 }
 
@@ -158,17 +152,17 @@ ts::UString ts::DuckContext::defaultHFRegion() const
 
 const ts::HFBand* ts::DuckContext::hfBand(const UString& name, bool silent_band) const
 {
-    return HFBand::GetBand(defaultHFRegion(), name, *_report, silent_band);
+    return HFBand::GetBand(defaultHFRegion(), name, report(), silent_band);
 }
 
 const ts::HFBand* ts::DuckContext::vhfBand() const
 {
-    return HFBand::GetBand(defaultHFRegion(), u"VHF", *_report);
+    return HFBand::GetBand(defaultHFRegion(), u"VHF", report());
 }
 
 const ts::HFBand* ts::DuckContext::uhfBand() const
 {
-    return HFBand::GetBand(defaultHFRegion(), u"UHF", *_report);
+    return HFBand::GetBand(defaultHFRegion(), u"UHF", report());
 }
 
 
@@ -290,10 +284,10 @@ bool ts::DuckContext::setOutput(const fs::path& fileName, bool override)
 
         // Open new file if any.
         if (!fileName.empty() && fileName != u"-") {
-            _report->verbose(u"creating %s", fileName);
+            report().verbose(u"creating %s", fileName);
             _outFile.open(fileName, std::ios::out);
             if (!_outFile) {
-                _report->error(u"cannot create %s", fileName);
+                report().error(u"cannot create %s", fileName);
                 return false;
             }
             _out = &_outFile;
@@ -307,13 +301,13 @@ bool ts::DuckContext::setOutput(const fs::path& fileName, bool override)
 // Define several classes of command line options in an Args.
 //----------------------------------------------------------------------------
 
-void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
+void ts::DuckContext::defineOptions(Args& args, int cmd_options_mask)
 {
     // Remember defined command line options.
-    _defined_cmd_options |= cmdOptionsMask;
+    _defined_cmd_options |= cmd_options_mask;
 
     // Options relating to default PDS.
-    if (cmdOptionsMask & CMD_PDS) {
+    if (cmd_options_mask & CMD_PDS) {
 
         args.option(u"default-pds", 0, PrivateDataSpecifierEnum());
         args.help(u"default-pds",
@@ -333,7 +327,7 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
                   u"Several options --default-registration can be specified. "
                   u"Unlike DVB private data specifiers, several MPEG registration ids can be simultaneously defined.");
     }
-    if (cmdOptionsMask & CMD_FIX_PDS) {
+    if (cmd_options_mask & CMD_FIX_PDS) {
 
         args.option(u"fix-missing-pds");
         args.help(u"fix-missing-pds",
@@ -342,7 +336,7 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Options relating to default character sets.
-    if (cmdOptionsMask & CMD_CHARSET) {
+    if (cmd_options_mask & CMD_CHARSET) {
 
         args.option(u"default-charset", 0, Args::STRING);
         args.help(u"default-charset", u"name",
@@ -353,7 +347,7 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Options relating to default standards.
-    if (cmdOptionsMask & CMD_STANDARDS) {
+    if (cmd_options_mask & CMD_STANDARDS) {
 
         args.option(u"abnt");
         args.help(u"abnt",
@@ -388,20 +382,24 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
         args.help(u"ignore-leap-seconds",
                   u"Do not include explicit leap seconds in some UTC computations. "
                   u"Currently, this applies to SCTE 35 splice_schedule() commands only.");
+
+        args.option(u"dtmb");
+        args.help(u"dtmb",
+                  u"Assume that the transport stream is a DTMB one.");
     }
 
     // Options relating to default UHF/VHF region.
-    if (cmdOptionsMask & CMD_HF_REGION) {
+    if (cmd_options_mask & CMD_HF_REGION) {
 
         args.option(u"hf-band-region", 'r', Args::STRING);
         args.help(u"hf-band-region", u"name",
             u"Specify the region for UHF/VHF band frequency layout. "
             u"The available regions are " +
-            UString::Join(HFBand::GetAllRegions(*_report)) + u".");
+            UString::Join(HFBand::GetAllRegions(report())) + u".");
     }
 
     // Options relating to default CAS identification.
-    if (cmdOptionsMask & CMD_CAS) {
+    if (cmd_options_mask & CMD_CAS) {
 
         args.option(u"default-cas-id", 0, Args::UINT16);
         args.help(u"default-cas-id",
@@ -419,7 +417,7 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Options relating to non-standard time reference.
-    if (cmdOptionsMask & CMD_TIMEREF) {
+    if (cmd_options_mask & CMD_TIMEREF) {
 
         args.option(u"time-reference", 0, Args::STRING);
         args.help(u"time-reference", u"name",
@@ -430,10 +428,10 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Option --europe triggers different options in different sets of options.
-    if (cmdOptionsMask & (CMD_CHARSET | CMD_STANDARDS)) {
+    if (cmd_options_mask & (CMD_CHARSET | CMD_STANDARDS)) {
 
         // Build help text for --europe option. It depends on which set of options is requested.
-        // Use _definedCmdOptions instead of cmdOptionsMask to include previous options.
+        // Use _defined_cmd_options instead of cmd_options_mask to include previous options.
         UStringList options;
         UString other;
         if (_defined_cmd_options & CMD_STANDARDS) {
@@ -455,10 +453,10 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Option --japan triggers different options in different sets of options.
-    if (cmdOptionsMask & (CMD_CHARSET | CMD_STANDARDS | CMD_HF_REGION | CMD_TIMEREF)) {
+    if (cmd_options_mask & (CMD_CHARSET | CMD_STANDARDS | CMD_HF_REGION | CMD_TIMEREF)) {
 
         // Build help text for --japan option. It depends on which set of options is requested.
-        // Use _definedCmdOptions instead of cmdOptionsMask to include previous options.
+        // Use _defined_cmd_options instead of cmd_options_mask to include previous options.
         UStringList options;
         if (_defined_cmd_options & CMD_STANDARDS) {
             options.push_back(u"--isdb");
@@ -479,7 +477,7 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Option --philippines triggers different options in different sets of options.
-    if (cmdOptionsMask & (CMD_CHARSET | CMD_STANDARDS | CMD_HF_REGION | CMD_TIMEREF)) {
+    if (cmd_options_mask & (CMD_CHARSET | CMD_STANDARDS | CMD_HF_REGION | CMD_TIMEREF)) {
 
         // Build help text. Same principle as --japan.
         UStringList options;
@@ -503,7 +501,7 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Option --brazil triggers different options in different sets of options.
-    if (cmdOptionsMask & (CMD_CHARSET | CMD_STANDARDS | CMD_HF_REGION | CMD_TIMEREF)) {
+    if (cmd_options_mask & (CMD_CHARSET | CMD_STANDARDS | CMD_HF_REGION | CMD_TIMEREF)) {
 
         // Build help text. Same principle as --japan.
         UStringList options;
@@ -527,7 +525,7 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
     }
 
     // Option --usa triggers different options in different sets of options.
-    if (cmdOptionsMask & (CMD_STANDARDS | CMD_HF_REGION)) {
+    if (cmd_options_mask & (CMD_STANDARDS | CMD_HF_REGION)) {
 
         // Build help text. Same principle as --japan.
         UStringList options;
@@ -541,6 +539,21 @@ void ts::DuckContext::defineOptions(Args& args, int cmdOptionsMask)
         args.help(u"usa",
                   u"A synonym for '" + UString::Join(options, u" ") + u"'. "
                   u"This is a handy shortcut when working on North American transport streams.");
+    }
+
+    // Option --china triggers different options in different sets of options.
+    if (cmd_options_mask & CMD_STANDARDS) {
+
+        // Build help text for --china option. It depends on which set of options is requested.
+        // Use _defined_cmd_options instead of cmd_options_mask to include previous options.
+        UStringList options;
+        if (_defined_cmd_options & CMD_STANDARDS) {
+            options.push_back(u"--dtmb");
+        }
+        args.option(u"china");
+        args.help(u"china",
+                  u"A synonym for '" + UString::Join(options, u" ") + u"'. "
+                  u"This is a handy shortcut when working on Chinese transport streams.");
     }
 }
 
@@ -628,6 +641,9 @@ bool ts::DuckContext::loadArgs(Args& args)
         }
         if (args.present(u"abnt") || args.present(u"brazil") || args.present(u"philippines")) {
             _cmd_standards |= Standards::ISDB | Standards::ABNT;
+        }
+        if (args.present(u"dtmb") || args.present(u"china")) {
+            _cmd_standards |= Standards::DTMB;
         }
         _use_leap_seconds = !args.present(u"ignore-leap-seconds");
     }

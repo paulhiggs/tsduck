@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -19,7 +19,7 @@ namespace ts {
     //! Base class for all exceptions in TSDuck.
     //! @ingroup libtscore cpp
     //!
-    class TSCOREDLL Exception : public std::exception
+    class TSCOREDLL Exception: public std::exception
     {
         TS_RULE_OF_FIVE(Exception, noexcept override);
     private:

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2025, Piotr Serafin
+// Copyright (c) 2025-2026, Piotr Serafin
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -54,6 +54,7 @@ namespace ts {
         DownloadDataHeader header {};           //!< DSM-CC Download Data Header.
         uint16_t           module_id = 0;       //!< Identifies to which module this block belongs.
         uint8_t            module_version = 0;  //!< Identifies the version of the module to which this block belongs.
+        uint16_t           block_number = 0;    //!< Block number within the module (used for multi-block assembly).
         ByteBlock          block_data {};       //!< Conveys the data of the block.
 
         //!

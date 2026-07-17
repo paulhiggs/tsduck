@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ namespace ts {
         //! This class is internal to the TSDuck library and cannot be called by applications.
         //! @ingroup libtsduck plugin
         //!
-        class ControlServer : public CommandLineHandler, private Thread
+        class ControlServer: public CommandLineHandler, private Thread
         {
             TS_NOBUILD_NOCOPY(ControlServer);
         public:
@@ -62,9 +62,9 @@ namespace ts {
             TSProcessorArgs&      _options;
             Report                _log;
             TSPControlCommand     _reference {_log};
-            TCPServer             _telnet_server {};
-            TLSServer             _tls_server {_options.control};
-            TLSConnection         _tls_client {_options.control};
+            TCPServer             _telnet_server {&_log};
+            TLSServer             _tls_server {&_log, _options.control};
+            TLSConnection         _tls_client {&_log, _options.control};
             std::recursive_mutex& _global_mutex;
             InputExecutor*        _input = nullptr;
             OutputExecutor*       _output = nullptr;

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -139,5 +139,4 @@ The default is 10.
 Specify the DVB SimulCrypt _Super_CAS_Id_. This is a required parameter.
 
 include::{docdir}/opt/group-dvbsim-log.adoc[tags=!*;ecmg]
-include::{docdir}/opt/group-asynchronous-log.adoc[tags=!*;short-t]
 include::{docdir}/opt/group-common-commands.adoc[tags=!*]

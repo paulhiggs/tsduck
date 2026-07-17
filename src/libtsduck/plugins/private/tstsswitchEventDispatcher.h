@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -44,10 +44,10 @@ namespace ts {
         private:
             const InputSwitcherArgs& _opt;
             Report&   _log;
-            bool      _sendCommand;
-            bool      _sendUDP;
-            UString   _userData;
-            UDPSocket _socket;
+            bool      _sendCommand = false;
+            bool      _sendUDP = false;
+            UString   _userData {};
+            UDPSocket _socket {&_log};
 
             // Send command and UDP message.
             bool sendCommand(const UString& eventName, const UString& otherParameters = UString());

@@ -2,10 +2,102 @@ TSDUCK CHANGE LOG AND RELEASE NOTES
 
 -------------------------------------------------------------------------------
 
-VERSION 3.43-4467 (October 2025)
+VERSION 3.45-4727 (July 2026)
+
+[IMP] Improvements on existing commands and plugins:
+
+  * Plugin  "dektec"  (input):  on  DVB-S/S2  receivers,  LNB  control  is  now
+    automatically  skipped on input channels which do not support it instead of
+    failing.
+  * Plugin  "dektec"  (input):  If channel has LNB capability but should not be
+    enabled, we force LNB disabling instead of skipping LNB enabling.
+  * In  commands  which  create  TLS  servers  for which no trusted certificate
+    exists,  it  is  no  longer  necessary  to  create  an external self-signed
+    certificate  using  complex systems commands. It it now possible to request
+    the creation of an ephemeral self-signed certificate in memory.
+  * New options in existing commands and plugins:
+    - Options  --preserve-units,  --silent-after, --stuffing in plugins "slice"
+      and "time".
+    - Option --no-lnb-control in input plugin "dektec".
+    - Option --control-ephemeral-rsa-bits in command "tsp".
+    - Option --remote-ephemeral-rsa-bits in command "tsswitch".
+    - Option --snddropdelay in input and output plugins "srt".
+    - Options --super-cas-id and --client-limit in "tsecmg".
+  * Removed options in existing commands and plugins:
+    - Options --log-message-count, --synchronous-log, --timed-log  in  "tsecmg"
+      and "tstestecmg".
+
+[BUG] Bug fixes:
+
+  * Fixed issue #1729:  Frame  rate  was  incorrectly interpreted on MPEG-2 and
+    MPEG-1 video streams.
+  * Fixed issue #1730:  On  ISDB-T  systems,  display the interpretation of the
+    transmission_type_info of the TS_information_descriptor.
+  * Fixed issue #1733:  Frequency  rounding  error in ISDB terrestrial delivery
+    system descriptor.
+
+-------------------------------------------------------------------------------
+
+VERSION 3.44-4676 (May 2026)
 
 [NEW] New commands and plugins:
 
+  * Added plugin "dsmcc": Extract content from DSM-CC carousels on a given PID.
+    Assembles  DSI/DII/DDB  modules  (decompressing  when  needed)  and  either
+    interprets  them  as  a BIOP object carousel (default) or downloads them as
+    opaque  modules  for a data carousel (DVB-SSU style, with --data-carousel).
+    In  object  mode,  File  objects  under the ServiceGateway are extracted to
+    <outdir>/files/<path>.    When  --output-directory  is  omitted, the plugin
+    runs  in  list-only  mode  and prints a hierarchical report (per group, per
+    module,  per  DII  descriptor, plus the resolved file tree). Option --dump-
+    modules  keeps the raw assembled payloads alongside  the  extracted  files,
+    and  --data-carousel  switches to plain data-carousel handling. Multi-group
+    carousels   are   tracked   as   first-class  entities;  modules  keyed  by
+    (download_id,  module_id).  Per-module  DII descriptors (name, label, type,
+    info, caching priority, CRC32, etc.)  are surfaced in the list-only output.
+    In  data-carousel  mode,  output  mirrors the carousel's group hierarchy on
+    disk (<outdir>/<download_id>/<label_or_module_XXXX>.bin).
+  * Added  command  "tsdsmcc":  Standalone  DSM-CC  carousel  extraction  tool,
+    one-shot equivalent of "tsp -I file ... -P dsmcc ... -O drop".  Shares  its
+    extraction engine with the plugin and exposes the same option set.
+
+[IMP] Improvements on existing commands and plugins:
+
+  * With  "tsversion --upgrade",  do  not  upgrade  the development environment
+    package (tsduck-devel or tsduck-dev) if one exists for the operating system
+    and it is not installed.
+  * New options in existing commands and plugins:
+    - Option --meta-base64-sections in "tstables  and  plugins  "splicemonitor"
+      and "tables".
+
+[BUG] Bug fixes:
+
+  * Fixed issue #1693:  On old versions of Windows 10, before Build 20348,  UDP
+    reception failed with an error on socket option SIO_TIMESTAMPING.  Now,  on
+    these older Windows versions, UDP packet timestamping is simply ignored.
+  * Fixed issue #1698:  On  Windows,  using  non-ASCII file names (e.g. Chinese
+    names)  failed  in  some  cases.  This  is  due  to an inconsistency of the
+    Microsoft  C++  runtime library. A workaround for this issue is deployed in
+    the TSDuck source code. Remaining cases may still be present. Please report
+    them and they will be fixed.
+  * Fixed issue #1705: Incorrect display of ATSC service_location_descriptor.
+  * Fixed issue #1722:  On  Windows,  the  input  plugin  "ip"  tried  to  join
+    multicast  groups  from  all local addresses, included automatic link-local
+    addresses of interfaces which were down. These addresses are now ignored.
+
+-------------------------------------------------------------------------------
+
+VERSION 3.43-4549 (January 2026)
+
+[NEW] New commands and plugins:
+
+  * Added command "tsflute": FLUTE analyzer in pcap files.
+  * Added command "tsnip": DVB-NIP (Native IP) analyzer in pcap files.
+  * Added plugin "flute": FLUTE analyzer in MPE streams.
+  * Added plugin "nip": DVB-NIP (Native IP) analyzer in MPE streams.
+  * Added plugin "nipextract": DVB-NIP (Native IP) live service extraction from
+    MPE streams.
+  * Added plugin "mpeextract": Extract a UDP or RTP transport stream from MPE.
   * Added plugin "iat":  Analyze  Inter-packet Arrival Time (IAT) for datagram-
     based input plugins.
 
@@ -21,6 +113,10 @@ VERSION 3.43-4467 (October 2025)
     inputs are available for InfluxDB.
   * In plugin "splicemonitor",  it is now possible to send all detected SCTE-35
     splice events to an InfluxDB server.
+  * In  command  "tsxml",  it  is  possible to specify a directory as output to
+    process several input files. It is also possible to rewrite the input files
+    after  processing  (previously,  the output file was created before opening
+    the input files).
   * New options in existing commands and plugins:
     - Option --summary in plugin "mpe".
     - Options --iat, --tag in plugin "influx".
@@ -28,6 +124,9 @@ VERSION 3.43-4467 (October 2025)
     - Option --ignore-pid-conflict in plugin "spliceinject".
     - Option --duration in "tstables" and plugin "tables".
     - Options --influx* in plugin "splicemonitor".
+    - Options  --dtmb,  --china  in  "tsanalyze",  "tsdate",  "tsdump",  "tsp",
+      "tspsi",  "tsscan",  "tstabcomp",  "tstabdump",  "tstables"  and  plugins
+      "analyze", "dump", "psi", "rmorphan", "tables".
 
 [BUG] Bug fixes:
 

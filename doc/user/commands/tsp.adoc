@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -29,7 +29,7 @@ image::tsp.png[align="center",alt="tsp diagram",width=500]
 
 This section describes the general syntax and usage of the `tsp` command.
 All plugins are documented in detail, in alphabetical order, in xref:chap-plugins[xrefstyle=short].
-The xref:tsp-examples[xrefstyle=short] gives a few examples of `tsp` commands, both simple and complex examples.
+The xref:chap-examples[xrefstyle=short] gives a few examples of `tsp` commands, both simple and complex examples.
 
 [.usage]
 Usage
@@ -526,6 +526,16 @@ If unspecified, no control commands are expected.
 [.optdoc]
 With `--control-tls`, path to the certificate for the control commands.
 See xref:opt-tls[xrefstyle=short] for more details.
+
+[.opt]
+*--control-ephemeral-rsa-bits* _value_
+
+[.optdoc]
+With `--control-tls`, create an ephemeral self-signed certificate for the control port.
+The value specifies the size in bits of the ephemeral RSA key which it generated.
+Keep in mind that ephemeral self-signed certificates are considered as "invalid" or "insecure" by client applications.
+Be sure to disable the verification of the TLS server's certificate on the client side.
+By default, the control port needs a designated persistent certificate.
 
 [.opt]
 *--control-key-path* _name_

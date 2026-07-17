@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -12,7 +12,6 @@
 //----------------------------------------------------------------------------
 
 #include "tsWebRequest.h"
-#include "tsFatal.h"
 #include "tsFileUtils.h"
 #include "tsErrCodeReport.h"
 #include "tsURL.h"
@@ -64,11 +63,16 @@ ts::UString ts::WebRequest::_default_proxy_assword(DefaultProxy::Instance().url.
 // Constructors and destructor.
 //----------------------------------------------------------------------------
 
-ts::WebRequest::WebRequest(Report& report) :
-    _report(report)
+ts::WebRequest::WebRequest(Report* report, Object* owner) :
+    ReporterBase(report, owner)
 {
     allocateGuts();
-    CheckNonNull(_guts);
+}
+
+ts::WebRequest::WebRequest(ReporterBase* delegate, Object* owner) :
+    ReporterBase(delegate, owner)
+{
+    allocateGuts();
 }
 
 ts::WebRequest::~WebRequest()
@@ -136,7 +140,7 @@ const ts::UString& ts::WebRequest::proxyPassword() const
 // Set global cookie management.
 //----------------------------------------------------------------------------
 
-void ts::WebRequest::enableCookies(const fs::path& fileName)
+void ts::WebRequest::enableCookies(const fs::path& file_name)
 {
     _use_cookies = true;
     // Delete previous cookies file.
@@ -144,8 +148,8 @@ void ts::WebRequest::enableCookies(const fs::path& fileName)
         deleteCookiesFile();
     }
     // If the file name is not specified, delete the temporary file in the destructor.
-    _delete_cookies_file = fileName.empty();
-    _cookies_file_name = _delete_cookies_file ? TempFile(u".cookies") : fileName;
+    _delete_cookies_file = file_name.empty();
+    _cookies_file_name = _delete_cookies_file ? TempFile(u".cookies") : file_name;
 }
 
 void ts::WebRequest::disableCookies()
@@ -168,8 +172,8 @@ bool ts::WebRequest::deleteCookiesFile() const
         return true;
     }
     else {
-        _report.debug(u"deleting cookies file %s", _cookies_file_name);
-        return fs::remove(_cookies_file_name, &ErrCodeReport(_report, u"error deleting", _cookies_file_name));
+        report().debug(u"deleting cookies file %s", _cookies_file_name);
+        return fs::remove(_cookies_file_name, &ErrCodeReport(report(), u"error deleting", _cookies_file_name));
     }
 }
 
@@ -309,7 +313,7 @@ void ts::WebRequest::processReponseHeaders(const UString& text)
     // Process headers one by one.
     for (const auto& line : lines) {
 
-        _report.debug(u"HTTP header: %s", line);
+        report().debug(u"HTTP header: %s", line);
         const size_t colon = line.find(u':');
         size_t size = 0;
 
@@ -325,7 +329,7 @@ void ts::WebRequest::processReponseHeaders(const UString& text)
             UStringVector fields;
             line.split(fields, u' ', true, true);
             if (fields.size() < 2 || !fields[1].toInteger(_http_status)) {
-                _report.warning(u"no HTTP status found in header: %s", line);
+                report().warning(u"no HTTP status found in header: %s", line);
             }
 
             // Create a pseudo header for status line.
@@ -344,7 +348,7 @@ void ts::WebRequest::processReponseHeaders(const UString& text)
             // Process specific headers.
             if (name.similar(u"Location")) {
                 _final_url = std::move(value);
-                _report.debug(u"redirected to %s", _final_url);
+                report().debug(u"redirected to %s", _final_url);
             }
             else if (name.similar(u"Content-length") && value.toInteger(size)) {
                 _header_content_size = size;
@@ -361,12 +365,12 @@ void ts::WebRequest::processReponseHeaders(const UString& text)
 bool ts::WebRequest::open(const UString& url)
 {
     if (url.empty()) {
-        _report.error(u"no URL specified");
+        report().error(u"no URL specified");
         return false;
     }
 
     if (_is_open) {
-        _report.error(u"internal error, transfer already started, cannot download %s", url);
+        report().error(u"internal error, transfer already started, cannot download %s", url);
         return false;
     }
 
@@ -388,7 +392,7 @@ bool ts::WebRequest::open(const UString& url)
 // Download the content of the URL as binary data.
 //----------------------------------------------------------------------------
 
-bool ts::WebRequest::downloadBinaryContent(const UString& url, ByteBlock& data, size_t chunkSize)
+bool ts::WebRequest::downloadBinaryContent(const UString& url, ByteBlock& data, size_t chunk_size)
 {
     data.clear();
 
@@ -400,7 +404,7 @@ bool ts::WebRequest::downloadBinaryContent(const UString& url, ByteBlock& data, 
     // Initialize download buffers.
     size_t receivedSize = 0;
     data.reserve(_header_content_size);
-    data.resize(chunkSize);
+    data.resize(chunk_size);
     bool success = true;
 
     for (;;) {
@@ -416,8 +420,8 @@ bool ts::WebRequest::downloadBinaryContent(const UString& url, ByteBlock& data, 
 
         // Enlarge the buffer for next chunk.
         // Don't do that too often in case of very short transfers.
-        if (data.size() - receivedSize < chunkSize / 2) {
-            data.resize(receivedSize + chunkSize);
+        if (data.size() - receivedSize < chunk_size / 2) {
+            data.resize(receivedSize + chunk_size);
         }
     }
 
@@ -431,11 +435,11 @@ bool ts::WebRequest::downloadBinaryContent(const UString& url, ByteBlock& data, 
 // Download the content of the URL as text.
 //----------------------------------------------------------------------------
 
-bool ts::WebRequest::downloadTextContent(const UString& url, UString& text, size_t chunkSize)
+bool ts::WebRequest::downloadTextContent(const UString& url, UString& text, size_t chunk_size)
 {
     // Download the content as raw binary data.
     ByteBlock data;
-    if (downloadBinaryContent(url, data, chunkSize)) {
+    if (downloadBinaryContent(url, data, chunk_size)) {
         // Convert to UTF-8.
         text.assignFromUTF8(reinterpret_cast<const char*>(data.data()), data.size());
         // Remove all CR, just keep the LF.
@@ -454,7 +458,7 @@ bool ts::WebRequest::downloadTextContent(const UString& url, UString& text, size
 // Download the content of the URL in a file.
 //----------------------------------------------------------------------------
 
-bool ts::WebRequest::downloadFile(const UString& url, const fs::path& fileName, size_t chunkSize)
+bool ts::WebRequest::downloadFile(const UString& url, const fs::path& file_name, size_t chunk_size)
 {
     // Transfer initialization.
     if (!open(url)) {
@@ -462,14 +466,14 @@ bool ts::WebRequest::downloadFile(const UString& url, const fs::path& fileName, 
     }
 
     // Create the output file.
-    std::ofstream file(fileName, std::ios::out | std::ios::binary);
+    std::ofstream file(file_name, std::ios::out | std::ios::binary);
     if (!file) {
-        _report.error(u"error creating file %s", fileName);
+        report().error(u"error creating file %s", file_name);
         close();
         return false;
     }
 
-    std::vector<char> buffer(chunkSize);
+    std::vector<char> buffer(chunk_size);
     bool success = true;
 
     for (;;) {
@@ -484,7 +488,7 @@ bool ts::WebRequest::downloadFile(const UString& url, const fs::path& fileName, 
 
         file.write(buffer.data(), thisSize);
         if (!file) {
-            _report.error(u"error saving download to %s", fileName);
+            report().error(u"error saving download to %s", file_name);
             success = false;
             break;
         }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -14,7 +14,7 @@
 #define FOOLPROOF 1000
 
 // Global mutex. Used when delegations are modified. See comment in header file.
-TS_STATIC_MUTEX(std::recursive_mutex, GlobalReportMutex);
+TS_STATIC_VARIABLE(std::recursive_mutex, GlobalReportMutex);
 
 
 //----------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,7 +22,6 @@
 #include "tsTSPacketQueue.h"
 #include "tsPacketInsertionController.h"
 #include "tsThread.h"
-#include "tsFatal.h"
 
 #define DEFAULT_MAX_QUEUED_PACKETS  1000            // Default size in packet of the inter-thread queue.
 #define SERVER_THREAD_STACK_SIZE    (128 * 1024)    // Size in byte of the thread stack.
@@ -41,7 +40,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Command line options.
@@ -89,7 +88,7 @@ namespace ts {
         virtual void main() override;
 
         // Process one packet coming from the merged stream.
-        Status processMergePacket(TSPacket&, TSPacketMetadata&);
+        PacketProcessStatus processMergePacket(TSPacket&, TSPacketMetadata&);
     };
 }
 
@@ -317,7 +316,7 @@ bool ts::MergePlugin::startStopCommand(bool do_close, bool do_restart)
 
     if (do_close) {
         debug(u"closing merge process pipe");
-        _pipe->close(*this);
+        _pipe->close();
     }
 
     if (_stopping || !do_restart) {
@@ -336,8 +335,7 @@ bool ts::MergePlugin::startStopCommand(bool do_close, bool do_restart)
 
     // Allocate the new object. Atomically swap the safe pointer. This action
     // will synchronously deallocate the previous object.
-    _pipe = std::make_shared<TSForkPipe>();
-    CheckNonNull(_pipe.get());
+    _pipe = std::make_shared<TSForkPipe>(this);
 
     // Note on buffer size: we use DEFAULT_MAX_QUEUED_PACKETS instead of _max_queue
     // because this is the size of the system pipe buffer (Windows only). This is
@@ -348,7 +346,6 @@ bool ts::MergePlugin::startStopCommand(bool do_close, bool do_restart)
     return _pipe->open(_command,
                        _no_wait ? ForkPipe::ASYNCHRONOUS : ForkPipe::SYNCHRONOUS,
                        PKT_SIZE * DEFAULT_MAX_QUEUED_PACKETS,
-                       *this,
                        ForkPipe::STDOUT_PIPE,
                        ForkPipe::STDIN_NONE,
                        _format);
@@ -460,7 +457,7 @@ void ts::MergePlugin::main()
             // in the meantime (when the plugin stops) but no one will restart it.
             // So, the object which is pointed to by _pipe does not change.
 
-            pkt_count = _pipe->readPackets(buffer, mdata, max_pkt_count, *this);
+            pkt_count = _pipe->readPackets(buffer, mdata, max_pkt_count);
             success = pkt_count > 0;
 
             if (!success) {
@@ -487,7 +484,7 @@ void ts::MergePlugin::main()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::MergePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::MergePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     const PID pid = pkt.getPID();
 
@@ -518,7 +515,7 @@ ts::ProcessorPlugin::Status ts::MergePlugin::processPacket(TSPacket& pkt, TSPack
 // Process one packet coming from the merged stream.
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::MergePlugin::processMergePacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::MergePlugin::processMergePacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     const PacketCounter current_pkt = tsp->pluginPackets();
     const BitRate main_bitrate = tsp->bitrate();

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ namespace ts {
     //! @see ETSI EN 300 468, 5.2.6
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL TOT : public AbstractTable
+    class TSDUCKDLL TOT: public AbstractTable
     {
     public:
         using Region = LocalTimeOffsetDescriptor::Region;              //!< Alias from LocalTimeOffsetDescriptor.
@@ -94,6 +94,6 @@ namespace ts {
         void addDescriptors(DuckContext& duck, const DescriptorList& dlist);
 
         // Last encountered offset from UTC in the context, typically for ISDB.
-        mutable cn::milliseconds _time_reference_offset {0};
+        mutable cn::milliseconds _time_reference_offset = cn::milliseconds::zero();
     };
 }

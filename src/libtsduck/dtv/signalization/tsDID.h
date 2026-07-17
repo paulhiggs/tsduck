@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -244,9 +244,9 @@ namespace ts {
 
         // Valid only in a DVB RNT (RAR Notification Table, ETSI TS 102 323):
 
-        DID_RNT_RAR_OVER_DVB = 0x40,  //!< DID for RNT RAR_over_DVB_stream_descriptor
-        DID_RNT_RAR_OVER_IP  = 0x41,  //!< DID for RNT RAR_over_IP_descriptor
-        DID_RNT_SCAN         = 0x42,  //!< DID for RNT RNT_scan_dscriptor
+        DID_RNT_RAR_OVER_DVB   = 0x40,  //!< DID for RNT RAR_over_DVB_stream_descriptor
+        DID_RNT_RAR_OVER_IP    = 0x41,  //!< DID for RNT RAR_over_IP_descriptor
+        DID_RNT_SCAN           = 0x42,  //!< DID for RNT RNT_scan_dscriptor
 
         // Valid in DVB context after PDS_LOGIWAYS private_data_specifier
 
@@ -270,12 +270,12 @@ namespace ts {
 
         // Valid in DVB context after PDS_EUTELSAT private_data_specifier
 
-        DID_EUTELSAT_CHAN_NUM = 0x83,  //!< DID for eutelsat_channel_number_descriptor
+        DID_EUTELSAT_CHAN_NUM    = 0x83,  //!< DID for eutelsat_channel_number_descriptor
 
         // Valid in DVB context after PDS_NORDIG private_data_specifier
 
-        DID_NORDIG_CHAN_NUM_V1 = 0x83,  //!< DID for nordig_logical_channel_descriptor_v1
-        DID_NORDIG_CHAN_NUM_V2 = 0x87,  //!< DID for nordig_logical_channel_descriptor_v2
+        DID_NORDIG_CHAN_NUM_V1   = 0x83,  //!< DID for nordig_logical_channel_descriptor_v1
+        DID_NORDIG_CHAN_NUM_V2   = 0x87,  //!< DID for nordig_logical_channel_descriptor_v2
 
         // Valid in DVB context after PDS_EACEM/EICTA private_data_specifier
 
@@ -504,6 +504,10 @@ namespace ts {
         DID_ISDB_EMERGENCY_INFO = 0xFC,  //!< DID for ISDB Emergency information descriptor
         DID_ISDB_DATA_COMP      = 0xFD,  //!< DID for ISDB Data component descriptor
         DID_ISDB_SYSTEM_MGMT    = 0xFE,  //!< DID for ISDB System management descriptor
+
+        // Valid in DTMB context:
+
+        DID_DTMB_DRM            = 0xC0,  //!< DID for ITU J.1041 DRM_descriptor, ex DTMB
     };
 
     //!

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -28,10 +28,10 @@ namespace ts {
         // Implementation of plugin API
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
-        TSFile        _file {};                       // Input file
+        TSFile        _file {this};                   // Input file
         bool          _terminate = false;             // Terminate processing after last new packet.
         bool          _update_cc = false;             // Ignore continuity counters.
         bool          _check_pid_conflict = false;    // Check new PIDs in TS
@@ -220,7 +220,6 @@ bool ts::MuxPlugin::start()
     return _file.openRead(value(u""),
                           intValue<size_t>(u"repeat", 0),
                           intValue<uint64_t>(u"byte-offset", intValue<uint64_t>(u"packet-offset", 0) * PKT_SIZE),
-                          *this,
                           _file_format);
 }
 
@@ -231,7 +230,7 @@ bool ts::MuxPlugin::start()
 
 bool ts::MuxPlugin::stop()
 {
-    return _file.close(*this);
+    return _file.close();
 }
 
 
@@ -239,7 +238,7 @@ bool ts::MuxPlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::MuxPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::MuxPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Initialization sequences (executed only once). Executed if there is a target bitrate.
     if (tsp->pluginPackets() == 0 && _bitrate != 0) {
@@ -315,7 +314,7 @@ ts::ProcessorPlugin::Status ts::MuxPlugin::processPacket(TSPacket& pkt, TSPacket
     }
 
     // Now, it is time to insert a new packet, read it. Directly overwrite the memory area of current stuffing pkt
-    if (_file.readPackets(&pkt, nullptr, 1, *this) == 0) {
+    if (_file.readPackets(&pkt, nullptr, 1) == 0) {
         // File read error, error message already reported
         // If processing terminated, either exit or transparently pass packets
         if (tsp->useJointTermination()) {

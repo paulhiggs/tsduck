@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -43,7 +43,7 @@ public:
     virtual void afterTest() override;
 
 private:
-    fs::path _tempFileName {};
+    fs::path _temp_file_name {};
     ts::Report& report();
     void testURL(const ts::UString& url, bool expectRedirection, bool expectSSL, bool expectTextContent, bool expectInvariant);
 };
@@ -58,16 +58,16 @@ TSUNIT_REGISTER(WebRequestTest);
 // Test suite initialization method.
 void WebRequestTest::beforeTest()
 {
-    if (_tempFileName.empty()) {
-        _tempFileName = ts::TempFile();
+    if (_temp_file_name.empty()) {
+        _temp_file_name = ts::TempFile();
     }
-    fs::remove(_tempFileName, &ts::ErrCodeReport());
+    fs::remove(_temp_file_name, &ts::ErrCodeReport());
 }
 
 // Test suite cleanup method.
 void WebRequestTest::afterTest()
 {
-    fs::remove(_tempFileName, &ts::ErrCodeReport());
+    fs::remove(_temp_file_name, &ts::ErrCodeReport());
 }
 
 ts::Report& WebRequestTest::report()
@@ -88,7 +88,7 @@ ts::Report& WebRequestTest::report()
 
 void WebRequestTest::testURL(const ts::UString& url, bool expectRedirection, bool expectSSL, bool expectTextContent, bool expectInvariant)
 {
-    ts::WebRequest request(report());
+    ts::WebRequest request(&report());
 
     // Test binary download
     ts::ByteBlock data;
@@ -131,9 +131,9 @@ void WebRequestTest::testURL(const ts::UString& url, bool expectRedirection, boo
     }
 
     // Test file download
-    TSUNIT_ASSERT(!fs::exists(_tempFileName));
-    TSUNIT_ASSERT(request.downloadFile(url, _tempFileName));
-    TSUNIT_ASSERT(fs::exists(_tempFileName));
+    TSUNIT_ASSERT(!fs::exists(_temp_file_name));
+    TSUNIT_ASSERT(request.downloadFile(url, _temp_file_name));
+    TSUNIT_ASSERT(fs::exists(_temp_file_name));
     TSUNIT_EQUAL(url, request.originalURL());
     TSUNIT_ASSERT(!request.finalURL().empty());
     if (expectRedirection) {
@@ -145,7 +145,7 @@ void WebRequestTest::testURL(const ts::UString& url, bool expectRedirection, boo
 
     // Load downloaded file.
     ts::ByteBlock fileContent;
-    TSUNIT_ASSERT(fileContent.loadFromFile(_tempFileName, 10000000, &report()));
+    TSUNIT_ASSERT(fileContent.loadFromFile(_temp_file_name, 10000000, &report()));
     debug() << "WebRequestTest::testURL: downloaded file size: " << fileContent.size() << std::endl;
     TSUNIT_ASSERT(!fileContent.empty());
     if (expectInvariant) {
@@ -187,7 +187,7 @@ TSUNIT_DEFINE_TEST(ReadMeFile)
 
 TSUNIT_DEFINE_TEST(NoRedirection)
 {
-    ts::WebRequest request(report());
+    ts::WebRequest request(&report());
     request.setAutoRedirect(false);
 
     ts::ByteBlock data;
@@ -207,7 +207,7 @@ TSUNIT_DEFINE_TEST(NoRedirection)
 TSUNIT_DEFINE_TEST(NonExistentHost)
 {
     ts::ReportBuffer<ts::ThreadSafety::None> rep;
-    ts::WebRequest request(rep);
+    ts::WebRequest request(&rep);
 
     ts::ByteBlock data;
     TSUNIT_ASSERT(!request.downloadBinaryContent(u"http://non.existent.fake-domain/", data));
@@ -218,7 +218,7 @@ TSUNIT_DEFINE_TEST(NonExistentHost)
 TSUNIT_DEFINE_TEST(InvalidURL)
 {
     ts::ReportBuffer<ts::ThreadSafety::None> rep;
-    ts::WebRequest request(rep);
+    ts::WebRequest request(&rep);
 
     ts::ByteBlock data;
     TSUNIT_ASSERT(!request.downloadBinaryContent(u"pouette://tagada/tsoin/tsoin", data));
@@ -231,10 +231,10 @@ TSUNIT_DEFINE_TEST(Post)
     // These servers are known to return POST data into a JSON string.
     // 1. https://httpbin.org/post
     // 2. https://postman-echo.com/post
-    const ts::UString url(u"https://httpbin.org/post");
+    const ts::UString url(u"https://postman-echo.com/post");
     const ts::UString post(u"foo bar\nqsdf=tif,dft=ty ryhrh=12,af\nfoo bar");
 
-    ts::WebRequest request(report());
+    ts::WebRequest request(&report());
     request.setPostData(post);
 
     // Use assumption instead of assertion because we do not fully trust the reliability to that site.
@@ -248,13 +248,16 @@ TSUNIT_DEFINE_TEST(Post)
             << "    Content size: " << request.contentSize() << std::endl
             << "    Content text: \"" << response << "\"" << std::endl;
 
-    ts::json::ValuePtr jv;
-    bool success = true;
-    TSUNIT_ASSUME(success = ts::json::Parse(jv, response, CERR));
-    if (success) {
-        TSUNIT_ASSERT(jv != nullptr);
-        TSUNIT_ASSERT(jv->isObject());
-        TSUNIT_ASSERT(jv->value(u"data").isString());
-        TSUNIT_EQUAL(post, jv->value(u"data").toString());
+    // Sometimes, these servers don't respond because they filter their load. So, ignore server errors.
+    if (!request.httpServerError()) {
+        ts::json::ValuePtr jv;
+        bool success = true;
+        TSUNIT_ASSUME(success = ts::json::Parse(jv, response, CERR));
+        if (success) {
+            TSUNIT_ASSERT(jv != nullptr);
+            TSUNIT_ASSERT(jv->isObject());
+            TSUNIT_ASSERT(jv->value(u"data").isString());
+            TSUNIT_EQUAL(post, jv->value(u"data").toString());
+        }
     }
 }

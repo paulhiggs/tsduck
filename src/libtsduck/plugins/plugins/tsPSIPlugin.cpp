@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -79,7 +79,7 @@ void ts::PSIPlugin::handleSection(SectionDemux&, const Section& sect)
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::PSIPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::PSIPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     _logger.feedPacket(pkt);
     return _logger.completed() ? TSP_END : TSP_OK;

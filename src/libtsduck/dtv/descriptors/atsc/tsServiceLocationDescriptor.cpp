@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -107,7 +107,7 @@ void ts::ServiceLocationDescriptor::DisplayDescriptor(TablesDisplay& disp, const
         for (size_t i = 0; i < count && buf.canReadBytes(6); ++i) {
             const uint8_t stype = buf.getUInt8();
             disp << margin << UString::Format(u"- PID: %n", buf.getPID());
-            disp << ", language: \"" << buf.getLanguageCode() << "\", type: " << ServiceTypeName(stype, NamesFlags::VALUE_NAME) << std::endl;
+            disp << ", language: \"" << buf.getLanguageCode() << "\", type: " << DataName(MY_XML_NAME, u"stream_type", stype, NamesFlags::NAME_VALUE) << std::endl;
         }
     }
 }
@@ -139,17 +139,12 @@ void ts::ServiceLocationDescriptor::buildXML(DuckContext& duck, xml::Element* ro
 
 bool ts::ServiceLocationDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector children;
-    bool ok =
-        element->getIntAttribute(PCR_PID, u"PCR_PID", false, PID_NULL, 0, 0x1FFF) &&
-        element->getChildren(children, u"component", 0, MAX_ENTRIES);
-
-    for (size_t i = 0; ok && i < children.size(); ++i) {
-        Entry entry;
-        ok = children[i]->getIntAttribute(entry.stream_type, u"stream_type", true) &&
-             children[i]->getIntAttribute(entry.elementary_PID, u"elementary_PID", true, 0, 0, 0x1FFF) &&
-             children[i]->getAttribute(entry.ISO_639_language_code, u"ISO_639_language_code", false, UString(), 0, 3);
-        entries.push_back(entry);
+    bool ok = element->getIntAttribute(PCR_PID, u"PCR_PID", false, PID_NULL, 0, 0x1FFF);
+    for (auto& xcomp : element->children(u"component", &ok, 0, MAX_ENTRIES)) {
+        auto& entry(entries.emplace_back());
+        ok = xcomp.getIntAttribute(entry.stream_type, u"stream_type", true) &&
+             xcomp.getIntAttribute(entry.elementary_PID, u"elementary_PID", true, 0, 0, 0x1FFF) &&
+             xcomp.getAttribute(entry.ISO_639_language_code, u"ISO_639_language_code", false, UString(), 0, 3);
     }
     return ok;
 }

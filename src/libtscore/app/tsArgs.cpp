@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -74,7 +74,7 @@ ts::Args::IOption::IOption(Args*           parent,
     }
     // Handle invalid values
     if (max_occur < min_occur) {
-        parent->fatalArgError(u"invalid occurences for " + display());
+        parent->fatalArgError(u"invalid occurrences for " + display());
     }
     // Parameters are values by definition
     if (name.empty() && type == NONE) {
@@ -196,7 +196,7 @@ ts::Args::IOption::IOption(Args*        parent,
     }
     // Handle invalid values
     if (max_occur < min_occur) {
-        parent->fatalArgError(u"invalid occurences for " + display());
+        parent->fatalArgError(u"invalid occurrences for " + display());
     }
 }
 
@@ -243,9 +243,7 @@ ts::UString ts::Args::IOption::valueDescription(ValueContext ctx) const
 {
     UString desc(syntax);
     if (syntax.empty()) {
-        TS_PUSH_WARNING()
-        TS_LLVM_NOWARNING(switch-enum)
-        TS_MSC_NOWARNING(4061)
+        TS_PARTIAL_SWITCH_BEGIN()
         switch (type) {
             case NONE:           break;
             case FILENAME:       desc = u"file-name"; break;
@@ -259,22 +257,24 @@ ts::UString ts::Args::IOption::valueDescription(ValueContext ctx) const
             case CHRONO:         desc = UString::ChronoUnit(num, den, false, true); break;
             default:             desc = u"value"; break;
         }
-        TS_POP_WARNING()
+        TS_PARTIAL_SWITCH_END()
     }
 
     if (type == NONE || (flags & (IOPT_OPTVALUE | IOPT_OPTVAL_NOHELP)) == (IOPT_OPTVALUE | IOPT_OPTVAL_NOHELP)) {
         // No value or value is optional and shall not be documented.
-        return UString();
+        desc.clear();
     }
     else if (ctx == ALONE) {
-        return desc;
+        // Simple text
     }
     else if ((flags & IOPT_OPTVALUE) != 0) {
-        return (ctx == LONG ? u"[=" : u"[") + desc + u"]";
+        desc.insert(0, ctx == LONG ? u"[=" : u"[");
+        desc.append(u']');
     }
     else {
-        return SPACE + desc;
+        desc.insert(0, 1, SPACE);
     }
+    return desc;
 }
 
 
@@ -372,18 +372,19 @@ ts::UString ts::Args::IOption::helpText(size_t line_width) const
 {
     IndentationContext indent_desc = TITLE;
     UString text;
+    bool undocumented = false;
 
     // Add option / parameter name.
     if (name.empty()) {
         // This is the parameters (ie. not options).
         indent_desc = PARAMETER_DESC;
         // Print nothing if parameters are undocumented.
-        if (help.empty() && syntax.empty()) {
-            return UString();
-        }
+        undocumented = help.empty() && syntax.empty();
         // Print generic title instead of option names.
-        text += HelpLines(TITLE, max_occur <= 1 ? u"Parameter:" : u"Parameters:", line_width);
-        text += LINE_FEED;
+        if (!undocumented) {
+            text += HelpLines(TITLE, max_occur <= 1 ? u"Parameter:" : u"Parameters:", line_width);
+            text += LINE_FEED;
+        }
     }
     else {
         // This is an option.
@@ -394,28 +395,30 @@ ts::UString ts::Args::IOption::helpText(size_t line_width) const
         text += HelpLines(OPTION_NAME, UString::Format(u"--%s%s", name, valueDescription(IOption::LONG)), line_width);
     }
 
-    // Add option description.
-    if (!help.empty()) {
-        text += HelpLines(indent_desc, help, line_width);
-    }
-    else if (name.empty() && !syntax.empty()) {
-        // For parameters (no option name previously displayed), use syntax as fallback for help.
-        text += HelpLines(indent_desc, syntax, line_width);
-    }
+    if (!undocumented) {
+        // Add option description.
+        if (!help.empty()) {
+            text += HelpLines(indent_desc, help, line_width);
+        }
+        else if (name.empty() && !syntax.empty()) {
+            // For parameters (no option name previously displayed), use syntax as fallback for help.
+            text += HelpLines(indent_desc, syntax, line_width);
+        }
 
-    // Document all possible values for enumeration types.
-    if (!enumeration.empty() && (flags & (IOPT_OPTVALUE | IOPT_OPTVAL_NOHELP)) != (IOPT_OPTVALUE | IOPT_OPTVAL_NOHELP)) {
-        text += HelpLines(indent_desc, u"The '" + valueDescription(IOption::ALONE) + u"' must be one of " + optionNames(u", ") + u".", line_width);
-    }
+        // Document all possible values for enumeration types.
+        if (!enumeration.empty() && (flags & (IOPT_OPTVALUE | IOPT_OPTVAL_NOHELP)) != (IOPT_OPTVALUE | IOPT_OPTVAL_NOHELP)) {
+            text += HelpLines(indent_desc, u"The '" + valueDescription(IOption::ALONE) + u"' must be one of " + optionNames(u", ") + u".", line_width);
+        }
 
-    // Document decimal values (with a decimal point).
-    if (decimals > 0) {
-        text += HelpLines(indent_desc, UString::Format(u"The value may include up to %d meaningful decimal digits.", decimals), line_width);
-    }
-    if (type == ANUMBER && anumber != nullptr) {
-        const UString desc(anumber->description());
-        if (!desc.empty()) {
-            text += HelpLines(indent_desc, UString::Format(u"The value must be a %s.", desc), line_width);
+        // Document decimal values (with a decimal point).
+        if (decimals > 0) {
+            text += HelpLines(indent_desc, UString::Format(u"The value may include up to %d meaningful decimal digits.", decimals), line_width);
+        }
+        if (type == ANUMBER && anumber != nullptr) {
+            const UString desc(anumber->description());
+            if (!desc.empty()) {
+                text += HelpLines(indent_desc, UString::Format(u"The value must be a %s.", desc), line_width);
+            }
         }
     }
 
@@ -794,7 +797,7 @@ bool ts::Args::present(const UChar* name) const
 
 
 //----------------------------------------------------------------------------
-// Check the number of occurences of the option.
+// Check the number of occurrences of the option.
 //----------------------------------------------------------------------------
 
 size_t ts::Args::count(const UChar* name) const
@@ -804,9 +807,9 @@ size_t ts::Args::count(const UChar* name) const
 
 
 //----------------------------------------------------------------------------
-// Get the value of an option. The index designates the occurence of
+// Get the value of an option. The index designates the occurrence of
 // the option. If the option is not present, or not with this
-// occurence, def_value is returned.
+// occurrence, def_value is returned.
 //----------------------------------------------------------------------------
 
 ts::UString ts::Args::value(const UChar* name, const UChar* def_value, size_t index) const
@@ -877,7 +880,7 @@ void ts::Args::getTristateValue(Tristate& value, const UChar* name, size_t index
         // Option present without value, meaning true.
         value = Tristate::True;
     }
-    else if (!opt.values[index].string.value().toTristate(value)) {
+    else if (!opt.values[index].string->toTristate(value)) {
         // Value present but not a valid tristate value. Should not occur if the
         // option was declared using TRISTATE type. So, this must be some string
         // option and we cannot decide the Tristate value.
@@ -907,7 +910,7 @@ void ts::Args::getHexaValue(ByteBlock& value, const UChar* name, const ByteBlock
         value = def_value;
     }
     else {
-        opt.values[index].string.value().hexaDecode(value);
+        opt.values[index].string->hexaDecode(value);
     }
 }
 
@@ -963,7 +966,7 @@ void ts::Args::getSocketValue(IPSocketAddress& value, const UChar* name, const I
         value = def_value;
     }
     else {
-        // If there is a prefered IP generation and the parameter was initially resolved with another IP generation, try to
+        // If there is a preferred IP generation and the parameter was initially resolved with another IP generation, try to
         // resolve it again with the preferred generation. If it fails, use initial address, even if not the same generation.
         if (preferred == IP::Any || opt.values[index].address.generation() == preferred || !value.resolve(opt.values[index].string.value(), NULLREP, preferred)) {
             value = opt.values[index].address;
@@ -1195,12 +1198,12 @@ bool ts::Args::analyze(const UString& app_name, const UStringVector& arguments, 
         return false;
     }
 
-    // Look for parameters/options number of occurences.
+    // Look for parameters/options number of occurrences.
     // Don't do that if command already proven wrong.
     if (valid()) {
         for (auto& it : _iopts) {
             const IOption& op(it.second);
-            // Don't check number of occurences when the option has no value.
+            // Don't check number of occurrences when the option has no value.
             // Specifying such an option multiple times is the same as once.
             if (op.type != NONE) {
                 if (op.value_count < op.min_occur) {
@@ -1250,7 +1253,7 @@ bool ts::Args::validateParameter(IOption& opt, const std::optional<UString>& val
     }
     else if (opt.type == TRISTATE) {
         Tristate t;
-        if (!val.value().toTristate(t)) {
+        if (!val->toTristate(t)) {
             error(u"invalid value %s for %s, use one of %s", val.value(), opt.display(), UString::TristateNamesList());
             return false;
         }
@@ -1271,19 +1274,19 @@ bool ts::Args::validateParameter(IOption& opt, const std::optional<UString>& val
         }
     }
     else if (opt.type == STRING) {
-        if (val.value().size() < size_t(opt.min_value)) {
-            error(u"invalid size %d for %s, must be at least %d characters", val.value().size(), opt.display(), opt.min_value);
+        if (val->size() < size_t(opt.min_value)) {
+            error(u"invalid size %d for %s, must be at least %d characters", val->size(), opt.display(), opt.min_value);
             return false;
         }
-        if (val.value().size() > size_t(opt.max_value)) {
-            error(u"invalid size %d for %s, must be at most %d characters", val.value().size(), opt.display(), opt.max_value);
+        if (val->size() > size_t(opt.max_value)) {
+            error(u"invalid size %d for %s, must be at most %d characters", val->size(), opt.display(), opt.max_value);
             return false;
         }
     }
     else if (opt.type == HEXADATA) {
         // We keep the arg as a string value after validation and will parse it again when the value is queried later.
         ByteBlock data;
-        if (!val.value().hexaDecode(data)) {
+        if (!val->hexaDecode(data)) {
             error(u"invalid hexadecimal value '%s' for %s", val.value(), opt.display());
             return false;
         }
@@ -1340,14 +1343,14 @@ bool ts::Args::validateParameter(IOption& opt, const std::optional<UString>& val
         arg.int_base = i;
         arg.int_count = 1;
     }
-    else if (val.value().toInteger(arg.int_base, THOUSANDS_SEPARATORS, opt.decimals, DECIMAL_POINTS)) {
+    else if (val->toInteger(arg.int_base, THOUSANDS_SEPARATORS, opt.decimals, DECIMAL_POINTS)) {
         // Found exactly one integer value.
         arg.int_count = 1;
     }
-    else if ((point = val.value().find(u'-')) != NPOS &&
-             point + 1 < val.value().size() &&
-             val.value().substr(0, point).toInteger(arg.int_base, THOUSANDS_SEPARATORS, opt.decimals, DECIMAL_POINTS) &&
-             val.value().substr(point + 1).toInteger(last, THOUSANDS_SEPARATORS, opt.decimals, DECIMAL_POINTS))
+    else if ((point = val->find(u'-')) != NPOS &&
+             point + 1 < val->size() &&
+             val->substr(0, point).toInteger(arg.int_base, THOUSANDS_SEPARATORS, opt.decimals, DECIMAL_POINTS) &&
+             val->substr(point + 1).toInteger(last, THOUSANDS_SEPARATORS, opt.decimals, DECIMAL_POINTS))
     {
         // Found one range of integer values.
         if (last < arg.int_base) {
@@ -1376,7 +1379,7 @@ bool ts::Args::validateParameter(IOption& opt, const std::optional<UString>& val
     // Push value. For optional parameters without value, an unset variable is pushed.
     opt.values.push_back(arg);
 
-    // Add the number of occurences. Can be more than one in case of integer range.
+    // Add the number of occurrences. Can be more than one in case of integer range.
     opt.value_count += opt.type == INTEGER && arg.int_count > 0 ? arg.int_count : 1;
 
     return true;
@@ -1481,11 +1484,11 @@ void ts::Args::processHelp()
     const UString text(getHelpText(format));
 
     // Create a pager process if we intend to exit immediately after a full help text.
-    OutputPager pager;
-    if (format == HELP_FULL && (_flags & NO_EXIT_ON_HELP) == 0 && pager.canPage() && pager.open(true, 0, *this)) {
-        pager.write(text, *this);
-        pager.write(u"\n", *this);
-        pager.close(*this);
+    OutputPager pager(this);
+    if (format == HELP_FULL && (_flags & NO_EXIT_ON_HELP) == 0 && pager.canPage() && pager.open(true, 0)) {
+        pager.write(text);
+        pager.write(u"\n");
+        pager.close();
     }
     else if ((_flags & HELP_ON_THIS) != 0) {
         info(text);
@@ -1539,14 +1542,14 @@ bool ts::Args::processArgsRedirection(UStringVector& args)
             // Replace the line with the content of a file.
 
             // Get the file name.
-            const UString fileName(it->substr(1));
+            const UString file_name(it->substr(1));
 
             // Remove the line from the argument array.
             it = args.erase(it);
 
             // Load the text file.
             UStringVector lines;
-            if (UString::Load(lines, fileName)) {
+            if (UString::Load(lines, file_name)) {
                 // Insert the loaded lines. Then, make "it" point to the first inserted element.
                 // This means that the loaded content will now be processed, allowing nested '@' directives.
                 it = args.insert(it, lines.begin(), lines.end());
@@ -1554,7 +1557,7 @@ bool ts::Args::processArgsRedirection(UStringVector& args)
             else {
                 // Error loading file.
                 result = false;
-                error(u"error reading command line arguments from file \"%s\"", fileName);
+                error(u"error reading command line arguments from file \"%s\"", file_name);
             }
         }
         else {

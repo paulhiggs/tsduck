@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -26,7 +26,7 @@ namespace ts {
     //!
     //! Sources of time information for transport streams.
     //!
-    enum class TimeSource : uint8_t {
+    enum class TimeSource: uint8_t {
         UNDEFINED = 0,  //!< Undefined source of time information.
         HARDWARE,       //!< Hardware-generated time, any local hardware (NIC for instance).
         KERNEL,         //!< OS kernel time stamp.

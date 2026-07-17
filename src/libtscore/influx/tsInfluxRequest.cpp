@@ -1,32 +1,38 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tsInfluxRequest.h"
+#include "tsNullReport.h"
 
 
 //----------------------------------------------------------------------------
 // Constructors and destructor.
 //----------------------------------------------------------------------------
 
-ts::InfluxRequest::InfluxRequest(Report& report, const InfluxArgs& args) :
-    WebRequest(report),
+ts::InfluxRequest::InfluxRequest(const InfluxArgs& args, Object* owner) :
+    WebRequest(&NULLREP, owner),
     _args(args)
 {
-    // Preformat additional tags.
-    for (auto& tv : _args.additional_tags) {
-        const size_t equal = tv.find(u'=');
-        if (equal == NPOS) {
-            report.error(u"invalid --tag definition '%s', use name=value", tv);
-        }
-        else {
-            _additional_tags.format(u",%s=%s", ToKey(tv.substr(0, equal)), ToKey(tv.substr(equal + 1)));
-        }
-    }
+    InitAdditionalFlags();
+}
+
+ts::InfluxRequest::InfluxRequest(Report* report, const InfluxArgs& args, Object* owner) :
+    WebRequest(report, owner),
+    _args(args)
+{
+    InitAdditionalFlags();
+}
+
+ts::InfluxRequest::InfluxRequest(ReporterBase* delegate, const InfluxArgs& args, Object* owner) :
+    WebRequest(delegate, owner),
+    _args(args)
+{
+    InitAdditionalFlags();
 }
 
 ts::InfluxRequest::~InfluxRequest()
@@ -35,10 +41,28 @@ ts::InfluxRequest::~InfluxRequest()
 
 
 //----------------------------------------------------------------------------
+// Initialize _additional_tags from _args.
+//----------------------------------------------------------------------------
+
+void ts::InfluxRequest::InitAdditionalFlags()
+{
+    for (auto& tv : _args.additional_tags) {
+        const size_t equal = tv.find(u'=');
+        if (equal == NPOS) {
+            report().error(u"invalid --tag definition '%s', use name=value", tv);
+        }
+        else {
+            _additional_tags.format(u",%s=%s", ToKey(tv.substr(0, equal)), ToKey(tv.substr(equal + 1)));
+        }
+    }
+}
+
+
+//----------------------------------------------------------------------------
 // Start building a request to the InfluxDB server.
 //----------------------------------------------------------------------------
 
-void ts::InfluxRequest::start(Time timestamp)
+void ts::InfluxRequest::start(const Time& timestamp)
 {
     // Convert timestamp in milliseconds since Unix Epoch for InfluxDB server.
     const auto duration = timestamp - Time::UnixEpoch;

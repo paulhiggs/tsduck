@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -28,7 +28,7 @@ namespace ts {
     //!
     template <typename KEY, typename VALUE, const UChar* NAMESFILE = nullptr, const UChar* KEYNAMESECTION = nullptr>
         requires std::integral<KEY> && std::integral<VALUE>
-    class IntegerMap : public std::map<KEY, VALUE>
+    class IntegerMap: public std::map<KEY, VALUE>
     {
     public:
         using SuperClass = std::map<KEY, VALUE>;   //!< Identification of the superclass.

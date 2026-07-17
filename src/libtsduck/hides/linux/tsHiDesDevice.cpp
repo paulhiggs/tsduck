@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -49,7 +49,7 @@
 //  of the URB is #define URB_BUFSIZE_TX 32712 (172 packets, 348/2). To avoid
 //  issues, we limit our I/O's to 172 packets at a time, the URB size.
 //
-//  A patched version of the orginal driver from HiDes / ITE is available in
+//  A patched version of the original driver from HiDes / ITE is available in
 //  https://github.com/tsduck/hides-drivers
 //
 //  The patched driver suspends the process when the buffer is full and waits
@@ -542,8 +542,7 @@ bool ts::HiDesDevice::tune(const ModulationArgs& in_params, Report& report)
     TS_ZERO(modRequest);
 
     // Many switch/case structures here use only a subset of the enum type.
-    TS_PUSH_WARNING()
-    TS_LLVM_NOWARNING(switch-enum)
+    TS_PARTIAL_SWITCH_BEGIN()
 
     switch (params.modulation.value()) {
         case QPSK:
@@ -634,7 +633,7 @@ bool ts::HiDesDevice::tune(const ModulationArgs& in_params, Report& report)
             return false;
     }
 
-    TS_POP_WARNING()
+    TS_PARTIAL_SWITCH_END()
 
     // Now all parameters are validated, call the driver.
     errno = 0;

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -604,10 +604,7 @@ ts::UString ts::Names::Format(uint_t value, const UString& name, NamesFlags flag
         return *display_name;
     }
 
-    TS_PUSH_WARNING()
-    TS_LLVM_NOWARNING(switch-enum) // enumeration values not explicitly handled in switch
-    TS_MSC_NOWARNING(4061)         // enumerator in switch of enum is not explicitly handled by a case label
-
+    TS_PARTIAL_SWITCH_BEGIN()
     switch (flags & (NamesFlags::VALUE_NAME | NamesFlags::DECIMAL | NamesFlags::HEXA)) {
         case NamesFlags::DECIMAL:
             return UString::Format(u"%s (%d)", *display_name, value);
@@ -625,8 +622,7 @@ ts::UString ts::Names::Format(uint_t value, const UString& name, NamesFlags flag
             assert(false);
             return UString();
     }
-
-    TS_POP_WARNING()
+    TS_PARTIAL_SWITCH_END()
 }
 
 
@@ -893,6 +889,12 @@ bool ts::Names::AllInstances::loadFileLocked(const UString& file_name)
     NamesPtr section;
     size_t error_count = 0;
 
+    // False positive in LLVM thread-safety-analysis: The mutex section->_mutex is used to lock the section content.
+    // Here, section is initially nullptr. Then, it may become non-null. Later, it may change value. The mutex must
+    // be locked after section is set and unlocked before it is unset or changed. LLVM 21 is confused with this scenario.
+    TS_PUSH_WARNING()
+    TS_LLVM_NOWARNING(thread-safety-analysis)
+
     try {
         for (size_t line_number = 1; line.getLine(strm); ++line_number) {
 
@@ -939,6 +941,8 @@ bool ts::Names::AllInstances::loadFileLocked(const UString& file_name)
     if (section != nullptr) {
         section->_mutex.unlock();
     }
+    TS_POP_WARNING()
+
     strm.close();
 
     // Verify that all sections have bits size.

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -62,6 +62,24 @@ namespace ts::tlv {
         }
 
         //!
+        //! Get the offset in bytes of the "tag" field in binary messages.
+        //! @return The offset in bytes of the "tag" field in binary messages.
+        //!
+        size_t tagOffset() const { return _has_version ? sizeof(VERSION) : 0; }
+
+        //!
+        //! Get the offset in bytes of the "length" field in binary messages.
+        //! @return The offset in bytes of the "length" field in binary messages.
+        //!
+        size_t lengthOffset() const { return tagOffset() + sizeof(TAG); }
+
+        //!
+        //! Get the size in bytes of the header in binary messages.
+        //! @return The size in bytes of the header in binary messages.
+        //!
+        size_t headerSize() const { return lengthOffset() + sizeof(LENGTH); }
+
+        //!
         //! This method declares a command tag in the protocol.
         //! Required only for commands without parameters.
         //! @param [in] cmd_tag Message tag.
@@ -75,8 +93,8 @@ namespace ts::tlv {
         //! @param [in] param_tag Parameter tag.
         //! @param [in] min_size Minimum allowed size for the parameter value.
         //! @param [in] max_size Maximum allowed size for the parameter value.
-        //! @param [in] min_count Minimum number of occurences of this parameter in the command.
-        //! @param [in] max_count Maximum number of occurences of this parameter in the command.
+        //! @param [in] min_count Minimum number of occurrences of this parameter in the command.
+        //! @param [in] max_count Maximum number of occurrences of this parameter in the command.
         //!
         void add(TAG cmd_tag, TAG param_tag, size_t min_size, size_t max_size, size_t min_count, size_t max_count);
 
@@ -86,8 +104,8 @@ namespace ts::tlv {
         //! @param [in] cmd_tag Message tag.
         //! @param [in] param_tag Parameter tag.
         //! @param [in] compound Protocol describing the compound TLV structure.
-        //! @param [in] min_count Minimum number of occurences of this parameter in the command.
-        //! @param [in] max_count Maximum number of occurences of this parameter in the command.
+        //! @param [in] min_count Minimum number of occurrences of this parameter in the command.
+        //! @param [in] max_count Maximum number of occurrences of this parameter in the command.
         //!
         void add(TAG cmd_tag, TAG param_tag, const Protocol* compound, size_t min_count, size_t max_count);
 
@@ -123,7 +141,7 @@ namespace ts::tlv {
         virtual UString name() const = 0;
 
     private:
-        // The class MessageFactory acceeses the internal representation of the protocol.
+        // The class MessageFactory accesses the internal representation of the protocol.
         friend class MessageFactory;
 
         // Description of a parameter:
@@ -131,8 +149,8 @@ namespace ts::tlv {
             const Protocol* compound;  // Compound TLV parameter (or nullptr)
             size_t min_size;           // Min size (if compound == nullptr)
             size_t max_size;           // Max size (if compound == nullptr)
-            size_t min_count;          // Min occurence count
-            size_t max_count;          // Max occurence count
+            size_t min_count;          // Min occurrence count
+            size_t max_count;          // Max occurrence count
         };
         using ParameterMap = std::map<TAG,Parameter>;
 

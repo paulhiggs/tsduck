@@ -1,13 +1,13 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tsZlib.h"
-#include "tsMemory.h"
+#include "tsInitZero.h"
 #include "tsFeatures.h"
 
 // We use "sdefl" on Windows and when TS_NO_ZLIB is defined.
@@ -53,6 +53,7 @@
     TS_LLVM_NOWARNING(zero-as-null-pointer-constant)
     TS_LLVM_NOWARNING(reserved-identifier)
     TS_LLVM_NOWARNING(unused-function)
+    TS_LLVM_NOWARNING(implicit-int-conversion)
     TS_GCC_NOWARNING(missing-field-initializers)
     TS_GCC_NOWARNING(old-style-cast)
     TS_GCC_NOWARNING(switch-default)
@@ -64,15 +65,6 @@
     #include "sdefl.h"
     #include "sinfl.h"
     TS_POP_WARNING()
-#endif
-
-// In case of absence of deflate support.
-#if defined(TS_NO_ZLIB) && defined(TS_NO_SDEFL)
-    #define NO_DEFLATE_SUPPORT u"This version of TSDuck was compiled without deflate support"
-#elif defined(TS_NO_ZLIB)
-    #define NO_DEFLATE_SUPPORT u"This version of TSDuck was compiled without zlib support, use sdefl"
-#elif defined(TS_NO_SDEFL)
-    #define NO_DEFLATE_SUPPORT u"This version of TSDuck was compiled without sdefl support, use zlib"
 #endif
 
 
@@ -90,7 +82,7 @@ ts::UString ts::Zlib::GetLibraryVersion()
 #elif !defined(TS_NO_SDEFL)
     return u"Small Deflate (sdefl) + various fixes";
 #else
-    return NO_DEFLATE_SUPPORT;
+    return u"This version of TSDuck was compiled without deflate support"
 #endif
 }
 
@@ -203,9 +195,8 @@ bool ts::Zlib::CompressAppend(ByteBlock& out, const void* in, size_t in_size, in
     PutUInt32(out.data() + initial_out_size + max_out, canary);
 
     // Compress in one call.
-    ::sdefl data;
-    TS_ZERO(data);
-    const int len = ::zsdeflate(&data, out.data() + initial_out_size, in, int(in_size), level);
+    InitZero<::sdefl> data;
+    const int len = ::zsdeflate(&data.data, out.data() + initial_out_size, in, int(in_size), level);
     if (len < 0) {
         report.error(u"sdefl error %d from zsdeflate", len);
         return false;
@@ -220,7 +211,7 @@ bool ts::Zlib::CompressAppend(ByteBlock& out, const void* in, size_t in_size, in
         return true;
     }
 #else
-    report.error(NO_DEFLATE_SUPPORT);
+    report.error(u"This version of TSDuck was compiled without sdefl support");
     return false;
 #endif
 }
@@ -309,7 +300,7 @@ bool ts::Zlib::DecompressAppend(ByteBlock& out, const void* in, size_t in_size, 
     report.error(u"cannot determine decompressed size, going too far, give up");
     return false;
 #else
-    report.error(NO_DEFLATE_SUPPORT);
+    report.error(u"This version of TSDuck was compiled without sdefl support");
     return false;
 #endif
 }

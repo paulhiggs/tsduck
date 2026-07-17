@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -30,7 +30,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Command line options:
@@ -38,7 +38,7 @@ namespace ts {
         cn::nanoseconds   _output_interval {};
         bool              _multiple_output = false;
         bool              _cumulative = false;
-        TSAnalyzerOptions _analyzer_options {};
+        TSAnalyzerArgs    _analyzer_options {this};
 
         // Working data:
         std::ofstream     _output_stream {};
@@ -214,7 +214,7 @@ bool ts::AnalyzePlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::AnalyzePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::AnalyzePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Feed the analyzer with one packet
     _analyzer.feedPacket(pkt, pkt_data);

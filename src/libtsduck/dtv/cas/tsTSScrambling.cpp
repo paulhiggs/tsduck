@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -286,7 +286,7 @@ bool ts::TSScrambling::loadArgs(DuckContext& duck, Args& args)
     }
 
     // Name of the output file for control words.
-    args.getValue(_out_cw_name, u"output-cw-file");
+    args.getPathValue(_out_cw_name, u"output-cw-file");
 
     return args.valid();
 }
@@ -305,7 +305,7 @@ bool ts::TSScrambling::start()
 
     // Create the output file for control words.
     if (!_out_cw_name.empty()) {
-        _out_cw_file.open(_out_cw_name.toUTF8().c_str(), std::ios::out);
+        _out_cw_file.open(_out_cw_name, std::ios::out);
         success = !_out_cw_file.fail();
         if (!success) {
             _report.error(u"error creating %s", _out_cw_name);

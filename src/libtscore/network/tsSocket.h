@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -12,6 +12,9 @@
 //----------------------------------------------------------------------------
 
 #pragma once
+#include "tsNonBlockingDevice.h"
+#include "tsSubscriptionBase.h"
+#include "tsSocketHandlerInterface.h"
 #include "tsIPSocketAddress.h"
 #include "tsIPUtils.h"
 #include "tsReport.h"
@@ -21,34 +24,51 @@ namespace ts {
     //! Base class for TCP and UDP sockets.
     //! @ingroup libtscore net
     //!
-    class TSCOREDLL Socket
+    //! Subscription to open/close and connect/disconnect is possible using SocketHandlerInterface.
+    //! @see SubscriptionBase
+    //!
+    class TSCOREDLL Socket: public NonBlockingDevice, public SubscriptionBase
     {
-        TS_NOCOPY(Socket);
+        TS_NOBUILD_NOCOPY(Socket);
     public:
         //!
         //! Constructor.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists or setReport() is used with another Report object. If @a report is null, log messages are discarded.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
         //!
-        Socket() = default;
+        explicit Socket(Report* report, bool non_blocking = false, Object* owner = nullptr);
+
+        //!
+        //! Constructor.
+        //! @param [in] delegate Use the report of another ReporterBase. If @a delegate is null, log messages are discarded.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        explicit Socket(ReporterBase* delegate, bool non_blocking = false, Object* owner = nullptr);
 
         //!
         //! Destructor.
         //!
-        virtual ~Socket();
+        virtual ~Socket() override;
 
         //!
         //! Open the socket.
+        //! Subclasses are not permitted to override this one, they should implement openImplementation().
         //! @param [in] gen IP generation, IPv4 or IPv6. If set to IP::Any, open an IPv6 socket (IPv4 connections allowed).
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        virtual bool open(IP gen, Report& report = CERR) = 0;
+        virtual bool open(IP gen = IP::Any) final;
 
         //!
         //! Close the socket.
-        //! @param [in,out] report Where to report error.
+        //! Subclasses are not permitted to override this one, they should implement closeImplementation().
+        //! @param [in] silent If true, do not report errors through the logger. This is typically useful when the socket
+        //! is in some error condition and closing it is necessary although it may generate additional meaningless errors.
         //! @return True on success, false on error.
         //!
-        virtual bool close(Report& report = CERR);
+        virtual bool close(bool silent = false) final;
 
         //!
         //! Check if socket is open.
@@ -65,44 +85,80 @@ namespace ts {
         //!
         //! Set the send buffer size.
         //! @param [in] size Send buffer size in bytes.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setSendBufferSize(size_t size, Report& report = CERR);
+        bool setSendBufferSize(size_t size);
 
         //!
         //! Set the receive buffer size.
         //! @param [in] size Receive buffer size in bytes.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setReceiveBufferSize(size_t size, Report& report = CERR);
+        bool setReceiveBufferSize(size_t size);
 
         //!
         //! Set the receive timeout.
         //! @param [in] timeout Receive timeout in milliseconds.
         //! If negative or zero, receive timeout is not used, reception waits forever.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setReceiveTimeout(cn::milliseconds timeout, Report& report = CERR);
+        bool setReceiveTimeout(cn::milliseconds timeout);
 
         //!
         //! Set the "reuse port" option.
         //! @param [in] reuse_port If true, the socket is allowed to reuse a local
         //! UDP port which is already bound.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool reusePort(bool reuse_port, Report& report = CERR);
+        bool reusePort(bool reuse_port);
+
+        //!
+        //! Bind to a local address and port.
+        //!
+        //! The IP address part of the socket address must one of:
+        //!
+        //! - IPAddress::AnyAddress4.
+        //!   - UDP: Any local interface may be used to send or receive UDP datagrams. For each
+        //!     outgoing packet, the actual interface is selected by the kernel based on the
+        //!     routing rules. Incoming UDP packets for the selected port will be accepted from
+        //!     any local interface.
+        //!   - TCP client: Any local interface may be used to connect to a server.
+        //!   - TCP server: Any local interface may be used to receive incoming client connections.
+        //! - The IP address of an interface of the local system.
+        //!   - UDP: Outgoing packets will be unconditionally sent through this interface. Incoming
+        //!     UDP packets for the selected port will be accepted only when they arrive through
+        //!     the selected interface.
+        //!   - TCP client: Outgoing connections will be only allowed through this interface.
+        //!   - TCP server: Incoming client connections will be accepted only when they arrive
+        //!     through the selected interface.
+        //!
+        //! Special note for receiving multicast on most Unix systems (at least Linux and macOS):
+        //! The IP address shall be either AnyAddress4 or the <b>multicast group address</b>.
+        //! Do not specify a local address to receive multicast on Unix.
+        //!
+        //! The port number part of the socket address must be one of:
+        //! - IPSocketAddress::AnyPort. The socket is bound to an arbitrary unused local UDP or TCP port.
+        //!   This is the usual configuration for a TCP client.
+        //! - A specific port number. If this UDP or TCP port is already bound by another local socket of
+        //!   the same type, the bind operation fails, unless the "reuse port" option has already been set.
+        //!
+        //! @param [in] addr Local socket address to bind to.
+        //! @return True on success, false on error.
+        //!
+        bool bind(const IPSocketAddress& addr);
 
         //!
         //! Get local socket address
         //! @param [out] addr Local socket address of the connection.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool getLocalAddress(IPSocketAddress& addr, Report& report = CERR);
+        bool getLocalAddress(IPSocketAddress& addr) const;
+
+        //!
+        //! Get the local address as a string.
+        //! @return A string representation of the IP address and port of the socket.
+        //!
+        UString localName();
 
         //!
         //! Get the underlying socket device handle (use with care).
@@ -117,34 +173,52 @@ namespace ts {
 
     protected:
         //!
+        //! Open the socket, actual implementation which must be overriden by subclasses.
+        //! Never called when the application tries to open a socket which is already open.
+        //! @param [in] gen IP generation, IPv4 or IPv6. If set to IP::Any, open an IPv6 socket (IPv4 connections allowed).
+        //! @return True on success, false on error.
+        //!
+        virtual bool openImplementation(IP gen) = 0;
+
+        //!
+        //! Close the socket, actual implementation which may be overriden by subclasses.
+        //! Never called when the application tries to close a socket which is not open.
+        //! If overridden by a subclass, the superclass must be called at the end of the overridden close().
+        //! @param [in] silent If true, do not report errors through the logger. This is typically useful when the socket
+        //! is in some error condition and closing it is necessary although it may generate additional meaningless errors.
+        //! @return True on success, false on error.
+        //!
+        virtual bool closeImplementation(bool silent);
+
+        //!
         //! Create the socket.
         //! @param [in] gen IP generation.
         //! @param [in] type Socket type: SOCK_STREAM, SOCK_DGRAM
         //! @param [in] protocol Socket protocol: IPPROTO_TCP, IPPROTO_UDP
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //! @see open(ge, Report&)
         //!
-        bool createSocket(IP gen, int type, int protocol, Report& report);
+        bool createSocket(IP gen, int type, int protocol);
 
         //!
         //! Set an open socket descriptor from a subclass.
         //! This method is used by a server to declare that a client socket has just become opened.
         //! @param [in] sock New socket descriptor.
-        //! @param [in,out] report Where to report error.
         //!
-        virtual void declareOpened(SysSocketType sock, Report& report);
+        virtual void declareOpened(SysSocketType sock);
 
         //!
         //! Convert an IP address to make it compatible with the socket IP generation.
         //! @param addr [in,out] The address to convert.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool convert(IPAddress& addr, Report& report) const;
+        bool convert(IPAddress& addr) const;
+
+        // Overloaded methods.
+        virtual bool allowSetNonBlocking() const override;
 
     private:
         volatile SysSocketType _sock = SYS_SOCKET_INVALID;
-        IP _gen = IP::v4;   // Current generation of the IP address. Never IP::Any.
+        IP                     _gen = IP::v4;    // Current generation of the IP address. Never IP::Any.
     };
 }

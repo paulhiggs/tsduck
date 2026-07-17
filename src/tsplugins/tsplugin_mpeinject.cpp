@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -39,7 +39,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool stop() override;
         virtual bool isRealTime() override {return true;}
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Each UDP receiver is executed in a thread. There is a vector of receiver threads.
@@ -78,19 +78,19 @@ namespace ts {
             ReceiverThread(MPEInjectPlugin* plugin, const UDPReceiverArgs& opt, size_t index, size_t receiver_count);
 
             // Open/close UDP socket.
-            bool openSocket() { return _sock.open(*_plugin); }
-            bool closeSocket() { return _sock.close(*_plugin); }
+            bool openSocket() { return _sock.open(); }
+            bool closeSocket() { return _sock.close(); }
 
         protected:
             // Invoked in the context of the server thread.
             virtual void main() override;
 
         private:
-            MPEInjectPlugin* const _plugin;  // Parent plugin.
-            IPSocketAddress _new_source {};  // Masquerade source socket in MPE section.
-            IPSocketAddress _new_dest {};    // Masquerade destination socket in MPE section.
-            UDPReceiver     _sock;           // Incoming socket with associated command line options.
-            size_t          _index;          // Receiver index.
+            MPEInjectPlugin* const _plugin;   // Parent plugin.
+            IPSocketAddress _new_source {};   // Masquerade source socket in MPE section.
+            IPSocketAddress _new_dest {};     // Masquerade destination socket in MPE section.
+            UDPReceiver     _sock {_plugin};  // Incoming socket with associated command line options.
+            size_t          _index;           // Receiver index.
         };
     };
 }
@@ -195,7 +195,6 @@ bool ts::MPEInjectPlugin::getOptions()
 ts::MPEInjectPlugin::ReceiverThread::ReceiverThread(MPEInjectPlugin* plugin, const UDPReceiverArgs& opt, size_t index, size_t receiver_count) :
     Thread(ThreadAttributes().setStackSize(SERVER_THREAD_STACK_SIZE)),
     _plugin(plugin),
-    _sock(*_plugin),
     _index(index)
 {
     // Set UDP socket options.
@@ -280,7 +279,7 @@ bool ts::MPEInjectPlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::MPEInjectPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::MPEInjectPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Abort if data PID is already present in TS and --replace is not specified.
     const PID pid = pkt.getPID();
@@ -337,7 +336,7 @@ void ts::MPEInjectPlugin::ReceiverThread::main()
     ByteBlock buffer(MAX_IP_SIZE);
 
     // Loop on message reception until a receive error (probably an end of execution).
-    while (!_plugin->_terminate && _sock.receive(buffer.data(), buffer.size(), insize, sender, destination, _plugin->tsp, *_plugin)) {
+    while (!_plugin->_terminate && _sock.receive(buffer.data(), buffer.size(), insize, sender, destination, _plugin->tsp)) {
 
         // Rebuild source and destination addresses if required.
         if (_new_source.hasAddress()) {
@@ -368,7 +367,7 @@ void ts::MPEInjectPlugin::ReceiverThread::main()
         mpe.setUDPMessage(buffer.data(), insize);
 
         // Create an MPE section for the datagram.
-        SectionQueue::MessagePtr section(new Section());
+        auto section = std::make_shared<Section>();
         mpe.createSection(*section);
 
         // Enqueue the section immediately. Never wait.

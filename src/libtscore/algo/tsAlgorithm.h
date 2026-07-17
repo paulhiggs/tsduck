@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -94,7 +94,7 @@ namespace ts {
     //! Remove duplicated elements in a container.
     //! @ingroup cpp
     //!
-    //! When duplicates are found, this first occurence is kept, aothers are removed.
+    //! When duplicates are found, this first occurrence is kept, aothers are removed.
     //!
     //! The predefined function @c std::unique() removes duplicated elements when they
     //! are consecutive only. This function removes all duplicates.
@@ -178,7 +178,7 @@ namespace ts {
     //! @code
     //! namespace ts {
     //!     // The class:
-    //!     class TextFormatter : public std::basic_ostream<char>
+    //!     class TextFormatter: public std::basic_ostream<char>
     //!     {
     //!     public:
     //!         TextFormatter& margin();
@@ -220,7 +220,7 @@ namespace ts {
     //! @code
     //! namespace ts {
     //!     // The class:
-    //!     class TextFormatter : public std::basic_ostream<char>
+    //!     class TextFormatter: public std::basic_ostream<char>
     //!     {
     //!     public:
     //!         TextFormatter& setMarginSize(size_t margin);

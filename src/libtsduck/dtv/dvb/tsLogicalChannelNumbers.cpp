@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -215,7 +215,8 @@ ts::LogicalChannelNumbers::LCNMap::const_iterator ts::LogicalChannelNumbers::fin
         if (it->second.ts_id == ts_id) {
             if (it->second.onet_id == onet_id) {
                 // Found an exact match, including if both are INVALID_NETWORK_ID, final value.
-                return it;
+                result = it;
+                break;
             }
             else if (it->second.onet_id == INVALID_NETWORK_ID || onet_id == INVALID_NETWORK_ID) {
                 // Possible match, keep it but continue to search an exact match.

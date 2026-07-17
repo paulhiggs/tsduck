@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -33,7 +33,7 @@ namespace ts {
     //! call a new pure virtual method. The "final" attribute is here to detect
     //! old subclasses which do not yet use the new scheme.
     //!
-    class TSDUCKDLL AbstractSignalization : public AbstractDefinedByStandards
+    class TSDUCKDLL AbstractSignalization: public AbstractDefinedByStandards
     {
     public:
         //!

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -86,11 +86,10 @@ void ts::AstraBouquetListDescriptor::buildXML(DuckContext& duck, xml::Element* r
 
 bool ts::AstraBouquetListDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xbouquets;
-    bool ok = element->getChildren(xbouquets, u"bouquet");
-    bouquet_names.resize(xbouquets.size());
-    for (size_t i = 0; i < xbouquets.size(); ++i) {
-        ok = xbouquets[i]->getAttribute(bouquet_names[i], u"name") && ok;
+    bool ok = true;
+    for (auto& it : element->children(u"bouquet", &ok)) {
+        auto& name(bouquet_names.emplace_back());
+        ok = it.getAttribute(name, u"name");
     }
     return ok;
 }

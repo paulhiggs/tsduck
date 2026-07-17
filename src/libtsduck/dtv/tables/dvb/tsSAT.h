@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2022-2025, Paul Higgs
+// Copyright (c) 2022-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -26,7 +26,7 @@ namespace ts {
     //! @see ETSI EN 300 468, 5.2.11
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL SAT : public AbstractLongTable
+    class TSDUCKDLL SAT: public AbstractLongTable
     {
     public:
         //!
@@ -68,14 +68,14 @@ namespace ts {
         //! Representation of a satellite position (version 2).
         //! @see ETSI EN 300 648, 5.2.11.2
         //!
-        class TSDUCKDLL satellite_position_v2_info_type : public SAT_base
+        class TSDUCKDLL satellite_position_v2_info_type: public SAT_base
         {
         public:
             //!
             //! Representation of a geostationary satellite position
             //! @see ETSI EN 300 648, 5.2.11.2
             //!
-            class TSDUCKDLL geostationary_position_type : SAT_base
+            class TSDUCKDLL geostationary_position_type: public SAT_base
             {
                 TS_DEFAULT_COPY_MOVE(geostationary_position_type);
             public:
@@ -104,7 +104,7 @@ namespace ts {
             //! Representation of an earth orbiting satellite position
             //! @see ETSI EN 300 648, 5.2.11.2
             //!
-            class TSDUCKDLL earth_orbiting_satallite_type : public SAT_base
+            class TSDUCKDLL earth_orbiting_satallite_type: public SAT_base
             {
                 TS_DEFAULT_COPY_MOVE(earth_orbiting_satallite_type);
             public:
@@ -174,7 +174,7 @@ namespace ts {
         //!
         //! Network Clock Reference
         //!
-        class TSDUCKDLL NCR_type : public SAT_base
+        class TSDUCKDLL NCR_type: public SAT_base
         {
             TS_DEFAULT_COPY_MOVE(NCR_type);
         public:
@@ -221,7 +221,7 @@ namespace ts {
         //! that is associated with none, one or multiple delivery systems
         //! @see ETSI EN 300 648, 5.2.11.3
         //!
-        class TSDUCKDLL cell_fragment_info_type : public SAT_base
+        class TSDUCKDLL cell_fragment_info_type: public SAT_base
         {
             TS_DEFAULT_COPY_MOVE(cell_fragment_info_type);
         public:
@@ -230,7 +230,7 @@ namespace ts {
             //! A new delivery system that is soon serving this cell fragment.
             //! @see ETSI EN 300 648, 5.2.11.3
             //!
-            class TSDUCKDLL new_delivery_system_id_type : public SAT_base
+            class TSDUCKDLL new_delivery_system_id_type: public SAT_base
             {
                 TS_DEFAULT_COPY_MOVE(new_delivery_system_id_type);
             public:
@@ -261,7 +261,7 @@ namespace ts {
             //! A delivery system that will soon stop serving this cell fragment.
             //! @see ETSI EN 300 648, 5.2.11.3
             //!
-            class TSDUCKDLL obsolescent_delivery_system_id_type : public SAT_base
+            class TSDUCKDLL obsolescent_delivery_system_id_type: public SAT_base
             {
                 TS_DEFAULT_COPY_MOVE(obsolescent_delivery_system_id_type);
             public:
@@ -289,10 +289,10 @@ namespace ts {
 
             uint32_t          cell_fragment_id = 0;     /**< The identifier of this cell fragment. It can occur multiple times in consecutive
                                                              sections if the signalling is spanned over multiple sections.     */
-            bool              first_occurence = false;  /**< Indicates that this section is the first section in a sequence of 1 or more sections
+            bool              first_occurrence = false;  /**< Indicates that this section is the first section in a sequence of 1 or more sections
                                                              that contain the information for the cell fragment. When this bit is set to 1, it is
                                                              the first section of the sequence. When it is set to 0, it is not the first section. */
-            bool              last_occurence = false;   /**< Indicates that this section is the last section in a sequence of 1 or more sections that
+            bool              last_occurrence = false;   /**< Indicates that this section is the last section in a sequence of 1 or more sections that
                                                              contain the information for the cell fragment. When this bit is set to 1, it is the
                                                              last section of the sequence. When it is set to 0, it is not the last section. */
             std::optional<int32_t> center_latitude {};  /**< 18 bits - tcimsbf. The current center of the cell fragment on earth in the WGS84 datum
@@ -331,7 +331,7 @@ namespace ts {
         //! Representation of a time assocition between NCR and UTC
         //! @see ETSI EN 300 648, 5.2.11.4
         //!
-        class TSDUCKDLL time_association_info_type : public SAT_base
+        class TSDUCKDLL time_association_info_type: public SAT_base
         {
             TS_DEFAULT_COPY_MOVE(time_association_info_type);
         public:
@@ -393,14 +393,14 @@ namespace ts {
         //! period(s) in time that the beam will illuminate the cell each beamhopping cycle.
         //! @see ETSI EN 300 648, 5.2.11.3
         //!
-        class TSDUCKDLL beam_hopping_time_plan_info_type : public SAT_base
+        class TSDUCKDLL beam_hopping_time_plan_info_type: public SAT_base
         {
             TS_DEFAULT_COPY_MOVE(beam_hopping_time_plan_info_type);
         public:
             //!
             //! Indicates if there is a transmission in the respective timeslot.
             //!
-            class slot : public SAT_base
+            class slot: public SAT_base
             {
                 TS_DEFAULT_COPY_MOVE(slot);
             public:
@@ -501,7 +501,7 @@ namespace ts {
         //! Representation of a non-geostationary satellite position
         //! @see ETSI EN 300 648, 5.2.11.6
         //!
-        class TSDUCKDLL satellite_position_v3_info_type : public SAT_base
+        class TSDUCKDLL satellite_position_v3_info_type: public SAT_base
         {
             TS_DEFAULT_COPY_MOVE(satellite_position_v3_info_type);
         public:

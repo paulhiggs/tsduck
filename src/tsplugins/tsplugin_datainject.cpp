@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -21,7 +21,6 @@
 #include "tsMessageQueue.h"
 #include "tstlvMessageFactory.h"
 #include "tsContinuityAnalyzer.h"
-#include "tsNullReport.h"
 #include "tsThread.h"
 
 #define DEFAULT_PROTOCOL_VERSION  2     // Default protocol version for EMMG/PDG <=> MUX.
@@ -42,7 +41,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // TS packets or sections are passed from the server thread to the plugin thread using a message queue.
@@ -54,12 +53,13 @@ namespace ts {
         using SectionPtr = SectionQueue::MessagePtr;
 
         // TCP listener thread.
-        class TCPListener : public Thread
+        class TCPListener: public Thread
         {
             TS_NOBUILD_NOCOPY(TCPListener);
         public:
-            // Constructor.
+            // Constructor and destructor.
             TCPListener(DataInjectPlugin* plugin);
+            virtual ~TCPListener() override;
 
             // Terminate the thread.
             void stop();
@@ -75,12 +75,13 @@ namespace ts {
         };
 
         // UDP listener thread.
-        class UDPListener : public Thread
+        class UDPListener: public Thread
         {
             TS_NOBUILD_NOCOPY(UDPListener);
         public:
-            // Constructor.
+            // Constructor and destructor.
             UDPListener(DataInjectPlugin* plugin);
+            virtual ~UDPListener() override;
 
             // Open the UDP socket.
             bool open();
@@ -99,33 +100,33 @@ namespace ts {
         };
 
         // Plugin private data
-        emmgmux::Protocol  _protocol {};                    // EMMG/PDG <=> MUX protocol instance
-        PacketCounter      _pkt_next_data = 0;              // Next data insertion point
-        PID                _data_pid = PID_NULL;            // PID for data (constant after start)
-        ContinuityAnalyzer _cc_fixer {AllPIDs(), this};     // To fix continuity counters in injected PID
-        BitRate            _max_bitrate = 0;                // Max data PID's bitrate (constant after start)
-        bool               _unregulated = false;            // Insert data packet as soon as received.
-        IPSocketAddress    _tcp_address {};                 // TCP port and optional local address.
-        IPSocketAddress    _udp_address {};                 // UDP port and optional local address.
-        bool               _reuse_port = false;             // Reuse port option.
-        size_t             _sock_buf_size = 0;              // Socket receive buffer size.
-        TCPServer          _server {};                      // EMMG/PDG <=> MUX TCP server
-        TCPListener        _tcp_listener {this};            // TCP listener thread.
-        UDPListener        _udp_listener {this};            // UDP listener thread.
-        PacketQueue        _packet_queue {};                // Queue of incoming TS packets.
-        SectionQueue       _section_queue {};               // Queue of incoming sections.
-        tlv::Logger        _logger {Severity::Debug, this}; // Message logger.
-        volatile bool      _channel_established = false;    // Data channel open.
-        volatile bool      _stream_established = false;     // Data stream open.
-        volatile bool      _req_bitrate_changed = false;    // Requested bitrate has changed.
+        emmgmux::Protocol  _protocol {};                     // EMMG/PDG <=> MUX protocol instance
+        PacketCounter      _pkt_next_data = 0;               // Next data insertion point
+        PID                _data_pid = PID_NULL;             // PID for data (constant after start)
+        ContinuityAnalyzer _cc_fixer {AllPIDs(), this};      // To fix continuity counters in injected PID
+        BitRate            _max_bitrate = 0;                 // Max data PID's bitrate (constant after start)
+        bool               _unregulated = false;             // Insert data packet as soon as received.
+        IPSocketAddress    _tcp_address {};                  // TCP port and optional local address.
+        IPSocketAddress    _udp_address {};                  // UDP port and optional local address.
+        bool               _reuse_port = false;              // Reuse port option.
+        size_t             _sock_buf_size = 0;               // Socket receive buffer size.
+        tlv::Logger        _logger {this, Severity::Debug};  // Message logger.
+        TCPServer          _server {this};                   // EMMG/PDG <=> MUX TCP server
+        TCPListener        _tcp_listener {this};             // TCP listener thread.
+        UDPListener        _udp_listener {this};             // UDP listener thread.
+        PacketQueue        _packet_queue {};                 // Queue of incoming TS packets.
+        SectionQueue       _section_queue {};                // Queue of incoming sections.
+        volatile bool      _channel_established = false;     // Data channel open.
+        volatile bool      _stream_established = false;      // Data stream open.
+        volatile bool      _req_bitrate_changed = false;     // Requested bitrate has changed.
         // Start of protected area.
-        std::mutex         _mutex {};                       // Mutex for access to protected area
-        uint32_t           _client_id = 0;                  // DVB SimilCrypt client id.
-        uint16_t           _data_id = 0;                    // DVB SimilCrypt data id.
-        bool               _section_mode = false;           // Datagrams are sections.
+        std::mutex         _mutex {};                        // Mutex for access to protected area
+        uint32_t           _client_id = 0;                   // DVB SimilCrypt client id.
+        uint16_t           _data_id = 0;                     // DVB SimilCrypt data id.
+        bool               _section_mode = false;            // Datagrams are sections.
         Packetizer         _packetizer {duck, PID_NULL, this}; // Generate packets in the case of incoming sections.
-        BitRate            _req_bitrate = 0;                // Requested bitrate
-        size_t             _lost_packets = 0;               // Lost packets (queue full)
+        BitRate            _req_bitrate = 0;                 // Requested bitrate
+        size_t             _lost_packets = 0;                // Lost packets (queue full)
 
         // Reset all client session context information.
         void clearSession();
@@ -264,17 +265,17 @@ bool ts::DataInjectPlugin::start()
     }
 
     // Initialize the TCP server.
-    if (!_server.open(_tcp_address.generation(), *this)) {
+    if (!_server.open(_tcp_address.generation())) {
         return false;
     }
-    if (!_server.reusePort(_reuse_port, *this) || !_server.bind(_tcp_address, *this) || !_server.listen(SERVER_BACKLOG, *this)) {
-        _server.close(*this);
+    if (!_server.reusePort(_reuse_port) || !_server.bind(_tcp_address) || !_server.listen(SERVER_BACKLOG)) {
+        _server.close();
         return false;
     }
 
     // Initialize the UDP receiver.
     if (!_udp_listener.open()) {
-        _server.close(*this);
+        _server.close();
         return false;
     }
 
@@ -337,7 +338,7 @@ bool ts::DataInjectPlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::DataInjectPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::DataInjectPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Abort if data PID is already present in TS
     const PID pid = pkt.getPID();
@@ -417,7 +418,7 @@ void ts::DataInjectPlugin::provideSection(SectionCounter counter, SectionPtr& se
 bool ts::DataInjectPlugin::processBandwidthRequest(const tlv::MessagePtr& request, emmgmux::StreamBWAllocation& response)
 {
     // Interpret the message as a stream_BW_request.
-    emmgmux::StreamBWRequest* m = dynamic_cast<emmgmux::StreamBWRequest*>(request.get());
+    const auto m = std::dynamic_pointer_cast<emmgmux::StreamBWRequest>(request);
     if (m == nullptr) {
         error(u"incorrect message, expected stream_BW_request");
         return false;
@@ -456,7 +457,7 @@ bool ts::DataInjectPlugin::processBandwidthRequest(const tlv::MessagePtr& reques
 bool ts::DataInjectPlugin::processDataProvision(const tlv::MessagePtr& msg)
 {
     // Interpret the message as a stream_BW_request.
-    emmgmux::DataProvision* m = dynamic_cast<emmgmux::DataProvision*>(msg.get());
+    const auto m = std::dynamic_pointer_cast<emmgmux::DataProvision>(msg);
     if (m == nullptr) {
         error(u"incorrect message, expected data_provision");
         return false;
@@ -485,7 +486,7 @@ bool ts::DataInjectPlugin::processDataProvision(const tlv::MessagePtr& msg)
     if (_section_mode) {
         // Section mode, one section per datagram parameter, enqueue them.
         for (size_t i = 0; i < m->datagram.size(); ++i) {
-            SectionPtr sp(new Section(m->datagram[i]));
+            auto sp = std::make_shared<Section>(m->datagram[i]);
             if (sp->isValid()) {
                 processPacketLoss(u"sections", _section_queue.enqueue(sp, cn::milliseconds::zero()));
             }
@@ -504,7 +505,7 @@ bool ts::DataInjectPlugin::processDataProvision(const tlv::MessagePtr& msg)
                     error(u"invalid TS packet");
                 }
                 else {
-                    PacketPtr p(new TSPacket());
+                    auto p = std::make_shared<TSPacket>();
                     p->copyFrom(data);
                     processPacketLoss(u"packets", _packet_queue.enqueue(p, cn::milliseconds::zero()));
                     data += PKT_SIZE;
@@ -545,8 +546,13 @@ ts::DataInjectPlugin::TCPListener::TCPListener(DataInjectPlugin* plugin) :
     Thread(ThreadAttributes().setStackSize(SERVER_THREAD_STACK_SIZE)),
     _plugin(plugin),
     _report(Severity::Info, UString(), plugin),
-    _client(plugin->_protocol, true, 3)
+    _client(plugin->_logger, plugin->_protocol, true, 3)
 {
+}
+
+ts::DataInjectPlugin::TCPListener::~TCPListener()
+{
+    waitForTermination();
 }
 
 void ts::DataInjectPlugin::TCPListener::stop()
@@ -556,9 +562,9 @@ void ts::DataInjectPlugin::TCPListener::stop()
 
     // Close the server, then break client connection.
     // This will force the server thread to terminate.
-    _plugin->_server.close(*_plugin);
-    _client.disconnect(NULLREP);
-    _client.close(NULLREP);
+    _plugin->_server.close();
+    _client.disconnect(true);
+    _client.close(true);
 
     // Wait for actual thread termination
     Thread::waitForTermination();
@@ -573,7 +579,7 @@ void ts::DataInjectPlugin::TCPListener::main()
     emmgmux::StreamStatus stream_status(_plugin->_protocol);
 
     // Loop on client acceptance (accept only one client at a time).
-    while (_plugin->_server.accept(_client, client_address, _report)) {
+    while (_plugin->_server.accept(_client, client_address)) {
 
         _report.verbose(u"incoming connection from %s", client_address);
 
@@ -585,7 +591,7 @@ void ts::DataInjectPlugin::TCPListener::main()
         tlv::MessagePtr msg;
 
         // Loop on message reception from the client
-        while (ok && _client.receiveMessage(msg, _plugin->tsp, _plugin->_logger)) {
+        while (ok && _client.receiveMessage(msg, _plugin->tsp)) {
 
             // Message handling.
             // We do not send errors back to client, we just disconnect
@@ -601,7 +607,7 @@ void ts::DataInjectPlugin::TCPListener::main()
                             ok = false;
                         }
                         else {
-                            emmgmux::ChannelSetup* m = dynamic_cast<emmgmux::ChannelSetup*>(msg.get());
+                            const auto m = std::dynamic_pointer_cast<emmgmux::ChannelSetup>(msg);
                             assert (m != nullptr);
                             // First, declare the channel as established.
                             {
@@ -617,7 +623,7 @@ void ts::DataInjectPlugin::TCPListener::main()
                         }
                     }
                     if (send_status) {
-                        ok = _client.sendMessage(channel_status, _plugin->_logger);
+                        ok = _client.sendMessage(channel_status);
                     }
                     break;
                 }
@@ -636,7 +642,7 @@ void ts::DataInjectPlugin::TCPListener::main()
                         }
                     }
                     if (send_status) {
-                        ok = _client.sendMessage(channel_status, _plugin->_logger);
+                        ok = _client.sendMessage(channel_status);
                     }
                     break;
                 }
@@ -661,7 +667,7 @@ void ts::DataInjectPlugin::TCPListener::main()
                             ok = false;
                         }
                         else {
-                            emmgmux::StreamSetup* m = dynamic_cast<emmgmux::StreamSetup*>(msg.get());
+                            const auto m = std::dynamic_pointer_cast<emmgmux::StreamSetup>(msg);
                             assert(m != nullptr);
                             // First, declare the stream as established.
                             _plugin->_data_id = m->data_id;
@@ -676,7 +682,7 @@ void ts::DataInjectPlugin::TCPListener::main()
                         }
                     }
                     if (send_status) {
-                        ok = _client.sendMessage(stream_status, _plugin->_logger);
+                        ok = _client.sendMessage(stream_status);
                     }
                     break;
                 }
@@ -695,7 +701,7 @@ void ts::DataInjectPlugin::TCPListener::main()
                         }
                     }
                     if (send_status) {
-                        ok = _client.sendMessage(stream_status, _plugin->_logger);
+                        ok = _client.sendMessage(stream_status);
                     }
                     break;
                 }
@@ -713,7 +719,7 @@ void ts::DataInjectPlugin::TCPListener::main()
                             // First, declare the stream as closed.
                             _plugin->_stream_established = false;
                             // Send the stream_close_response
-                            emmgmux::StreamCloseRequest* m = dynamic_cast<emmgmux::StreamCloseRequest*>(msg.get());
+                            const auto m = std::dynamic_pointer_cast<emmgmux::StreamCloseRequest>(msg);
                             assert (m != nullptr);
                             resp.channel_id = m->channel_id;
                             resp.stream_id = m->stream_id;
@@ -722,14 +728,14 @@ void ts::DataInjectPlugin::TCPListener::main()
                         }
                     }
                     if (send_resp) {
-                        ok = _client.sendMessage(resp, _plugin->_logger);
+                        ok = _client.sendMessage(resp);
                     }
                     break;
                 }
 
                 case emmgmux::Tags::stream_BW_request: {
                     emmgmux::StreamBWAllocation response(_plugin->_protocol);
-                    ok = _plugin->processBandwidthRequest(msg, response) && _client.sendMessage(response, _plugin->_logger);
+                    ok = _plugin->processBandwidthRequest(msg, response) && _client.sendMessage(response);
                     break;
                 }
 
@@ -745,8 +751,8 @@ void ts::DataInjectPlugin::TCPListener::main()
         }
 
         // Error while receiving messages during a client session, most likely a disconnection
-        _client.disconnect(NULLREP);
-        _client.close(NULLREP);
+        _client.disconnect(true);
+        _client.close(true);
     }
 
     _plugin->debug(u"TCP server thread completed");
@@ -761,8 +767,13 @@ ts::DataInjectPlugin::UDPListener::UDPListener(DataInjectPlugin* plugin) :
     Thread(ThreadAttributes().setStackSize(SERVER_THREAD_STACK_SIZE)),
     _plugin(plugin),
     _report(Severity::Info, UString(), plugin),
-    _client(_report)
+    _client(&_report)
 {
+}
+
+ts::DataInjectPlugin::UDPListener::~UDPListener()
+{
+    waitForTermination();
 }
 
 bool ts::DataInjectPlugin::UDPListener::open()
@@ -770,7 +781,7 @@ bool ts::DataInjectPlugin::UDPListener::open()
     UDPReceiverArgs args;
     args.setUnicast(_plugin->_udp_address, _plugin->_reuse_port, _plugin->_sock_buf_size);
     _client.setParameters(args);
-    return _client.open(_report);
+    return _client.open();
 }
 
 void ts::DataInjectPlugin::UDPListener::stop()
@@ -780,7 +791,7 @@ void ts::DataInjectPlugin::UDPListener::stop()
 
     // Close the UDP receiver.
     // This will force the server thread to terminate.
-    _client.close(NULLREP);
+    _client.close(true);
 
     // Wait for actual thread termination
     Thread::waitForTermination();
@@ -796,7 +807,7 @@ void ts::DataInjectPlugin::UDPListener::main()
     IPSocketAddress destination;
 
     // Loop on incoming messages.
-    while (_client.receive(inbuf, sizeof(inbuf), insize, sender, destination, _plugin->tsp, _report)) {
+    while (_client.receive(inbuf, sizeof(inbuf), insize, sender, destination, _plugin->tsp)) {
 
         // Analyze the message
         tlv::MessageFactory mf(inbuf, insize, _plugin->_protocol);

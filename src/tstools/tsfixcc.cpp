@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -29,7 +29,7 @@ namespace {
         bool         test = false;          // Test mode
         bool         circular = false;      // Add empty packets to enforce circular continuity
         bool         no_replicate = false;  // Option --no-replicate-duplicated
-        ts::UString  filename {};           // File name
+        fs::path     filename {};           // File name
         std::fstream file {};               // File buffer
 
         // Check if there was an I/O error on the file.
@@ -64,11 +64,11 @@ Options::Options(int argc, char *argv[]) :
          u"By default, duplicated input packets are replicated as duplicated on output "
          u"(the corresponding output packets have the same continuity counters). "
          u"When this option is specified, the input packets are not considered as duplicated and "
-         u"the output packets receive individually incremented countinuity counters.");
+         u"the output packets receive individually incremented continuity counters.");
 
     analyze(argc, argv);
 
-    filename = value(u"");
+    getPathValue(filename, u"");
     circular = present(u"circular");
     test = present(u"no-action") || present(u"noaction");
     no_replicate = present(u"no-replicate-duplicated");
@@ -110,7 +110,7 @@ int MainCode(int argc, char *argv[])
         mode |= std::ios::out;
     }
 
-    opt.file.open(opt.filename.toUTF8().c_str(), mode);
+    opt.file.open(opt.filename, mode);
 
     if (!opt.file) {
         opt.error(u"cannot open file %s", opt.filename);

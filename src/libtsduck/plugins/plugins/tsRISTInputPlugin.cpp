@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2020-2025, Thierry Lelegard
+// Copyright (c) 2020-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -10,7 +10,6 @@
 #include "tsRISTPluginData.h"
 #include "tsPluginRepository.h"
 #include "tsIPProtocols.h"
-#include "tsFatal.h"
 
 
 //----------------------------------------------------------------------------
@@ -83,7 +82,6 @@ ts::RISTInputPlugin::RISTInputPlugin(TSP* tsp_) :
                                 TSDatagramInputOptions::REAL_TIME | TSDatagramInputOptions::ALLOW_RS204)
 {
     _guts = new Guts(*this);
-    CheckNonNull(_guts);
     _guts->rist.defineArgs(*this);
 }
 

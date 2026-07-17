@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -30,11 +30,11 @@ namespace ts {
     //! Normally, all consecutive sections with same tid, tid ext and version
     //! should be identical. But this is not the case with the ATSC STT.
     //! Specifically, when a SectionDemux is used, it reports only the first
-    //! occurence of the STT because all subsequent sections have the same version.
+    //! occurrence of the STT because all subsequent sections have the same version.
     //! To be notified of all STT sections with a SectionDemux, it is necessary
     //! to provide a section handler, not a table handler.
     //!
-    class TSDUCKDLL STT : public AbstractLongTable
+    class TSDUCKDLL STT: public AbstractLongTable
     {
     public:
         // STT public members:

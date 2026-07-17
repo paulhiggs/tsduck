@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  GitHub Actions configuration file : Nightly builds
@@ -9,16 +9,20 @@
 #  Builds installers for Windows and Ubuntu. Build programmer's doc package.
 #  Upload them all as artifacts of this workflow.
 #
+#  This is a daily scheduled job which can also be manually triggered.
+#  The initial daily schedule was 00:40 UTC. Over the years, the execution was
+#  slowly drifting, up to more than 4 hours (start around 05:00 UTC). We tried
+#  14:37 UTC, hoping for a more quiet time of the day. Immediately, the delay
+#  was 3h 30mn (start around 17:50 UTC). Now, we try 23:11 UTC.
+#
 #-----------------------------------------------------------------------------
 
 name: Nightly build
 
 on:
-  # Trigger the workflow every day at 00:40 UTC.
-  schedule:
-  - cron: '40 0 * * *'
-  # Allow manual trigger.
   workflow_dispatch:
+  schedule:
+  - cron: '11 23 * * *'
 
 jobs:
   # Get current TSDuck version in the repo and latest nightly builds on tsduck.io.

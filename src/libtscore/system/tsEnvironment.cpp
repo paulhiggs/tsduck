@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -13,7 +13,7 @@
 #endif
 
 // External calls to environment variables are not reentrant. Use a global mutex.
-TS_STATIC_MUTEX(std::mutex, EnvironmentMutex);
+TS_STATIC_VARIABLE(std::mutex, EnvironmentMutex);
 
 
 //----------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -196,22 +196,19 @@ void ts::ERT::buildXML(DuckContext& duck, xml::Element* root) const
 
 bool ts::ERT::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xrel;
-    bool ok =
-        element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
-        element->getBoolAttribute(_is_current, u"current", false, true) &&
-        element->getIntAttribute(event_relation_id, u"event_relation_id", true) &&
-        element->getIntAttribute(information_provider_id, u"information_provider_id", true) &&
-        element->getIntAttribute(relation_type, u"relation_type", true, 0, 0, 15) &&
-        element->getChildren(xrel, u"relation");
+    bool ok = element->getIntAttribute(_version, u"version", false, 0, 0, 31) &&
+              element->getBoolAttribute(_is_current, u"current", false, true) &&
+              element->getIntAttribute(event_relation_id, u"event_relation_id", true) &&
+              element->getIntAttribute(information_provider_id, u"information_provider_id", true) &&
+              element->getIntAttribute(relation_type, u"relation_type", true, 0, 0, 15);
 
-    for (auto it = xrel.begin(); ok && it != xrel.end(); ++it) {
-        Relation& rel(relations.newEntry());
-        ok = (*it)->getIntAttribute(rel.node_id, u"node_id", true) &&
-             (*it)->getIntAttribute(rel.collection_mode, u"collection_mode", true, 0, 0, 15) &&
-             (*it)->getIntAttribute(rel.parent_node_id, u"parent_node_id", true) &&
-             (*it)->getIntAttribute(rel.reference_number, u"reference_number", true) &&
-             rel.descs.fromXML(duck, *it);
+    for (auto& xrel : element->children(u"relation", &ok)) {
+        auto& rel(relations.newEntry());
+        ok = xrel.getIntAttribute(rel.node_id, u"node_id", true) &&
+             xrel.getIntAttribute(rel.collection_mode, u"collection_mode", true, 0, 0, 15) &&
+             xrel.getIntAttribute(rel.parent_node_id, u"parent_node_id", true) &&
+             xrel.getIntAttribute(rel.reference_number, u"reference_number", true) &&
+             rel.descs.fromXML(duck, &xrel);
     }
     return ok;
 }

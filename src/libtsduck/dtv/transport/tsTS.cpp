@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -226,4 +226,21 @@ ts::UString ts::PCRToString(uint64_t pcr, bool hexa, bool decimal, bool ms)
 ts::UString ts::PTSToString(uint64_t pts, bool hexa, bool decimal, bool ms)
 {
     return TimeStampToString(pts, hexa, decimal, ms, SYSTEM_CLOCK_SUBFREQ, 9);
+}
+
+
+//----------------------------------------------------------------------------
+// Names of packet procesing status values.
+//----------------------------------------------------------------------------
+
+const ts::Names& ts::PacketProcessingStatusNames()
+{
+    // Thread-safe init-safe static data patterns.
+    static const Names data({
+        {u"pass", TSP_OK},
+        {u"stop", TSP_END},
+        {u"drop", TSP_DROP},
+        {u"null", TSP_NULL}
+    });
+    return data;
 }

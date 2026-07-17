@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ namespace ts {
     //! the first section is added. Subsequent sections must have the
     //! same properties.
     //!
-    class TSDUCKDLL BinaryTable : public AbstractDefinedByStandards
+    class TSDUCKDLL BinaryTable: public AbstractDefinedByStandards
     {
     public:
         //!
@@ -323,6 +323,7 @@ namespace ts {
             bool setLocalTime = false;  //!< Add a metadata element with the current local time.
             bool setPackets = false;    //!< Add a metadata element with the index of the first and last TS packets of the table.
             bool setSections = false;   //!< Add metadata elements with hexadecimal dump of each section in the table.
+            bool setBase64 = false;     //!< Add metadata elements with Base-64 dump of each section in the table.
         };
 
         //!

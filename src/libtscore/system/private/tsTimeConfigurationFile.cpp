@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //-----------------------------------------------------------------------------
@@ -30,18 +30,16 @@ ts::TimeConfigurationFile::TimeConfigurationFile()
 
     // Get the root in the document. Should be ok since we validated the document.
     const xml::Element* root = doc.rootElement();
-    const xml::Element* xleap_root = root == nullptr ? nullptr : root->findFirstChild(u"leap_seconds");
+    const xml::Element* xleap_root = root == nullptr ? nullptr : root->findFirstChild(u"leap_seconds", true);
     if (xleap_root == nullptr) {
         return;
     }
 
     // Get leap seconds configuration.
-    xml::ElementVector xleap;
     xleap_root->getChronoAttribute(initial_seconds, u"initial", true);
-    xleap_root->getChildren(xleap, u"leap");
-    for (const auto& it : xleap) {
+    for (auto& it : xleap_root->children(u"leap")) {
         LeapSecond ls;
-        if (it->getDateTimeAttribute(ls.after, u"after", true) && it->getChronoAttribute(ls.count, u"count", true)) {
+        if (it.getDateTimeAttribute(ls.after, u"after", true) && it.getChronoAttribute(ls.count, u"count", true)) {
             leap_seconds.push_back(ls);
         }
     }

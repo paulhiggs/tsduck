@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //-----------------------------------------------------------------------------
@@ -882,13 +882,13 @@ bool ts::TunerDevice::getCurrentTuning(ModulationArgs& params, bool reset_unknow
             if ((val = props.getByCommand(DTV_ISDBT_LAYER_ENABLED)) != DTVProperties::UNKNOWN) {
                 params.isdbt_layers = UString();
                 if ((val & 0x01) != 0) {
-                    params.isdbt_layers.value().append(1, u'A');
+                    params.isdbt_layers->append(1, u'A');
                 }
                 if ((val & 0x02) != 0) {
-                    params.isdbt_layers.value().append(1, u'B');
+                    params.isdbt_layers->append(1, u'B');
                 }
                 if ((val & 0x04) != 0) {
-                    params.isdbt_layers.value().append(1, u'C');
+                    params.isdbt_layers->append(1, u'C');
                 }
             }
             params.layer_a_fec.reset();
@@ -1732,8 +1732,8 @@ size_t ts::TunerDevice::receive(TSPacket* buffer, size_t max_packets, const Abor
         // Arm the receive timer.
         // Note that _receive_timeout is in milliseconds and ::itimerspec is in nanoseconds.
         ::itimerspec timeout;
-        timeout.it_value.tv_sec = long(_receive_timeout.count() / 1000);
-        timeout.it_value.tv_nsec = long(1000000 * (_receive_timeout.count() % 1000));
+        timeout.it_value.tv_sec = timespec_sec_t(_receive_timeout.count() / 1000);
+        timeout.it_value.tv_nsec = timespec_nsec_t(1000000 * (_receive_timeout.count() % 1000));
         timeout.it_interval.tv_sec = 0;
         timeout.it_interval.tv_nsec = 0;
         if (::timer_settime(_rt_timer, 0, &timeout, nullptr) < 0) {

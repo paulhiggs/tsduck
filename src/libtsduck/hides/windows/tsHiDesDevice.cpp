@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -69,12 +69,12 @@ namespace {
 class ts::HiDesDevice::Guts
 {
 public:
-    ComPtr<::IBaseFilter> filter;                  // Associated DirectShow filter.
-    ::HANDLE              handle;                  // Handle to it950x device.
-    ::OVERLAPPED          overlapped;              // For overlapped operations.
-    ::KSPROPERTY          kslist[ite::KSLIST_MAX]; // Non-const version of KSLIST (required by DeviceIoControl).
-    bool                  transmitting;            // Transmission in progress.
-    HiDesDeviceInfo       info;                    // Portable device information.
+    ComPtr<::IBaseFilter> filter {};                   // Associated DirectShow filter.
+    ::HANDLE              handle = nullptr;            // Handle to it950x device.
+    ::OVERLAPPED          overlapped {};               // For overlapped operations.
+    ::KSPROPERTY          kslist[ite::KSLIST_MAX] {};  // Non-const version of KSLIST (required by DeviceIoControl).
+    bool                  transmitting = false;        // Transmission in progress.
+    HiDesDeviceInfo       info {};                     // Portable device information.
 
     // Constructor, destructor.
     Guts();
@@ -131,13 +131,7 @@ ts::HiDesDevice::~HiDesDevice()
 // Guts, constructor and destructor.
 //----------------------------------------------------------------------------
 
-ts::HiDesDevice::Guts::Guts() :
-    filter(),
-    handle(INVALID_HANDLE_VALUE),
-    overlapped(),
-    kslist(),
-    transmitting(false),
-    info()
+ts::HiDesDevice::Guts::Guts()
 {
     TS_ZERO(overlapped);
     assert(sizeof(kslist) == sizeof(kslist_template));
@@ -302,7 +296,7 @@ bool ts::HiDesDevice::Guts::getDeviceInfo(const ComPtr<::IMoniker>& moniker, Rep
     // WARNING: in case of problem here, see GetHandleFromObject in tsWinUtils.cpp.
     report.log(2, u"HiDesDevice: calling GetHandleFromObject");
     handle = GetHandleFromObject(filter.pointer(), report);
-    if (handle == INVALID_HANDLE_VALUE) {
+    if (!WinHandleValid(handle)) {
         close();
         return false;
     }
@@ -311,7 +305,7 @@ bool ts::HiDesDevice::Guts::getDeviceInfo(const ComPtr<::IMoniker>& moniker, Rep
     // Create an event for overlapped operations.
     report.log(2, u"HiDesDevice: creating event for overlapped");
     overlapped.hEvent = ::CreateEventW(nullptr, true, false, nullptr);
-    if (overlapped.hEvent == nullptr) {
+    if (!WinHandleValid(overlapped.hEvent)) {
         report.error(u"CreateEvent error: %s", WinErrorMessage(::GetLastError()));
         close();
         return false;
@@ -533,16 +527,12 @@ void ts::HiDesDevice::Guts::close()
     // "invalid handle" exception. It is probable that this handle is not
     // recognized as the kind of handle which is open by the system.
     //
-    // if (handle != 0 && handle != INVALID_HANDLE_VALUE) {
-    //     ::CloseHandle(handle);
-    // }
-    //
-    handle = INVALID_HANDLE_VALUE;
+    handle = nullptr;
 
     // Close event handle used in overlapped operations.
-    if (overlapped.hEvent != 0 && overlapped.hEvent != INVALID_HANDLE_VALUE) {
+    if (WinHandleValid(overlapped.hEvent)) {
         ::CloseHandle(overlapped.hEvent);
-        overlapped.hEvent = INVALID_HANDLE_VALUE;
+        overlapped.hEvent = nullptr;
     }
 }
 
@@ -723,9 +713,7 @@ bool ts::HiDesDevice::tune(const ModulationArgs& in_params, Report& report)
     }
 
     // Not all enum values used in switch, intentionally.
-    TS_PUSH_WARNING()
-    TS_LLVM_NOWARNING(switch-enum)
-    TS_MSC_NOWARNING(4061)
+    TS_PARTIAL_SWITCH_BEGIN()
 
     // Build modulation parameters.
     // Translate TSDuck enums into HiDes codes.
@@ -800,7 +788,7 @@ bool ts::HiDesDevice::tune(const ModulationArgs& in_params, Report& report)
             return false;
     }
 
-    TS_POP_WARNING()
+    TS_PARTIAL_SWITCH_END()
 
     // Don't know how to set spectral inversion on Windows.
 

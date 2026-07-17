@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -106,15 +106,9 @@ void ts::ServiceAvailabilityDescriptor::buildXML(DuckContext& duck, xml::Element
 
 bool ts::ServiceAvailabilityDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector children;
-    bool ok =
-        element->getBoolAttribute(availability, u"availability", true) &&
-        element->getChildren(children, u"cell", 0, MAX_CELLS);
-
-    for (size_t i = 0; ok && i < children.size(); ++i) {
-        uint16_t id = 0;
-        ok = children[i]->getIntAttribute(id, u"id", true);
-        cell_ids.push_back(id);
+    bool ok = element->getBoolAttribute(availability, u"availability", true);
+    for (auto& child : element->children(u"cell", &ok, 0, MAX_CELLS)) {
+        ok = child.getIntAttribute(cell_ids.emplace_back(), u"id", true);
     }
     return ok;
 }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ namespace ts {
     //! Converting to an integer returns the actual generation number (4 or 6).
     //! @ingroup net
     //!
-    enum class IP : uint8_t {
+    enum class IP: uint8_t {
         Any = 0,  //!< Any generation of IP networks.
         v4  = 4,  //!< IPv4.
         v6  = 6,  //!< IPv6.

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ namespace ts {
     //! in the DLT with the same maker_id/model_id/version_id. It takes the same
     //! value as the middle 8 bits of last_Lsection_number in the DLT.
     //!
-    class TSDUCKDLL DCT : public AbstractLongTable
+    class TSDUCKDLL DCT: public AbstractLongTable
     {
     public:
         //!

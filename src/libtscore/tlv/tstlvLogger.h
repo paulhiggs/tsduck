@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -12,9 +12,9 @@
 //----------------------------------------------------------------------------
 
 #pragma once
+#include "tsReporterBase.h"
 #include "tstlvMessage.h"
 #include "tsUString.h"
-#include "tsReport.h"
 
 namespace ts::tlv {
     //!
@@ -27,26 +27,41 @@ namespace ts::tlv {
     //! Depending on its maximum severity, the report will display or not
     //! each message.
     //!
-    class TSCOREDLL Logger
+    class TSCOREDLL Logger: public ReporterBase
     {
-        TS_DEFAULT_COPY_MOVE(Logger);
+        TS_NOBUILD_NOCOPY(Logger);
     public:
         //!
-        //! Default constructor.
+        //! Constructor.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists or setReport() is used with another Report object. If @a report is null, log messages are discarded.
         //! @param [in] default_level Default logging level of messages.
-        //! @param [in] default_report Where to report messages. Can be null.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
         //!
-        Logger(int default_level = Severity::Info, Report* default_report = nullptr);
+        explicit Logger(Report* report, int default_level = Severity::Info, Object* owner = nullptr);
 
         //!
-        //! Set the default severity level.
+        //! Constructor.
+        //! @param [in] delegate Use the report of another ReporterBase. If @a delegate is null, log messages are discarded.
+        //! @param [in] default_level Default logging level of messages.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        explicit Logger(ReporterBase* delegate, int default_level = Severity::Info, Object* owner = nullptr);
+
+        //!
+        //! Destructor.
+        //!
+        virtual ~Logger() override;
+
+        //!
+        //! Set the default severity level for message logging.
         //! This level applies to messages without a specific log level.
         //! @param [in] level Default logging level of messages.
         //!
         void setDefaultSeverity(int level) { _default_level = level; }
 
         //!
-        //! Get the default severity level.
+        //! Get the default severity level for message logging.
         //! This level applies to messages without a specific log level.
         //! @return The default severity level.
         //!
@@ -60,7 +75,7 @@ namespace ts::tlv {
         void setSeverity(TAG tag, int level) { _levels[tag] = level; }
 
         //!
-        //! Get the severity level for one specific level.
+        //! Get the severity level for one specific message tag.
         //! @param [in] tag Message tag.
         //! @return The severity level.
         //!
@@ -73,27 +88,13 @@ namespace ts::tlv {
         void resetSeverities(int default_level = Severity::Info);
 
         //!
-        //! Set a new default report object.
-        //! @param [in] default_report Where to report messages. Can be null.
-        //!
-        void setReport(Report* default_report);
-
-        //!
-        //! Get a reference to the default report object.
-        //! @return A reference to the default report object.
-        //!
-        Report& report() { return *_report; }
-
-        //!
         //! Report a TLV message.
         //! @param [in] msg The message to log.
         //! @param [in] comment Optional leading comment line (before the message).
-        //! @param [in] report Where to report the message. If null, use the default report.
         //!
-        void log(const Message& msg, const UString& comment = UString(), Report* report = nullptr);
+        void log(const Message& msg, const UString& comment = UString()) const;
 
     private:
-        Report* volatile  _report;         // Default report.
         int               _default_level;  // Default severity level.
         std::map<TAG,int> _levels {};      // Map of severity by message tag.
     };

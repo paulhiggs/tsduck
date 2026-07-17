@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -78,13 +78,13 @@ void ts::NetworkDownloadContentDescriptor::serializePayload(PSIBuffer& buf) cons
     else if (ip.has_value()) {
         if (ip->generation() == IP::v4) {
             buf.putUInt8(0x00); // address_type = IPv4
-            buf.putUInt32(ip.value().address4());
+            buf.putUInt32(ip->address4());
         }
         else {
             buf.putUInt8(0x01); // address_type = IPv6
-            buf.putBytes(ip.value().address6());
+            buf.putBytes(ip->address6());
         }
-        buf.putUInt16(ip.value().port());
+        buf.putUInt16(ip->port());
     }
     else if (url.has_value()) {
         buf.putUInt8(0x02); // address_type = URL
@@ -97,7 +97,7 @@ void ts::NetworkDownloadContentDescriptor::serializePayload(PSIBuffer& buf) cons
     buf.putUInt8(uint8_t(private_data.size()));
     buf.putBytes(private_data);
     if (text_info.has_value()) {
-        text_info.value().serializePayload(buf);
+        text_info->serializePayload(buf);
     }
 }
 
@@ -140,7 +140,7 @@ void ts::NetworkDownloadContentDescriptor::deserializePayload(PSIBuffer& buf)
     buf.getBytes(private_data, buf.getUInt8());
     if (text_info_flag) {
         text_info.emplace();
-        text_info.value().deserializePayload(buf);
+        text_info->deserializePayload(buf);
     }
 }
 
@@ -228,9 +228,9 @@ void ts::NetworkDownloadContentDescriptor::buildXML(DuckContext& duck, xml::Elem
     root->setIntAttribute(u"connect_timer", connect_timer);
 
     if (ip.has_value()) {
-        xml::Element* e = root->addElement(UString::Format(u"ipv%d", int(ip.value().generation())));
+        xml::Element* e = root->addElement(UString::Format(u"ipv%d", int(ip->generation())));
         e->setIPAttribute(u"address", IPAddress(ip.value()));
-        e->setIntAttribute(u"port", ip.value().port());
+        e->setIntAttribute(u"port", ip->port());
     }
     else if (url.has_value()) {
         root->addElement(u"url")->setAttribute(u"url", url.value());
@@ -239,53 +239,42 @@ void ts::NetworkDownloadContentDescriptor::buildXML(DuckContext& duck, xml::Elem
     compatibility_descriptor.toXML(duck, root, true);
     root->addHexaTextChild(u"private_data", private_data, true);
     if (text_info.has_value()) {
-        text_info.value().buildXML(duck, root);
+        text_info->buildXML(duck, root);
     }
 }
 
 bool ts::NetworkDownloadContentDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xipv4, xipv6, xurl, xtext;
-    bool ok =
-        element->getBoolAttribute(reboot, u"reboot", true) &&
-        element->getBoolAttribute(add_on, u"add_on", true) &&
-        element->getIntAttribute(component_size, u"component_size", true) &&
-        element->getIntAttribute(session_protocol_number, u"session_protocol_number", true) &&
-        element->getIntAttribute(session_id, u"session_id", true) &&
-        element->getIntAttribute(retry, u"retry", true) &&
-        element->getIntAttribute(connect_timer, u"connect_timer", true, 0, 0, 0x00FFFFFF) &&
-        element->getChildren(xipv4, u"ipv4", 0, 1) &&
-        element->getChildren(xipv6, u"ipv6", 0, 1) &&
-        element->getChildren(xurl, u"url", 0, 1) &&
-        compatibility_descriptor.fromXML(duck, element, false) &&
-        element->getHexaTextChild(private_data, u"private_data", false) &&
-        element->getChildren(xtext, u"text_info", 0, 1);
+    bool ok = element->getBoolAttribute(reboot, u"reboot", true) &&
+              element->getBoolAttribute(add_on, u"add_on", true) &&
+              element->getIntAttribute(component_size, u"component_size", true) &&
+              element->getIntAttribute(session_protocol_number, u"session_protocol_number", true) &&
+              element->getIntAttribute(session_id, u"session_id", true) &&
+              element->getIntAttribute(retry, u"retry", true) &&
+              element->getIntAttribute(connect_timer, u"connect_timer", true, 0, 0, 0x00FFFFFF) &&
+              compatibility_descriptor.fromXML(duck, element, false) &&
+              element->getHexaTextChild(private_data, u"private_data", false);
 
-    if (xipv4.size() + xipv6.size() + xurl.size() != 1) {
-        ok = false;
-        element->report().error(u"exactly one of <ipv4>, <ipv6>, <url> required in <%s>, line %d", element->name(), element->lineNumber());
-    }
-    if (ok && !xipv4.empty()) {
+    for (auto& child : element->children(u"ipv4", &ok, 0, 1)) {
         IPAddress address;
         uint16_t port = 0;
-        ok = xipv4[0]->getIPAttribute(address, u"address", true) && xipv4[0]->getIntAttribute(port, u"port", true);
+        ok = child.getIPAttribute(address, u"address", true) && child.getIntAttribute(port, u"port", true);
         ip.emplace(address, port);
-    }
-    else if (ok && !xipv6.empty()) {
-        IPAddress address;
-        uint16_t port = 0;
-        ok = xipv6[0]->getIPAttribute(address, u"address", true) && xipv6[0]->getIntAttribute(port, u"port", true);
-        ip.emplace(address, port);
-    }
-    else if (ok && !xurl.empty()) {
-        UString str;
-        ok = xurl[0]->getAttribute(str, u"url", true);
-        url.emplace(str);
     }
 
-    if (ok && !xtext.empty()) {
-        text_info.emplace();
-        ok = text_info.value().analyzeXML(duck, xtext[0]);
+    for (auto& child : element->children(u"ipv6", &ok, 0, ip.has_value() ? 0 : 1)) {
+        IPAddress address;
+        uint16_t port = 0;
+        ok = child.getIPAttribute(address, u"address", true) && child.getIntAttribute(port, u"port", true);
+        ip.emplace(address, port);
+    }
+
+    for (auto& child : element->children(u"url", &ok, ip.has_value() ? 0 : 1, ip.has_value() ? 0 : 1)) {
+        ok = child.getAttribute(url.emplace(), u"url", true);
+    }
+
+    for (auto& child : element->children(u"text_info", &ok, 0, 1)) {
+        ok = text_info.emplace().analyzeXML(duck, &child);
     }
     return ok;
 }

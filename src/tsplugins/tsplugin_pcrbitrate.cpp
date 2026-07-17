@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -31,7 +31,7 @@ namespace ts {
         virtual bool start() override;
         virtual BitRate getBitrate() override;
         virtual BitRateConfidence getBitrateConfidence() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         PCRAnalyzer _pcr_analyzer {}; // PCR analysis context
@@ -126,7 +126,7 @@ ts::BitRateConfidence ts::PCRBitratePlugin::getBitrateConfidence()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::PCRBitratePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::PCRBitratePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Feed the packet into the PCR analyzer.
 

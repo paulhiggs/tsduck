@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -19,7 +19,7 @@ namespace ts {
     //! DVB CSA-2 (Digital Video Broadcasting Common Scrambling Algorithm).
     //! @ingroup libtsduck crypto
     //!
-    class TSDUCKDLL DVBCSA2 : public BlockCipher
+    class TSDUCKDLL DVBCSA2: public BlockCipher
     {
         TS_NOCOPY(DVBCSA2);
     public:

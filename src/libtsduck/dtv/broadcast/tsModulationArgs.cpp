@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -485,19 +485,20 @@ ts::BitRate ts::ModulationArgs::theoreticalBitrate() const
     const auto bounds(SpecializedCalculators().equal_range(delivery_system.value_or(DS_UNDEFINED)));
     for (auto it = bounds.first; it != bounds.second; ++it) {
         if (it->second(bitrate, *this)) {
-            return bitrate;
+            break;
         }
     }
 
     // Then try generic calculators.
-    for (auto func : GenericCalculators()) {
-        if (func(bitrate, *this)) {
-            return bitrate;
+    if (bitrate == 0) {
+        for (auto func : GenericCalculators()) {
+            if (func(bitrate, *this)) {
+                break;
+            }
         }
     }
 
-    // Don't know how to compute for that modulation.
-    return 0;
+    return bitrate;
 }
 
 
@@ -866,7 +867,7 @@ std::ostream& ts::ModulationArgs::display(std::ostream& strm, const ts::UString&
                 }
             }
             if (isdbt_layers.has_value()) {
-                strm << margin << "Layers: " << (isdbt_layers.value().empty() ? u"none" : isdbt_layers.value()) << std::endl;
+                strm << margin << "Layers: " << (isdbt_layers->empty() ? u"none" : isdbt_layers.value()) << std::endl;
             }
             if (isdbt_partial_reception.has_value()) {
                 strm << margin << "Partial reception: " << UString::OnOff(isdbt_partial_reception.value()) << std::endl;
@@ -1031,7 +1032,7 @@ ts::UString ts::ModulationArgs::toPluginOptions(bool no_local) const
             if (isdbt_partial_reception == true) {
                 opt += u" --isdbt-partial-reception";
             }
-            if (!isdbt_layers.has_value() || !isdbt_layers.value().empty()) {
+            if (!isdbt_layers.has_value() || !isdbt_layers->empty()) {
                 opt += UString::Format(u" --isdbt-layers \"%s\"", isdbt_layers.value_or(DEFAULT_ISDBT_LAYERS));
             }
             if (layer_a_fec.has_value() && layer_a_fec != FEC_AUTO) {

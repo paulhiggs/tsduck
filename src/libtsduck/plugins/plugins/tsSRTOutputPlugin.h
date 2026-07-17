@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2020-2025, Lola Delannoy
+// Copyright (c) 2020-2026, Lola Delannoy
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -35,10 +35,10 @@ namespace ts {
     private:
         bool             _multiple = false;  // Accept multiple (sequential) connections.
         cn::milliseconds _restart_delay {};  // If _multiple, wait before reconnecting.
-        TSDatagramOutput _datagram {TSDatagramOutputOptions::ALLOW_RS204, this}; // Buffering TS packets.
-        SRTSocket        _sock {};           // Outgoing SRT socket.
+        TSDatagramOutput _datagram {*this, TSDatagramOutputOptions::ALLOW_RS204, this}; // Buffering TS packets.
+        SRTSocket        _sock {this};       // Outgoing SRT socket.
 
         // Implementation of TSDatagramOutputHandlerInterface.
-        virtual bool sendDatagram(const void* address, size_t size, Report& report) override;
+        virtual bool sendDatagram(const void* address, size_t size) override;
     };
 }

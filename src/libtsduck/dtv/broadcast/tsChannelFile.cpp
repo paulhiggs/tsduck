@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -13,7 +13,6 @@
 #include "tsxmlElement.h"
 #include "tsFileUtils.h"
 #include "tsErrCodeReport.h"
-#include "tsFatal.h"
 
 
 //----------------------------------------------------------------------------
@@ -52,9 +51,9 @@ ts::ChannelFile::ServicePtr ts::ChannelFile::TransportStream::serviceGetOrCreate
 ts::ChannelFile::ServicePtr ts::ChannelFile::TransportStream::serviceByName(const UString& name, bool strict) const
 {
     // Check if the name has "major.minor" syntax.
-    uint16_t majorId = 0;
-    uint16_t minorId = 0;
-    const bool atscId = !strict && name.scan(u"%d.%d", &majorId, &minorId);
+    uint16_t major_id = 0;
+    uint16_t minor_id = 0;
+    const bool atscId = !strict && name.scan(u"%d.%d", &major_id, &minor_id);
 
     // Now lookup all services in transport.
     for (size_t i = 0; i < _services.size(); ++i) {
@@ -62,7 +61,7 @@ ts::ChannelFile::ServicePtr ts::ChannelFile::TransportStream::serviceByName(cons
         assert(srv != nullptr);
         if ((strict && srv->name == name) ||
             (!strict && name.similar(srv->name)) ||
-            (atscId && srv->atscMajorId == majorId && srv->atscMinorId == minorId))
+            (atscId && srv->atscMajorId == major_id && srv->atscMinorId == minor_id))
         {
             return srv;
         }
@@ -88,7 +87,6 @@ bool ts::ChannelFile::TransportStream::addService(const ServicePtr& srv, ShareMo
         if (_services[i]->id == srv->id) {
             if (replace) {
                 _services[i] = copy == ShareMode::SHARE ? srv : std::make_shared<Service>(*srv);
-                CheckNonNull(_services[i].get());
                 return true;
             }
             else {
@@ -99,7 +97,6 @@ bool ts::ChannelFile::TransportStream::addService(const ServicePtr& srv, ShareMo
 
     // Add new service.
     _services.push_back(copy == ShareMode::SHARE ? srv : std::make_shared<Service>(*srv));
-    CheckNonNull(_services.back().get());
     return true;
 }
 
@@ -283,7 +280,7 @@ bool ts::ChannelFile::searchService(NetworkPtr& net,
 
 ts::UString ts::ChannelFile::fileDescription() const
 {
-    return _fileName.empty() ? u"channel database" : _fileName;
+    return _file_name.empty() ? u"channel database" : _file_name;
 }
 
 
@@ -304,27 +301,27 @@ ts::UString ts::ChannelFile::DefaultFileName()
 bool ts::ChannelFile::load(const UString& fileName, Report& report)
 {
     clear();
-    _fileName = fileName.empty() ? DefaultFileName() : fileName;
+    _file_name = fileName.empty() ? DefaultFileName() : fileName;
     xml::Document doc(report);
-    doc.setTweaks(_xmlTweaks);
-    return doc.load(_fileName, false) && parseDocument(doc);
+    doc.setTweaks(_xml_tweaks);
+    return doc.load(_file_name, false) && parseDocument(doc);
 }
 
 bool ts::ChannelFile::load(std::istream& strm, Report& report)
 {
     clear();
-    _fileName.clear();
+    _file_name.clear();
     xml::Document doc(report);
-    doc.setTweaks(_xmlTweaks);
+    doc.setTweaks(_xml_tweaks);
     return doc.load(strm) && parseDocument(doc);
 }
 
 bool ts::ChannelFile::parse(const UString& text, Report& report)
 {
     clear();
-    _fileName.clear();
+    _file_name.clear();
     xml::Document doc(report);
-    doc.setTweaks(_xmlTweaks);
+    doc.setTweaks(_xml_tweaks);
     return doc.parse(text) && parseDocument(doc);
 }
 
@@ -358,8 +355,7 @@ bool ts::ChannelFile::parseDocument(const xml::Document& doc)
     for (auto itnet : xnets) {
 
         // Build a new Network object at end of our list of networks.
-        const NetworkPtr net(new Network);
-        CheckNonNull(net.get());
+        const NetworkPtr net = std::make_shared<Network>();
         _networks.push_back(net);
 
         // Get network properties.
@@ -389,10 +385,9 @@ bool ts::ChannelFile::parseDocument(const xml::Document& doc)
 
                 // Loop on all children elements. Exactly one should be tuner parameters, others must be <service>.
                 for (const xml::Element* e = itts->firstChildElement(); e != nullptr; e = e->nextSiblingElement()) {
-                    if (e->name().similar(u"service")) {
+                    if (e->nameMatch(u"service")) {
                         // Get a service description.
-                        const ServicePtr srv(new Service);
-                        CheckNonNull(srv.get());
+                        const ServicePtr srv = std::make_shared<Service>();
 
                         // Get service properties.
                         success =
@@ -432,7 +427,7 @@ bool ts::ChannelFile::parseDocument(const xml::Document& doc)
 // Create XML file or text.
 //----------------------------------------------------------------------------
 
-bool ts::ChannelFile::save(const UString& fileName, bool createDirectories, Report& report) const
+bool ts::ChannelFile::save(const fs::path& fileName, bool createDirectories, Report& report) const
 {
     if (createDirectories) {
         const UString dir(DirectoryName(fileName));
@@ -440,14 +435,14 @@ bool ts::ChannelFile::save(const UString& fileName, bool createDirectories, Repo
     }
 
     xml::Document doc(report);
-    doc.setTweaks(_xmlTweaks);
+    doc.setTweaks(_xml_tweaks);
     return generateDocument(doc) && doc.save(fileName);
 }
 
 ts::UString ts::ChannelFile::toXML(Report& report) const
 {
     xml::Document doc(report);
-    doc.setTweaks(_xmlTweaks);
+    doc.setTweaks(_xml_tweaks);
     return generateDocument(doc) ? doc.toString() : UString();
 }
 
@@ -528,7 +523,7 @@ bool ts::ChannelFile::fromXML(ModulationArgs& mod, const xml::Element* elem, Tun
     if (elem == nullptr) {
         return false;
     }
-    else if (elem->name().similar(u"dvbs")) {
+    else if (elem->nameMatch(u"dvbs")) {
         mod.delivery_system = DS_DVB_S;
         return elem->getOptionalIntAttribute(mod.satellite_number, u"satellite", 0, 3) &&
                elem->getIntAttribute(mod.frequency, u"frequency", true) &&
@@ -544,7 +539,7 @@ bool ts::ChannelFile::fromXML(ModulationArgs& mod, const xml::Element* elem, Tun
                (mod.delivery_system == DS_DVB_S || elem->getOptionalIntAttribute<uint32_t>(mod.pls_code, u"PLS_code")) &&
                (mod.delivery_system == DS_DVB_S || elem->getOptionalEnumAttribute(mod.pls_mode, PLSModeEnum(), u"PLS_mode"));
     }
-    else if (elem->name().similar(u"dvbt")) {
+    else if (elem->nameMatch(u"dvbt")) {
         mod.delivery_system = DS_DVB_T;
         return elem->getIntAttribute(mod.frequency, u"frequency", true) &&
                elem->getEnumAttribute(mod.modulation, ModulationEnum(), u"modulation", false, QAM_64) &&
@@ -557,7 +552,7 @@ bool ts::ChannelFile::fromXML(ModulationArgs& mod, const xml::Element* elem, Tun
                elem->getOptionalEnumAttribute(mod.hierarchy, HierarchyEnum(), u"hierarchy") &&
                elem->getOptionalIntAttribute(mod.plp, u"PLP", 0, 255);
     }
-    else if (elem->name().similar(u"dvbc")) {
+    else if (elem->nameMatch(u"dvbc")) {
         mod.delivery_system = DS_DVB_C;
         return elem->getIntAttribute(mod.frequency, u"frequency", true) &&
                elem->getIntAttribute(mod.symbol_rate, u"symbolrate", false, 6900000) &&
@@ -566,13 +561,13 @@ bool ts::ChannelFile::fromXML(ModulationArgs& mod, const xml::Element* elem, Tun
                elem->getOptionalEnumAttribute(mod.inner_fec, InnerFECEnum(), u"FEC") &&
                elem->getOptionalEnumAttribute(mod.inversion, SpectralInversionEnum(), u"inversion");
     }
-    else if (elem->name().similar(u"atsc")) {
+    else if (elem->nameMatch(u"atsc")) {
         mod.delivery_system = DS_ATSC;
         return elem->getIntAttribute(mod.frequency, u"frequency", true) &&
                elem->getEnumAttribute(mod.modulation, ModulationEnum(), u"modulation", false, VSB_8) &&
                elem->getOptionalEnumAttribute(mod.inversion, SpectralInversionEnum(), u"inversion");
     }
-    else if (elem->name().similar(u"isdbt")) {
+    else if (elem->nameMatch(u"isdbt")) {
         mod.delivery_system = DS_ISDB_T;
         return elem->getIntAttribute(mod.frequency, u"frequency", true) &&
                GetLegacyBandWidth(mod.bandwidth, elem, u"bandwidth") &&
@@ -580,7 +575,7 @@ bool ts::ChannelFile::fromXML(ModulationArgs& mod, const xml::Element* elem, Tun
                elem->getOptionalEnumAttribute(mod.guard_interval, GuardIntervalEnum(), u"guard") &&
                elem->getOptionalEnumAttribute(mod.inversion, SpectralInversionEnum(), u"inversion");
     }
-    else if (elem->name().similar(u"isdbs")) {
+    else if (elem->nameMatch(u"isdbs")) {
         mod.delivery_system = DS_ISDB_S;
         mod.stream_id = ts_id;
         return elem->getOptionalIntAttribute(mod.satellite_number, u"satellite", 0, 3) &&

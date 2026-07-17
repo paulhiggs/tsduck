@@ -1,7 +1,7 @@
 ﻿#-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #-----------------------------------------------------------------------------
@@ -190,7 +190,7 @@ function Call-MSBuild ([string] $configuration, [string] $platform, [string] $ta
 $AllTargets = @(Select-String -Path "${ProjDir}\*.vcxproj" -Pattern '<RootNameSpace>' |
                 ForEach-Object { $_ -replace '.*<RootNameSpace> *','' -replace ' *</RootNameSpace>.*','' })
 $plugins = ($AllTargets | Select-String "^tsplugin_") -join ';'
-$commands = ($AllTargets | Select-String "^ts" | Select-String -NotMatch @("dll$", "lib$", "^tsplugin_", "^tsp_static$", "^tsmux$", "^tsprofiling$")) -join ';'
+$commands = ($AllTargets | Select-String "^ts" | Select-String -NotMatch @("dll$", "lib$", "^tsplugin_", "^tsp_static$")) -join ';'
 
 # Rebuild TSDuck.
 if ($Installer) {

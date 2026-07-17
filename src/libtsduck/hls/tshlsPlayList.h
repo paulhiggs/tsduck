@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -94,6 +94,26 @@ namespace ts::hls {
         bool loadText(const UString& text, bool strict = false, PlayListType type = PlayListType::UNKNOWN, Report& report = CERR);
 
         //!
+        //! Update the URL of the playlist.
+        //! @param [in] url URL from which to load the playlist.
+        //! @param [in,out] report Where to report errors.
+        //! @return True on success, false on error.
+        //!
+        bool setURL(const UString& url, Report& report = CERR);
+
+        //!
+        //! Update the URL of the playlist.
+        //! @param [in] url URL from which to load the playlist.
+        //!
+        void setURL(const URL& url);
+
+        //!
+        //! Update the file name of the playlist.
+        //! @param [in] filename File from which to load the playlist.
+        //!
+        void setFile(const UString& filename);
+
+        //!
         //! Reload a media playlist with updated content.
         //! Master playlists or media playlists for which endList() is true are never reloaded.
         //! Live playlists (media playlists for which endList() is false) are reloaded from the same URL.
@@ -104,6 +124,17 @@ namespace ts::hls {
         //! @return True on success, false on error.
         //!
         bool reload(bool strict = false, const WebRequestArgs& args = WebRequestArgs(), Report& report = CERR);
+
+        //!
+        //! Reload a media playlist with updated text content.
+        //! Master playlists or media playlists for which endList() is true are never reloaded.
+        //! New segments are added. If a segment hole is found, all previous content is replaced.
+        //! @param [in] text Text of the playlist (multi-lines).
+        //! @param [in] strict If true, perform strict conformance checking. By default, relaxed as long as we can understand the content.
+        //! @param [in,out] report Where to report errors.
+        //! @return True on success, false on error.
+        //!
+        bool reloadText(const UString& text, bool strict = false, Report& report = CERR);
 
         //!
         //! Set a directory name where all loaded files or URL are automatically saved.
@@ -133,7 +164,7 @@ namespace ts::hls {
         UString textContent(Report& report = CERR) const;
 
         //!
-        //! Get the orginal loaded text content of the playlist.
+        //! Get the original loaded text content of the playlist.
         //! This can be different from the current content of the playlist
         //! if the object has been modified.
         //! @return A constant reference to the original loaded text lines.
@@ -459,6 +490,12 @@ namespace ts::hls {
         // Load from the text content.
         bool parse(const UString& text, bool strict, Report& report);
         bool parse(bool strict, Report& report);
+
+        // Reload common code.
+        void reload(PlayList& new_pl, Report& report);
+
+        // Update the URL or file paths of all media segments or playlists.
+        void updateReferences();
 
         // Check if the line contains a valid tag or URI.
         bool getTag(const UString& line, Tag& tag, UString& params, bool strict, Report& report);

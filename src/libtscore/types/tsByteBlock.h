@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ namespace ts {
     //! This is a subclass of @c std::vector on @c uint8_t.
     //! @ingroup libtscore cpp
     //!
-    class ByteBlock : public std::vector<uint8_t>
+    class ByteBlock: public std::vector<uint8_t>
     {
     public:
         // Implementation note: This class is exported out of the TSDuck library
@@ -92,12 +92,13 @@ namespace ts {
         uint8_t* dataEnd() { return data() + size(); }
 
         //!
-        //! Find the first occurence of a byte value in a byte block.
+        //! Find the first occurrence of a byte value in a byte block.
         //! @param [in] value The byte value to search.
         //! @param [in] start Index where to start (at the beginning by default).
-        //! @return The index of the first occurence of @a value in the byte block or @a NPOS if not found.
+        //! @param [in] end Index where to stop the search (at the end by default).
+        //! @return The index of the first occurrence of @a value in the byte block or @a NPOS if not found.
         //!
-        TSCOREDLL size_type find(uint8_t value, size_type start = 0);
+        TSCOREDLL size_type find(uint8_t value, size_type start = 0, size_type end = NPOS) const;
 
         //!
         //! Replace the content of a byte block.
@@ -105,6 +106,14 @@ namespace ts {
         //! @param [in] size Size of the area to copy.
         //!
         TSCOREDLL void copy(const void* data, size_type size);
+
+        //!
+        //! Replace the content of a byte block from another byte block.
+        //! @param [in] bb Copy data from this byte block.
+        //! @param [in] start Start index in @a bb. Copy nothing if after end of @a bb.
+        //! @param [in] count Number of bytes to copy. Extra bytes afet end of @a bb are ignored.
+        //!
+        TSCOREDLL void copy(const ByteBlock& bb, size_type start = 0, size_type count = NPOS);
 
         //!
         //! Remove 'size' elements at index 'first'.
@@ -134,13 +143,12 @@ namespace ts {
         }
 
         //!
-        //! Append a byte block to a byte block.
-        //! @param [in] bb Byte block to append.
+        //! Append a slice of a byte block to a byte block.
+        //! @param [in] bb Append data from this byte block.
+        //! @param [in] start Start index in @a bb. Copy nothing if after end of @a bb.
+        //! @param [in] count Number of bytes to copy. Extra bytes afet end of @a bb are ignored.
         //!
-        void append(const ByteBlock& bb)
-        {
-            append(bb.data(), bb.size());
-        }
+        TSCOREDLL void append(const ByteBlock& bb, size_type start = 0, size_type count = NPOS);
 
         //!
         //! Append a string to a byte block.

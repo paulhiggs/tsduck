@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -227,7 +227,7 @@ bool ts::ArgsWithPlugins::analyze(const UString& app_name, const UStringVector& 
     const size_t proc_count = pluginCount(PluginType::PROCESSOR);
     const size_t out_count = pluginCount(PluginType::OUTPUT);
 
-    // Check min and max number of occurences of each plugin type.
+    // Check min and max number of occurrences of each plugin type.
     if (in_count < _min_inputs) {
         error(u"not enough input plugins, need at least %d", _min_inputs);
         return false;
@@ -336,7 +336,7 @@ void ts::ArgsWithPlugins::processListPlugins()
     const UString text(PluginRepository::Instance().listPlugins(true, *this, op));
 
     // Try to page, raw output otherwise.
-    OutputPager pager;
+    OutputPager pager(this);
     if ((getFlags() & HELP_ON_THIS) != 0) {
         // Use this report object.
         info(text);
@@ -345,11 +345,11 @@ void ts::ArgsWithPlugins::processListPlugins()
         // Compact output, no paging, no extra line.
         std::cout << text;
     }
-    else if ((getFlags() & NO_EXIT_ON_HELP) == 0 && pager.canPage() && pager.open(true, 0, *this)) {
+    else if ((getFlags() & NO_EXIT_ON_HELP) == 0 && pager.canPage() && pager.open(true, 0)) {
         // Paginated full output.
-        pager.write(text, *this);
-        pager.write(u"\n", *this);
-        pager.close(*this);
+        pager.write(text);
+        pager.write(u"\n");
+        pager.close();
     }
     else {
         // Non-paginated full output.

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ namespace ts {
     //! Bit masks options to load shared libraries.
     //! @ingroup system
     //!
-    enum class SharedLibraryFlags : uint16_t {
+    enum class SharedLibraryFlags: uint16_t {
         NONE      = 0x00,  //!< No option
         PERMANENT = 0x01,  //!< The shared library remains active when the SharedLibrary object is destroyed (unloaded otherwise).
     };

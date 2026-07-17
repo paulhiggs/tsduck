@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -115,15 +115,15 @@ int MainCode(int argc, char *argv[])
     }
 
     // Open the TS file.
-    ts::TSFile file;
-    if (!file.openRead(opt.infile, 1, 0, opt, opt.format)) {
+    ts::TSFile file(&opt);
+    if (!file.openRead(opt.infile, 1, 0, opt.format)) {
         return EXIT_FAILURE;
     }
 
     // Read all packets in the file and pass them to the PCR analyzer.
     ts::TSPacket pkt;
-    while (file.readPackets(&pkt, nullptr, 1, opt) > 0 && (!zer.feedPacket(pkt) || opt.all)) {}
-    file.close(opt);
+    while (file.readPackets(&pkt, nullptr, 1) > 0 && (!zer.feedPacket(pkt) || opt.all)) {}
+    file.close();
 
     // Display results.
     ts::PCRAnalyzer::Status status;

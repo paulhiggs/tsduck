@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         PSIMerger _psi_merger {duck, PSIMerger::NONE};  // Engine to merge PSI/SI.
@@ -151,7 +151,7 @@ bool ts::PSIMergePlugin::start()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::PSIMergePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::PSIMergePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     if ((_main_label > TSPacketLabelSet::MAX && !pkt_data.hasAnyLabel()) || pkt_data.hasLabel(_main_label)) {
         // This is a packet from the main stream.

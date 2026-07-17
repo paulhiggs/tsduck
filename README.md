@@ -26,7 +26,7 @@ In practice, TSDuck is used for:
   - Cheap DVB, ATSC or ISDB tuners (USB, PCI).
   - Professional [Dektec](https://www.dektec.com) devices, ASI, modulators (USB, PCI).
   - [HiDes](http://www.hides.com.tw/product_cg74469_eng.html) modulators (USB).
-  - [VATek](https://www.vatek.com.tw/A%20series/)-based modulators (USB) such as the
+  - [AstroMeta](https://www.astrometa.com.tw/A%20series/A_Series.html)-based USB modulators (formerly VATek) such as the
     [Suntechtv U3](https://www.suntechtv.com/web/Home/ProductDetail?key=e593s&productId=23673).
 - Re-route transport streams to other applications.
 - Extract specific encapsulated data (Teletext, T2-MI).
@@ -73,6 +73,7 @@ in the developer guide for more details.
 
 - On macOS, [use the Homebrew packager](https://tsduck.io/docs/tsduck-dev.html#macinstall): `brew install tsduck`
 - On Windows, [use winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/): `winget install tsduck`
+- On FreeBSD, [use FreeBSD Ports](https://tsduck.io/docs/tsduck-dev.html#freebsdinstall): `pkg install tsduck`
 
 Pre-built [binary packages](https://github.com/tsduck/tsduck/releases) are available
 for Windows and the very latest versions of some Linux distros (Fedora, RedHat and clones, Ubuntu, Debian),
@@ -95,5 +96,5 @@ using [PayPal](https://tsduck.io/donate/)
 TSDuck is distributed under the terms of the Simplified 2-Clause BSD License.
 See the file `LICENSE.txt` for details.
 
-*Copyright (c) 2005-2025, Thierry Lelegard*<br/>
+*Copyright (c) 2005-2026, Thierry Lelegard*<br/>
 *All rights reserved*

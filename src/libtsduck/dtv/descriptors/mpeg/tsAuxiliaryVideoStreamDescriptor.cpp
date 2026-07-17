@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2022-2025, Paul Higgs
+// Copyright (c) 2022-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -53,22 +53,22 @@ uint32_t ts::AuxiliaryVideoStreamDescriptor::si_message_type::get_message_size()
     const uint32_t _payload_type = payload_type.value();
     if (_payload_type == 0 || _payload_type == 1) {
         if (generic_params.has_value()) {
-            _size += generic_params.value().get_size();
+            _size += generic_params->get_size();
         }
     }
     if (_payload_type == 0) {
         if (depth_params.has_value()) {
-            _size += depth_params.value().get_size();
+            _size += depth_params->get_size();
         }
     }
     else if (_payload_type == 1) {
         if (parallax_params.has_value()) {
-            _size += parallax_params.value().get_size();
+            _size += parallax_params->get_size();
         }
     }
     else {
         if (reserved_si_message.has_value()) {
-            _size += uint32_t(reserved_si_message.value().size());
+            _size += uint32_t(reserved_si_message->size());
         }
     }
     return _size;
@@ -118,17 +118,17 @@ void ts::AuxiliaryVideoStreamDescriptor::si_message_type::serialize(PSIBuffer& b
     si_message_size.serialize(buf);
     if ((payload_type.value() == 0) || (payload_type.value() == 1)) {
         if (generic_params.has_value()) {
-            generic_params.value().serialize(buf);
+            generic_params->serialize(buf);
         }
     }
     if (payload_type.value() == 0) {
         if (depth_params.has_value()) {
-            depth_params.value().serialize(buf);
+            depth_params->serialize(buf);
         }
     }
     else if (payload_type.value() == 1) {
         if (parallax_params.has_value()) {
-            parallax_params.value().serialize(buf);
+            parallax_params->serialize(buf);
         }
     }
     else {
@@ -318,17 +318,17 @@ void ts::AuxiliaryVideoStreamDescriptor::si_message_type::toXML(xml::Element* ro
     root->setIntAttribute(u"payload_type", payload_type.value(), true);
     if ((payload_type.value() == 0) || (payload_type.value() == 1)) {
         if (generic_params.has_value()) {
-            generic_params.value().toXML(root->addElement(u"generic_params"));
+            generic_params->toXML(root->addElement(u"generic_params"));
         }
     }
     if (payload_type.value() == 0) {
         if (depth_params.has_value()) {
-            depth_params.value().toXML(root->addElement(u"depth_params"));
+            depth_params->toXML(root->addElement(u"depth_params"));
         }
     }
     else if (payload_type.value() == 1) {
         if (parallax_params.has_value()) {
-            parallax_params.value().toXML(root->addElement(u"parallax_params"));
+            parallax_params->toXML(root->addElement(u"parallax_params"));
         }
     }
     else {
@@ -353,24 +353,16 @@ void ts::AuxiliaryVideoStreamDescriptor::buildXML(DuckContext& duck, xml::Elemen
 
 bool ts::AuxiliaryVideoStreamDescriptor::si_message_type::generic_params_type::fromXML(const xml::Element* element)
 {
-    xml::ElementVector gp;
-    bool ok = element->getChildren(gp, u"generic_params", 1, 1) &&
-              gp[0]->getIntAttribute(position_offset_h, u"position_offset_h", true) &&
-              gp[0]->getIntAttribute(position_offset_v, u"position_offset_v", true);
-
-    if (ok) {
-        if (gp[0]->hasAttribute(u"aux_is_bottom_field") && gp[0]->hasAttribute(u"aux_is_interlaced")) {
-            element->report().error(u"only one of <aux_is_bottom_field> and <aux_is_interlaced> must be specified  in <%s>, line %d", element->name(), element->lineNumber());
+    bool ok = true;
+    for (auto& gp : element->children(u"generic_params", &ok, 1, 1)) {
+        ok = gp.getIntAttribute(position_offset_h, u"position_offset_h", true) &&
+             gp.getIntAttribute(position_offset_v, u"position_offset_v", true) &&
+             gp.getOptionalBoolAttribute(aux_is_bottom_field, u"aux_is_bottom_field") &&
+             gp.getOptionalBoolAttribute(aux_is_interlaced, u"aux_is_interlaced");
+        if (ok && aux_is_bottom_field.has_value() + aux_is_interlaced.has_value() != 1) {
+            element->report().error(u"exactly one of <aux_is_bottom_field> and <aux_is_interlaced> must be specified in <%s>, line %d", element->name(), element->lineNumber());
             ok = false;
         }
-        if (!gp[0]->hasAttribute(u"aux_is_bottom_field") && !gp[0]->hasAttribute(u"aux_is_interlaced")) {
-            element->report().error(u"either <aux_is_bottom_field> or <aux_is_interlaced> must be specified  in <%s>, line %d", element->name(), element->lineNumber());
-            ok = false;
-        }
-    }
-    if (ok) {
-        ok = gp[0]->getOptionalBoolAttribute(aux_is_bottom_field, u"aux_is_bottom_field") &&
-             gp[0]->getOptionalBoolAttribute(aux_is_interlaced, u"aux_is_interlaced");
     }
     return ok;
 }
@@ -458,19 +450,9 @@ bool ts::AuxiliaryVideoStreamDescriptor::si_message_type::fromXML(const xml::Ele
 
 bool ts::AuxiliaryVideoStreamDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    ts::xml::ElementVector si_msgs;
-    bool ok = element->getIntAttribute(aux_video_codedstreamtype, u"aux_video_codedstreamtype", true) &&
-              element->getChildren(si_msgs, u"si_message", 1);
-    if (ok) {
-        for (size_t i = 0; i < si_msgs.size(); i++) {
-            si_message_type newSI;
-            if (newSI.fromXML(si_msgs[i])) {
-                si_messages.push_back(newSI);
-            }
-            else {
-                ok = false;
-            }
-        }
+    bool ok = element->getIntAttribute(aux_video_codedstreamtype, u"aux_video_codedstreamtype", true);
+    for (auto& xsi : element->children(u"si_message", &ok, 1)) {
+        ok = si_messages.emplace_back().fromXML(&xsi);
     }
     return ok;
 }

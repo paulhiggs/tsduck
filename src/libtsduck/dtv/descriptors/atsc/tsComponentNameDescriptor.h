@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ namespace ts {
     //! @see ATSC A/65, section 6.9.7.
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL ComponentNameDescriptor : public AbstractDescriptor
+    class TSDUCKDLL ComponentNameDescriptor: public AbstractDescriptor
     {
     public:
         // Public members:

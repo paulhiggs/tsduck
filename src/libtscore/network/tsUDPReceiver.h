@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,13 +22,29 @@ namespace ts {
     //!
     class TSCOREDLL UDPReceiver: public UDPSocket
     {
-        TS_NOCOPY(UDPReceiver);
+        TS_NOBUILD_NOCOPY(UDPReceiver);
     public:
         //!
-        //! Constructor.
-        //! @param [in,out] report Where to report error.
+        //! Reference to the superclass.
         //!
-        explicit UDPReceiver(Report& report = CERR) : UDPSocket(false, IP::Any, report) {}
+        using SuperClass = UDPSocket;
+
+        //!
+        //! Constructor.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists or setReport() is used with another Report object. If @a report is null, log messages are discarded.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        explicit UDPReceiver(Report* report, bool non_blocking = false, Object* owner = nullptr);
+
+        //!
+        //! Constructor.
+        //! @param [in] delegate Use the report of another ReporterBase. If @a delegate is null, log messages are discarded.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        explicit UDPReceiver(ReporterBase* delegate, bool non_blocking = false, Object* owner = nullptr);
 
         //!
         //! Set UDP reception parameters.
@@ -49,24 +65,20 @@ namespace ts {
         //!
         void setReceiveTimeoutArg(cn::milliseconds timeout);
 
-        //!
-        //! Open the UDP receiver.
-        //! @param [in,out] report Where to report error.
-        //! @return True on success, false on error.
-        //!
-        bool open(Report& report = CERR);
-
         // Override UDPSocket methods
-        virtual bool open(IP gen, Report& report = CERR) override;
         virtual bool receive(void* data,
                              size_t max_size,
                              size_t& ret_size,
                              IPSocketAddress& sender,
                              IPSocketAddress& destination,
                              const AbortInterface* abort = nullptr,
-                             Report& report = CERR,
                              cn::microseconds* timestamp = nullptr,
-                             TimeStampType* timestamp_type = nullptr) override;
+                             TimeStampType* timestamp_type = nullptr,
+                             IOSB* iosb = nullptr) override;
+
+    protected:
+        // Implementation of Socket interface.
+        virtual bool openImplementation(IP gen) override;
 
     private:
         UDPReceiverArgs    _args {};          // Reception parameters (typically from the command line).

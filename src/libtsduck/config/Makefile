@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  Makefile for TSDuck library configuration files.
@@ -16,7 +16,7 @@ CONFIGS_DEST = $(addprefix $(BINDIR)/,$(CONFIGS_SRC))
 TABLES_SRC   = tsduck.tables.skeleton.xml
 TABLES_SUBS  = $(wildcard ../dtv/tables/*/*.xml ../dtv/descriptors/*/*.xml ../dtv/dsmcc/*.xml)
 TABLES_DEST  = $(BINDIR)/tsduck.tables.model.xml
-NAMES_SRC    = $(wildcard ../dtv/*/*.names ../dtv/*/*/*.names)
+NAMES_SRC    = $(wildcard ../dtv/*/*.names ../dtv/*/*/*.names ../mcast/*.names)
 NAMES_DEST   = $(BINDIR)/tsduck.dtv.names
 DEKTEC_DEST  = $(BINDIR)/tsduck.dektec.names
 

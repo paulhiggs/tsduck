@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ namespace ts {
     //! as a binary blob. A future version may chose to describe the internal
     //! structure of this data block.
     //!
-    class TSDUCKDLL MPEGH3DAudioCommandDescriptor : public AbstractDescriptor
+    class TSDUCKDLL MPEGH3DAudioCommandDescriptor: public AbstractDescriptor
     {
     public:
         // MPEGH3DAudioCommandDescriptor public members:

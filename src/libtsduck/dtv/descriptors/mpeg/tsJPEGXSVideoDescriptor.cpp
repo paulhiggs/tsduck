@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2023-2025, Paul Higgs
+// Copyright (c) 2023-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -100,7 +100,7 @@ void ts::JPEGXSVideoDescriptor::serializePayload(PSIBuffer& buf) const
     buf.putBit(mdm.has_value());
     buf.putBits(0x00, 6);
     if (mdm.has_value()) {
-        mdm.value().serialize(buf);
+        mdm->serialize(buf);
     }
     buf.putBytes(private_data);
 }
@@ -241,7 +241,7 @@ void ts::JPEGXSVideoDescriptor::buildXML(DuckContext& duck, xml::Element* root) 
     root->setBoolAttribute(u"still_mode", still_mode);
 
     if (mdm.has_value()) {
-        mdm.value().toXML(root->addElement(u"mdm"));
+        mdm->toXML(root->addElement(u"mdm"));
     }
     root->addHexaTextChild(u"private_data", private_data, true);
 }
@@ -253,46 +253,34 @@ void ts::JPEGXSVideoDescriptor::buildXML(DuckContext& duck, xml::Element* root) 
 
 bool ts::JPEGXSVideoDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector mdms;
-    bool ok =
-        element->getIntAttribute(descriptor_version, u"descriptor_version", true, 0, 0x00, 0x00) &&
-        element->getIntAttribute(horizontal_size, u"horizontal_size", true) &&
-        element->getIntAttribute(vertical_size, u"vertical_size", true) &&
-        element->getIntAttribute(brat, u"brat", true) &&
-        element->getIntAttribute(interlace_mode, u"interlace_mode", true, 0, 0, 0x03) &&
-        element->getEnumAttribute(framerate_DEN, FramerateDenominators(), u"framerate_DEN", true) &&
-        element->getIntAttribute(framerate_NUM, u"framerate_NUM", true) &&
-        element->getOptionalIntAttribute(sample_bitdepth, u"sample_bitdepth", 0, 0xF) &&
-        element->getOptionalIntAttribute(sampling_structure, u"sampling_structure", 0, 0xF) &&
-        element->getIntAttribute(Ppih, u"Ppih", true) &&
-        element->getIntAttribute(level, u"level", true) &&
-        element->getIntAttribute(sublevel, u"sublevel", true) &&
-        element->getIntAttribute(max_buffer_size, u"max_buffer_size", true) &&
-        element->getIntAttribute(buffer_model_type, u"buffer_model_type", true, 0, 2, 2) &&
-        element->getIntAttribute(colour_primaries, u"colour_primaries", true) &&
-        element->getIntAttribute(transfer_characteristics, u"transfer_characteristics", true) &&
-        element->getIntAttribute(matrix_coefficients, u"matrix_coefficients", true) &&
-        element->getBoolAttribute(video_full_range_flag, u"video_full_range_flag", true) &&
-        element->getBoolAttribute(still_mode, u"still_mode", true) &&
-        element->getHexaTextChild(private_data, u"private_data", false) &&
-        element->getChildren(mdms, u"mdm", 0, 1);
+    bool ok = element->getIntAttribute(descriptor_version, u"descriptor_version", true, 0, 0x00, 0x00) &&
+              element->getIntAttribute(horizontal_size, u"horizontal_size", true) &&
+              element->getIntAttribute(vertical_size, u"vertical_size", true) &&
+              element->getIntAttribute(brat, u"brat", true) &&
+              element->getIntAttribute(interlace_mode, u"interlace_mode", true, 0, 0, 0x03) &&
+              element->getEnumAttribute(framerate_DEN, FramerateDenominators(), u"framerate_DEN", true) &&
+              element->getIntAttribute(framerate_NUM, u"framerate_NUM", true) &&
+              element->getOptionalIntAttribute(sample_bitdepth, u"sample_bitdepth", 0, 0xF) &&
+              element->getOptionalIntAttribute(sampling_structure, u"sampling_structure", 0, 0xF) &&
+              element->getIntAttribute(Ppih, u"Ppih", true) &&
+              element->getIntAttribute(level, u"level", true) &&
+              element->getIntAttribute(sublevel, u"sublevel", true) &&
+              element->getIntAttribute(max_buffer_size, u"max_buffer_size", true) &&
+              element->getIntAttribute(buffer_model_type, u"buffer_model_type", true, 0, 2, 2) &&
+              element->getIntAttribute(colour_primaries, u"colour_primaries", true) &&
+              element->getIntAttribute(transfer_characteristics, u"transfer_characteristics", true) &&
+              element->getIntAttribute(matrix_coefficients, u"matrix_coefficients", true) &&
+              element->getBoolAttribute(video_full_range_flag, u"video_full_range_flag", true) &&
+              element->getBoolAttribute(still_mode, u"still_mode", true) &&
+              element->getHexaTextChild(private_data, u"private_data", false);
 
-    if (ok) {
-        if ((sample_bitdepth.has_value() && !sampling_structure.has_value()) ||
-            (!sample_bitdepth.has_value() && sampling_structure.has_value())) {
-            element->report().error(u"neither or both of sample_bitdepth and sampling_structure are to be signalled  in <%s> at line %d", element->name(), element->lineNumber());
-            ok = false;
-        }
+    if (ok && sample_bitdepth.has_value() + sampling_structure.has_value() == 1) {
+        element->report().error(u"neither or both of sample_bitdepth and sampling_structure are to be signalled in <%s> at line %d", element->name(), element->lineNumber());
+        ok = false;
     }
 
-    if (ok) {
-        if (!mdms.empty()) {
-            Mastering_Display_Metadata_type newMDM;
-            ok = newMDM.fromXML(mdms[0]);
-            if (ok) {
-                mdm = newMDM;
-            }
-        }
+    for (auto& child : element->children(u"mdm", &ok, 0, 1)) {
+        ok = mdm.emplace().fromXML(&child);
     }
     return ok;
 }

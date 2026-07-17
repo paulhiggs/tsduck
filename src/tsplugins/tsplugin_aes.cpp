@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -42,7 +42,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         using CipherPtr = std::shared_ptr<BlockCipher>;
@@ -168,25 +168,61 @@ bool ts::AESPlugin::getOptions()
         return false;
     }
     if (present(u"cbc")) {
-        _chain = key.size() == AES128::KEY_SIZE ? CipherPtr(new CBC<AES128>) : CipherPtr(new CBC<AES256>);
+        if (key.size() == AES128::KEY_SIZE) {
+            _chain = std::make_shared<CBC<AES128>>();
+        }
+        else {
+            _chain = std::make_shared<CBC<AES256>>();
+        }
     }
     else if (present(u"cts1")) {
-        _chain = key.size() == AES128::KEY_SIZE ? CipherPtr(new CTS1<AES128>) : CipherPtr(new CTS1<AES256>);
+        if (key.size() == AES128::KEY_SIZE) {
+            _chain = std::make_shared<CTS1<AES128>>();
+        }
+        else {
+            _chain = std::make_shared<CTS1<AES256>>();
+        }
     }
     else if (present(u"cts2")) {
-        _chain = key.size() == AES128::KEY_SIZE ? CipherPtr(new CTS2<AES128>) : CipherPtr(new CTS2<AES256>);
+        if (key.size() == AES128::KEY_SIZE) {
+            _chain = std::make_shared<CTS2<AES128>>();
+        }
+        else {
+            _chain = std::make_shared<CTS2<AES256>>();
+        }
     }
     else if (present(u"cts3")) {
-        _chain = key.size() == AES128::KEY_SIZE ? CipherPtr(new CTS3<AES128>) : CipherPtr(new CTS3<AES256>);
+        if (key.size() == AES128::KEY_SIZE) {
+            _chain = std::make_shared<CTS3<AES128>>();
+        }
+        else {
+            _chain = std::make_shared<CTS3<AES256>>();
+        }
     }
     else if (present(u"cts4")) {
-        _chain = key.size() == AES128::KEY_SIZE ? CipherPtr(new CTS4<AES128>) : CipherPtr(new CTS4<AES256>);
+        if (key.size() == AES128::KEY_SIZE) {
+            _chain = std::make_shared<CTS4<AES128>>();
+        }
+        else {
+            _chain = std::make_shared<CTS4<AES256>>();
+        }
     }
     else if (present(u"dvs042")) {
-        _chain = key.size() == AES128::KEY_SIZE ? CipherPtr(new DVS042<AES128>) : CipherPtr(new DVS042<AES256>);
+        if (key.size() == AES128::KEY_SIZE) {
+            _chain = std::make_shared<DVS042<AES128>>();
+        }
+        else {
+            _chain = std::make_shared<DVS042<AES256>>();
+        }
     }
     else {
-        _chain = key.size() == AES128::KEY_SIZE ? CipherPtr(new ECB<AES128>) : CipherPtr(new ECB<AES256>);
+        // Default mode is ECB.
+        if (key.size() == AES128::KEY_SIZE) {
+            _chain = std::make_shared<ECB<AES128>>();
+        }
+        else {
+            _chain = std::make_shared<ECB<AES256>>();
+        }
     }
 
     // Get AES key
@@ -354,7 +390,7 @@ void ts::AESPlugin::processPMT(PMT& pmt)
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::AESPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::AESPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     const PID pid = pkt.getPID();
 

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -19,14 +19,14 @@ namespace ts {
     //! Template message queue for inter-thread communication with priority.
     //! @ingroup libtscore thread
     //!
-    //! The ts::MessagePriorityQueue template class implements a synchronized
-    //! access to a shared queue of generic messages. Each message has a priority.
-    //! Messages with higher priority are deqeued first. Messages with equal
-    //! priority are dequeued in their enqueueing order.
+    //! This class implements a synchronized access to a shared queue of generic messages.
+    //! Each message has a priority. Messages with higher priority are deqeued first.
+    //! Messages with equal priority are dequeued in their enqueueing order.
     //!
     //! @tparam MSG The type of the messages to exchange.
-    //! @tparam COMPARE A function object to sort @a MSG instances. By default,
-    //! the '<' operator on @a MSG is used.
+    //! @tparam COMPARE A function object to sort @a MSG instances. When a message is "before"
+    //! or "less than" another message, it will be dequeued first (it has a higher priority).
+    //! By default, the '<' operator on @a MSG is used.
     //!
     template <typename MSG, class COMPARE = std::less<MSG>>
     class MessagePriorityQueue: public MessageQueue<MSG>
@@ -36,15 +36,15 @@ namespace ts {
         //!
         //! Constructor.
         //!
-        //! @param [in] maxMessages Maximum number of messages in the queue.
+        //! @param [in] max_messages Maximum number of messages in the queue.
         //! When a thread attempts to enqueue a message and the queue is full,
         //! the thread waits until at least one message is dequeued.
-        //! If @a maxMessages is 0, the queue is unlimited. In that case,
+        //! If @a max_messages is 0, the queue is unlimited. In that case,
         //! the logic of the application must ensure that the queue is
         //! bounded somehow, otherwise the queue may exhaust all the process
         //! memory.
         //!
-        MessagePriorityQueue(size_t maxMessages = 0) : SuperClass(maxMessages) {}
+        MessagePriorityQueue(size_t max_messages = 0) : SuperClass(max_messages) {}
 
     protected:
         //!
@@ -76,19 +76,17 @@ ts::MessagePriorityQueue<MSG, COMPARE>::enqueuePlacement(const typename SuperCla
     auto loc = list.end();
 
     // Null pointers are stored at end (anywhere else would be probably fine).
-    if (msg == nullptr) {
-        return loc;
-    }
-
-    // Loop until the previous element is lower that msg.
-    while (loc != list.begin()) {
-        const auto cur = loc;
-        --loc;
-        if (*loc != nullptr && !COMPARE()(*msg, **loc)) {
-            return cur;
+    if (msg != nullptr) {
+        // Loop until the previous element is lower that msg.
+        // When reached begin of list, all elements are greater than msg.
+        while (loc != list.begin()) {
+            const auto cur = loc;
+            --loc;
+            if (*loc != nullptr && !COMPARE()(*msg, **loc)) {
+                loc = cur;
+                break;
+            }
         }
     }
-
-    // Reached begin of list, all elements are greater than msg.
     return loc;
 }

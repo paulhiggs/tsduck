@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -26,7 +26,7 @@ namespace ts {
     //! value can be in decibels or percentage. So, this structure contains many
     //! different fields which can be set or not.
     //!
-    class TSDUCKDLL SignalState : public StringifyInterface, public DisplayInterface
+    class TSDUCKDLL SignalState: public StringifyInterface, public DisplayInterface
     {
     public:
         //!
@@ -43,7 +43,7 @@ namespace ts {
         //! Since different operating systems or drivers may return different units,
         //! there is no standard way to represent values. Each value comes with its unit.
         //!
-        class TSDUCKDLL Value : public StringifyInterface
+        class TSDUCKDLL Value: public StringifyInterface
         {
         public:
             int64_t value;  //!< The value.

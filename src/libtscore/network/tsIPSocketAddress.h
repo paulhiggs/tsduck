@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ namespace ts {
         //! @param [in] addr Address.
         //! @param [in] port Port number as an integer in host byte order.
         //!
-        IPSocketAddress(const IPAddress addr, Port port) :
+        IPSocketAddress(const IPAddress& addr, Port port) :
             IPAddress(addr),
             _port(port)
         {}
@@ -202,7 +202,7 @@ namespace ts {
         //!
         //! Remove the port number from a "addr[:port]" or "[addr:]port" string.
         //! @param [in,out] name A string where the port number is removed.
-        //! 
+        //!
         static void RemovePort(UString& name);
 
         //!

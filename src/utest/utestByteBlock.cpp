@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -32,7 +32,7 @@ public:
     virtual void afterTest() override;
 
 private:
-    fs::path _tempFileName {};
+    fs::path _temp_file_name {};
 };
 
 TSUNIT_REGISTER(ByteBlockTest);
@@ -42,19 +42,19 @@ TSUNIT_REGISTER(ByteBlockTest);
 // Initialization.
 //----------------------------------------------------------------------------
 
-// Test suite initialization method.
+// Test initialization method.
 void ByteBlockTest::beforeTest()
 {
-    if (_tempFileName.empty()) {
-        _tempFileName = ts::TempFile(u".tmp.xml");
+    if (_temp_file_name.empty()) {
+        _temp_file_name = ts::TempFile(u".tmp.xml");
     }
-    fs::remove(_tempFileName, &ts::ErrCodeReport());
+    fs::remove(_temp_file_name, &ts::ErrCodeReport());
 }
 
-// Test suite cleanup method.
+// Test cleanup method.
 void ByteBlockTest::afterTest()
 {
-    fs::remove(_tempFileName, &ts::ErrCodeReport());
+    fs::remove(_temp_file_name, &ts::ErrCodeReport());
 }
 
 
@@ -70,6 +70,7 @@ namespace {
         ts::ByteBlock b = ts::ByteBlock(13, 42);
     };
 }
+
 TSUNIT_DEFINE_TEST(Constructors)
 {
     ts::ByteBlock v1;
@@ -254,10 +255,10 @@ TSUNIT_DEFINE_TEST(File)
     });
 
     TSUNIT_EQUAL(999, bb.size());
-    TSUNIT_ASSERT(bb.saveToFile(_tempFileName));
+    TSUNIT_ASSERT(bb.saveToFile(_temp_file_name));
 
     ts::ByteBlock bb1;
-    TSUNIT_ASSERT(bb1.loadFromFile(_tempFileName));
+    TSUNIT_ASSERT(bb1.loadFromFile(_temp_file_name));
 
     TSUNIT_EQUAL(999, bb1.size());
     TSUNIT_ASSERT(bb1 == bb);

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -94,7 +94,7 @@ namespace ts {
     //! method section of the ISO/IEC13818-1 standard. It indicates the CRC value
     //! for the entire section.
     //!
-    class TSDUCKDLL DLT : public AbstractTable
+    class TSDUCKDLL DLT: public AbstractTable
     {
     public:
         // DLT public members:

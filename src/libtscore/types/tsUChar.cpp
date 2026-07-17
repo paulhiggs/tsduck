@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -16,13 +16,13 @@
 // Only the constructor needs to be separately defined.
 //----------------------------------------------------------------------------
 
-#define MAP_SINGLETON(classname, key_type, value_type)      \
-    class classname : public std::map<key_type, value_type> \
-    {                                                       \
-        TS_SINGLETON(classname);                            \
-    public:                                                 \
-        using SuperClass = std::map<key_type, value_type>;  \
-    };                                                      \
+#define MAP_SINGLETON(classname, key_type, value_type)     \
+    class classname: public std::map<key_type, value_type> \
+    {                                                      \
+        TS_SINGLETON(classname);                           \
+    public:                                                \
+        using SuperClass = std::map<key_type, value_type>; \
+    };                                                     \
     TS_DEFINE_SINGLETON(classname)
 
 

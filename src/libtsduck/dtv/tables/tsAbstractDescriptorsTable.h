@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -20,7 +20,7 @@ namespace ts {
     //! Base class for MPEG tables containing only a list of descriptors (eg. CAT, TSDT).
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL AbstractDescriptorsTable : public AbstractLongTable
+    class TSDUCKDLL AbstractDescriptorsTable: public AbstractLongTable
     {
     public:
         DescriptorList descs; //!< List of descriptors.

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -37,7 +37,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Default values.
@@ -97,14 +97,14 @@ namespace ts {
         PacketCounter      _ts_packets = 0;     // All TS packets in period.
         PIDContextMap      _pids {};            // PID's description in period.
         ServiceContextMap  _services {};        // Services descriptions.
-        InfluxSender       _server {*this};     // Send requests to InfluxDB server.
+        InfluxSender       _server {this};      // Send requests to InfluxDB server.
 
         // Get the representable name of a service, from an iterator in _service.
         UString serviceName(const ServiceContextMap::value_type&) const;
 
         // Report metrics to InfluxDB.
         void reportMetrics(bool force);
-        void reportMetrics(Time timestamp, cn::milliseconds duration);
+        void reportMetrics(const Time& timestamp, cn::milliseconds duration);
 
         // Build metrics string for a given type of timestamp.
         void addTimestampMetrics(InfluxRequest& req, const UChar* measurement, PID ServiceContext::* refpid, uint64_t PIDContext::* value, uint16_t tsid);
@@ -290,7 +290,7 @@ bool ts::InfluxPlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::InfluxPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::InfluxPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Feed the clock.
     _ts_clock.feedPacket(pkt, pkt_data);
@@ -425,10 +425,10 @@ void ts::InfluxPlugin::reportMetrics(bool force)
 // Report metrics to InfluxDB using known timestamp and duration.
 //----------------------------------------------------------------------------
 
-void ts::InfluxPlugin::reportMetrics(Time timestamp, cn::milliseconds duration)
+void ts::InfluxPlugin::reportMetrics(const Time& timestamp, cn::milliseconds duration)
 {
     // Build data to post. Use a shared pointer to send to the message queue.
-    auto req = std::make_shared<InfluxRequest>(*this, _influx_args);
+    auto req = std::make_shared<InfluxRequest>(this, _influx_args);
     req->start(timestamp);
 
     // The total TS bitrate is always present and first.

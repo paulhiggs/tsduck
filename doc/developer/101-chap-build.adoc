@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -27,6 +27,7 @@ The packaging of installers, when available, is also "native":
 `.deb` packages on Ubuntu, Debian and the like,
 Homebrew distribution on macOS,
 NSIS-based executable installers on Windows.
+TSDuck also provides native support for https://nixos.org[Nix] on Linux and macOS.
 
 [#building]
 === Building TSDuck
@@ -35,7 +36,7 @@ TSDuck can be built on Windows, Linux, macOS and BSD systems.
 
 Support for Dektec devices, DVB tuners and HiDes modulators is implemented only on Windows and Linux.
 MacOS and BSD systems can only support files and networking for TS input and output.
-VATek-based modulators, however, are supported on all platforms.
+AstroMeta-based modulators, however, are supported on all platforms.
 
 Some protocols such as SRT and RIST require external libraries which may
 not be available on all platforms or all versions of a specific distro.
@@ -63,6 +64,12 @@ TSDuck has been tested on the following operating systems on at least one CPU ar
 |FreeBSD, OpenBSD, NetBSD, DragonFlyBSD
 
 |===
+
+CAUTION: On OpenBSD and DragonFlyBSD, there is a mixture of LibreSSL as core cryptographic
+library and several simultaneous versions of OpenSSL in the package manager.
+As a consequence, building or running TSDuck may fail in some configurations.
+This inconvenience is expected to disappear when LibreSSL in the core OS is replaced
+with a recent, stable and complete version of OpenSSL.
 
 TSDuck has been tested on the following CPU architectures on at least one operating system.
 
@@ -131,6 +138,113 @@ TSDuck has been tested with the following compilers on at least one operating sy
 |===
 
 The required minimum version of each compiler depends on a correct implementation of {cpp}20.
+
+[#winbuild]
+==== Building on Windows systems
+
+On Windows systems, building a TSDuck installer simply means executing the PowerShell script `pkg\nsis\build-installer.ps1`.
+More details and options are provided in the next sections.
+
+[#reqwindows]
+===== Pre-requisites
+
+Operations in this section must be run once, before building TSDuck for the first time one a given Windows system.
+It should also be run to get up-to-date versions of the build tools and libraries which are used by TSDuck.
+
+First, install Visual Studio Community Edition.
+This is the free version of Visual Studio.
+It can be downloaded https://www.visualstudio.com/downloads/[here].
+If you already have Visual Studio Enterprise Edition (the commercial version),
+it is fine, no need to install the Community Edition.
+
+Then, execute the PowerShell script `scripts\install-prerequisites.ps1`.
+It downloads and installs the requested packages which are necessary to build TSDuck on Windows.
+
+If you prefer to collect the various installers yourself, follow the links to
+http://nsis.sourceforge.net/Download[NSIS downloads],
+https://git-scm.com/download/win[Git downloads],
+https://github.com/Haivision/srt/releases/latest[SRT downloads],
+https://github.com/tsduck/rist-installer/releases/latest[RIST downloads],
+https://www.dektec.com/downloads/SDK[Dektec downloads],
+https://github.com/VisionAdvanceTechnologyInc/vatek_sdk_2/releases/latest[AstroMeta downloads],
+https://adoptium.net/[Java downloads],
+https://www.python.org/downloads/windows/[Python downloads],
+http://www.doxygen.org/download.html[Doxygen downloads],
+https://graphviz.gitlab.io/_pages/Download/Download_windows.html[Graphviz downloads].
+
+TSDuck now requires a {cpp}20 compliant compiler.
+{cpp}20 support started with Visual Studio 2022, maybe 2019.
+We recommend to use Visual Studio 2022.
+
+[#buildwindows]
+===== Building the binaries without installer
+
+Execute the PowerShell script `scripts\build.ps1`.
+The TSDuck binaries, executables and DLL's, are built in directories named `bin\<target>-<platform>`,
+for instance `bin\Release-x64`, `bin\Debug-Win32`, or `bin\Release-ARM64`.
+
+By default, the binaries are produced for the same architecture as the build system (typically Win64).
+To build for other targets, run the build script from a PowerShell window and add one or more options from
+`-Win32`, `-Win64`, `-Arm64`.
+
+TIP: If you want to build the Arm64 version from an Intel Windows system, do not forget to install the
+latest version of the ARM64 build tools and libraries from the "individual components" list in the
+Visual Studio installer program. Be careful to select "ARM64" or "ARM64/ARM64EC" tools.
+Do not select "ARM" build tools, they target Arm32 architectures.
+
+To cleanup the repository tree and return to a pristine source state,
+execute the PowerShell script `scripts\cleanup.ps1`.
+
+[#instwindows]
+===== Building the Windows installers
+
+Execute the PowerShell script `pkg\nsis\build-installer.ps1`.
+
+As with `scripts\build.ps1`, only one installer is built by default, for the same architecture as the build system.
+To build other installers, run the build script from a PowerShell window and add one or more options from
+`-Win32`, `-Win64`, `-Arm64`.
+
+There is no need to build the TSDuck binaries before building the installers.
+Building the binaries, is part of the installer build.
+
+All installation packages are dropped into the subdirectory `pkg/installers`.
+The packages are not deleted by the cleanup procedures. They are not pushed
+into the git repository either.
+
+[#nonstdinstwin]
+===== Installing in non-standard locations
+
+On systems where you have no administration privilege and consequently no right to use the standard installers,
+you may want to manually install TSDuck is some arbitrary directory.
+
+On Windows systems, a so-called _portable_ package is built with the installers.
+This is a zip archive file which can be expanded anywhere.
+It is automatically built by `pkg\nsis\build-installer.ps1`, in addition to the executable installer.
+
+[#runbuildwin]
+===== Running from the build location
+
+It is sometimes useful to run a TSDuck binary, `tsp` or any other, directly from the build directory, right after compilation.
+This can be required for testing or debugging.
+
+The commands can be run using their complete path without additional setup.
+For instance, to run the released 64-bit version of `tsp`, use:
+
+[source,powershell]
+----
+PS D:\tsduck> bin\Release-x64\tsp.exe --version
+tsp: TSDuck - The MPEG Transport Stream Toolkit - version 3.12-730
+----
+
+For other combinations (release vs. debug and 32 vs. 64 bits), the paths from the repository root are:
+
+[source,powershell]
+----
+bin\Release-x64\tsp.exe
+bin\Release-Win32\tsp.exe
+bin\Debug-x64\tsp.exe
+bin\Debug-Win32\tsp.exe
+----
 
 [#unixbuild]
 ==== Building on {unix}
@@ -211,7 +325,7 @@ To force a build with LLVM/Clang instead of GCC, defined the `make` variable `LL
 
 The minimum required version for Clang is 17.0.
 {cpp}20 support in Clang was gradually included from versions 8 to 16.
-However, just like GCC 11, the initial versions are buggy and TSDuck can be built only woth Clang 17 onwards.
+However, just like GCC 11, the initial versions are buggy and TSDuck can be built only with Clang 17 onwards.
 
 [source,shell]
 ----
@@ -391,11 +505,11 @@ with the GNU libc. Non-Intel systems (for instance Arm-based devices such as Ras
 cannot use Dektec devices. Similarly, Intel-based distros using a non-standard libc
 (for instance Alpine Linux which uses musl libc) cannot use Dektec devices either.
 
-*VATek API:* On Linux, the command `make` at the top level will automatically download the
-Linux version of the VATek API from the GitHub. There is currectly no Linux package for
-the VATek API in the standard distros. On Windows and macOS, binary packages are available
-and are installed by the `install-prerequisites` scripts. Using VATek devices on BSD systems
-is currently not supported but should work if necessary (accessing VATek devices is performed
+*AstroMeta API:* On Linux, the command `make` at the top level will automatically download the
+Linux version of the AstroMeta API from the GitHub. There is currectly no Linux package for
+the AstroMeta API in the standard distros. On Windows and macOS, binary packages are available
+and are installed by the `install-prerequisites` scripts. Using AstroMeta devices on BSD systems
+is currently not supported but should work if necessary (accessing AstroMeta devices is performed
 through `libusb` and not a specific kernel driver).
 
 [#buildunix]
@@ -436,7 +550,7 @@ The following `make` variables can be defined:
 |NOTEST |Do not build unitary tests.
 |NODEKTEC |No Dektec device support, remove dependency to `DTAPI`.
 |NOHIDES |No HiDes device support.
-|NOVATEK |No VATek device support (modulators based on VATek chips), remove dependency to `libvatek`.
+|NOVATEK |No AstroMeta device support (modulators based on AstroMeta chips, formerly VATek), remove dependency to `libvatek`.
 |NOOPENSSL |No cryptographic support, remove dependency to `openssl`.
 |NOZLIB |Don't use zlib, use embedded "Small Deflate" instead, remove dependency to `zlib`.
 |NOSDEFL |Don't build "Small Deflate", only in case of compilation issue.
@@ -699,111 +813,66 @@ $ scripts/setenv.sh --display
 
 Use `scripts/setenv.sh --help` for other options.
 
-[#winbuild]
-==== Building on Windows systems
+[#nixbuild]
+==== Building with Nix
 
-On Windows systems, building a TSDuck installer simply means executing the PowerShell script `pkg\nsis\build-installer.ps1`.
-More details and options are provided in the next sections.
+TSDuck provides native https://nixos.org[Nix] flakes for Linux and macOS.
+Nix must be installed on your system with Flakes support enabled.
 
-[#reqwindows]
-===== Pre-requisites
+To build from the original TSDuck repository, use one of the following commands:
 
-Operations in this section must be run once, before building TSDuck for the first time one a given Windows system.
-It should also be run to get up-to-date versions of the build tools and libraries which are used by TSDuck.
-
-First, install Visual Studio Community Edition.
-This is the free version of Visual Studio.
-It can be downloaded https://www.visualstudio.com/downloads/[here].
-If you already have Visual Studio Enterprise Edition (the commercial version),
-it is fine, no need to install the Community Edition.
-
-Then, execute the PowerShell script `scripts\install-prerequisites.ps1`.
-It downloads and installs the requested packages which are necessary to build TSDuck on Windows.
-
-If you prefer to collect the various installers yourself, follow the links to
-http://nsis.sourceforge.net/Download[NSIS downloads],
-https://git-scm.com/download/win[Git downloads],
-https://github.com/Haivision/srt/releases/latest[SRT downloads],
-https://github.com/tsduck/rist-installer/releases/latest[RIST downloads],
-https://www.dektec.com/downloads/SDK[Dektec downloads],
-https://github.com/VisionAdvanceTechnologyInc/vatek_sdk_2/releases/latest[VATek downloads],
-https://adoptium.net/[Java downloads],
-https://www.python.org/downloads/windows/[Python downloads],
-http://www.doxygen.org/download.html[Doxygen downloads],
-https://graphviz.gitlab.io/_pages/Download/Download_windows.html[Graphviz downloads].
-
-TSDuck now requires a {cpp}20 compliant compiler.
-{cpp}20 support started with Visual Studio 2022, maybe 2019.
-We recommend to use Visual Studio 2022.
-
-[#buildwindows]
-===== Building the binaries without installer
-
-Execute the PowerShell script `scripts\build.ps1`.
-The TSDuck binaries, executables and DLL's, are built in directories named `bin\<target>-<platform>`,
-for instance `bin\Release-x64`, `bin\Debug-Win32`, or `bin\Release-ARM64`.
-
-By default, the binaries are produced for the same architecture as the build system (typically Win64).
-To build for other targets, run the build script from a PowerShell window and add one or more options from
-`-Win32`, `-Win64`, `-Arm64`.
-
-TIP: If you want to build the Arm64 version from an Intel Windows system, do not forget to install the
-latest version of the ARM64 build tools and libraries from the "individual components" list in the
-Visual Studio installer program. Be careful to select "ARM64" or "ARM64/ARM64EC" tools.
-Do not select "ARM" build tools, they target Arm32 architectures.
-
-To cleanup the repository tree and return to a pristine source state,
-execute the PowerShell script `scripts\cleanup.ps1`.
-
-[#instwindows]
-===== Building the Windows installers
-
-Execute the PowerShell script `pkg\nsis\build-installer.ps1`.
-
-As with `scripts\build.ps1`, only one installer is built by default, for the same architecture as the build system.
-To build other installers, run the build script from a PowerShell window and add one or more options from
-`-Win32`, `-Win64`, `-Arm64`.
-
-There is no need to build the TSDuck binaries before building the installers.
-Building the binaries, is part of the installer build.
-
-All installation packages are dropped into the subdirectory `pkg/installers`.
-The packages are not deleted by the cleanup procedures. They are not pushed
-into the git repository either.
-
-[#nonstdinstwin]
-===== Installing in non-standard locations
-
-On systems where you have no administration privilege and consequently no right to use the standard installers,
-you may want to manually install TSDuck is some arbitrary directory.
-
-On Windows systems, a so-called _portable_ package is built with the installers.
-This is a zip archive file which can be expanded anywhere.
-It is automatically built by `pkg\nsis\build-installer.ps1`, in addition to the executable installer.
-
-[#runbuildwin]
-===== Running from the build location
-
-It is sometimes useful to run a TSDuck binary, `tsp` or any other, directly from the build directory, right after compilation.
-This can be required for testing or debugging.
-
-The commands can be run using their complete path without additional setup.
-For instance, to run the released 64-bit version of `tsp`, use:
-
-[source,powershell]
+[source,shell]
 ----
-PS D:\tsduck> bin\Release-x64\tsp.exe --version
-tsp: TSDuck - The MPEG Transport Stream Toolkit - version 3.12-730
+$ nix build github:tsduck/tsduck?dir=pkg/nix              # latest on master
+$ nix build github:tsduck/tsduck/<tag|branch>?dir=pkg/nix # specific tag or branch
+$ nix build github:tsduck/tsduck?dir=pkg/nix#tsduck-min   # minimal, no hardware
 ----
 
-For other combinations (release vs. debug and 32 vs. 64 bits), the paths from the repository root are:
+For local development, use the following sequence of commands:
 
-[source,powershell]
+[source,shell]
 ----
-bin\Release-x64\tsp.exe
-bin\Release-Win32\tsp.exe
-bin\Debug-x64\tsp.exe
-bin\Debug-Win32\tsp.exe
+$ git clone https://github.com/tsduck/tsduck.git
+$ cd tsduck
+$ nix build ./pkg/nix
+$ nix develop ./pkg/nix
+----
+
+To build the default TSDuck package:
+
+[source,shell]
+----
+$ nix build ./pkg/nix
+----
+
+To build a specific variant, use the `#` fragment to select the package name:
+
+[source,shell]
+----
+$ nix build ./pkg/nix#tsduck-min           # no hardware support
+$ nix build ./pkg/nix#python-tsduck       # Python bindings (against tsduck)
+$ nix build ./pkg/nix#python-tsduck-min   # Python bindings (against tsduck-min)
+$ nix build ./pkg/nix#java-tsduck         # Java bindings (against tsduck)
+$ nix build ./pkg/nix#java-tsduck-min     # Java bindings (against tsduck-min)
+----
+
+The build result will be available in the `./result` symlink.
+
+Nix provides development shells with all build dependencies pre-configured:
+
+[source,shell]
+----
+$ nix develop ./pkg/nix          # Main development shell with all tools
+$ nix develop ./pkg/nix#python   # Python environment with TSDuck bindings
+----
+
+Within the development shell, you can use traditional build commands:
+
+[source,shell]
+----
+$ nix develop ./pkg/nix
+[nix-shell]$ make
+[nix-shell]$ make test
 ----
 
 [#instfiles]
@@ -893,6 +962,23 @@ It also takes some time to generate.
 Therefore, the Programming Reference is neither built by default nor installed with the rest of TSDuck.
 Every night, a fresh copy is generated and published online at {home}doxy[].
 
+==== Building on Windows
+
+The user guide and the developer guide are built using the PowerShell script `doc\build-doc.ps1`.
+The HTML and PDF files are built in subdirectory `bin\doc`.
+By default, they are automatically opened using the default HTML and PDF viewers of the system.
+
+Because the two guides are installed with the rest of TSDuck,
+this script is automatically executed as part of the script `pkg\nsis\build-installer.ps1`.
+
+The programming reference is built using the PowerShell script `doc\doxy\build-doxygen.ps1`.
+The set of files is built in subdirectory `bin\doxy\html`.
+By default, the start page is automatically opened using the default HTML viewer of the system.
+
+When used in an automation system, the two scripts `doc\build-doc.ps1` and `pkg\nsis\build-installer.ps1`
+can be called with options `-NoOpen -NoPause` to skip the opening of documents using the default viewers
+and exit without waiting for a user to close the command window.
+
 ==== Building on {unix}
 
 The user guide and the developer guide are built using the target `docs`.
@@ -936,23 +1022,6 @@ $ make doxygen
 ----
 
 The set of files is built in subdirectory `bin/doxy/html`.
-
-==== Building on Windows
-
-The user guide and the developer guide are built using the PowerShell script `doc\build-doc.ps1`.
-The HTML and PDF files are built in subdirectory `bin\doc`.
-By default, they are automatically opened using the default HTML and PDF viewers of the system.
-
-Because the two guides are installed with the rest of TSDuck,
-this script is automatically executed as part of the script `pkg\nsis\build-installer.ps1`.
-
-The programming reference is built using the PowerShell script `doc\doxy\build-doxygen.ps1`.
-The set of files is built in subdirectory `bin\doxy\html`.
-By default, the start page is automatically opened using the default HTML viewer of the system.
-
-When used in an automation system, the two scripts `doc\build-doc.ps1` and `pkg\nsis\build-installer.ps1`
-can be called with options `-NoOpen -NoPause` to skip the opening of documents using the default viewers
-and exit without waiting for a user to close the command window.
 
 //----------------------------------------------------------------------------
 [#installing]
@@ -1139,10 +1208,24 @@ $ make -j10 NODOC=1
 $ sudo make install NODOC=1
 ----
 
-[#bsdinstall]
-==== Installing on BSD systems
+[#freebsdinstall]
+==== Installing on FreeBSD systems
 
-There is currently no installer for FreeBSD, OpenBSD, NetBSD, DragonFlyBSD.
+Starting with version 3.43, TSDuck is part of FreeBSD Ports.
+It can be installed using the `pkg` command:
+
+[source,shell]
+----
+$ sudo pkg install tsduck
+----
+
+NOTE: TSDuck is supposed to be included the April 2026 "Quarterly" branch of FreeBSD Ports.
+Before that date, use the "Latest" branch to get the `tsduck` package.
+
+[#bsdinstall]
+==== Installing on other BSD systems
+
+There is currently no installer for OpenBSD, NetBSD, DragonFlyBSD.
 You need to build and install as follow:
 
 [source,shell]
@@ -1152,3 +1235,84 @@ $ sudo gmake install
 ----
 
 Note that GNU Make (`gmake`) shall be used instead of the standard BSD `make`.
+
+[#nixinstall]
+==== Installing with Nix
+
+TSDuck can be installed using the https://nixos.org[Nix package manager] on Linux, macOS, and BSD systems.
+Nix provides reproducible, declarative package management with automatic dependency resolution.
+
+===== Installing TSDuck
+
+Install TSDuck into your user profile:
+
+[source,shell]
+----
+$ nix profile add github:tsduck/tsduck?dir=pkg/nix
+----
+
+Depending on your Nix configuration, you may have to add the option `--no-write-lock-file`.
+
+[source,shell]
+----
+$ nix profile add --no-write-lock-file github:tsduck/tsduck?dir=pkg/nix
+----
+
+===== Run TSDuck without Install
+Or run TSDuck commands without installation:
+
+[source,shell]
+----
+$ nix run github:tsduck/tsduck?dir=pkg/nix
+$ nix run github:tsduck/tsduck?dir=pkg/nix#tsp -- --help
+----
+
+Launch a Python REPL with TSDuck bindings:
+
+[source,shell]
+----
+$ nix run ./pkg/nix#python
+>>> import tsduck
+>>> print(tsduck.version())
+----
+
+===== Installing a specific version
+
+A git ref (tag or branch) can be placed between the repository name and the
+`?dir=pkg/nix` parameter to install an exact version:
+
+[source,shell]
+----
+$ nix profile add github:tsduck/tsduck/v3.40?dir=pkg/nix            # a tagged release
+$ nix profile add github:tsduck/tsduck/develop?dir=pkg/nix          # a branch
+$ nix profile add github:tsduck/tsduck/v3.40?dir=pkg/nix#tsduck-min # tag + variant
+----
+
+When no ref is given, Nix defaults to the repository's default branch (typically `master`).
+
+===== Installing specific variants
+
+Install the minimal build (no hardware device support):
+
+[source,shell]
+----
+$ nix profile add github:tsduck/tsduck?dir=pkg/nix#tsduck-min
+----
+
+Install Python bindings.  Each variant has a matching Python package so that
+the baked `libtsduck` path is consistent:
+
+[source,shell]
+----
+$ nix profile add github:tsduck/tsduck?dir=pkg/nix#python-tsduck       # against tsduck
+$ nix profile add github:tsduck/tsduck?dir=pkg/nix#python-tsduck-min   # against tsduck-min
+----
+
+Install Java bindings.  As with Python, each tsduck variant has a matching
+Java package:
+
+[source,shell]
+----
+$ nix profile add github:tsduck/tsduck?dir=pkg/nix#java-tsduck       # against tsduck
+$ nix profile add github:tsduck/tsduck?dir=pkg/nix#java-tsduck-min   # against tsduck-min
+----

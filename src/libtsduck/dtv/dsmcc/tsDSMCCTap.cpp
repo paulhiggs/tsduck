@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -187,7 +187,7 @@ bool ts::DSMCCTap::fromXML(DuckContext& duck, const xml::Element* parent, const 
 
     }
     if (ok && (!selector_type.has_value() || selector_type == DSMCC_TAPSELTYPE_MESSAGE)) {
-        const xml::Element* sbytes = e->findFirstChild(u"selector_bytes", true);
+        const xml::Element* sbytes = e->findFirstChild(u"selector_bytes");
         if (sbytes != nullptr) {
             parent->report().error(u"line %d: in <%s>, <selector_bytes> allowed only when selector_type is present and not %d", sbytes->lineNumber(), e->name(), DSMCC_TAPSELTYPE_MESSAGE);
             ok = false;

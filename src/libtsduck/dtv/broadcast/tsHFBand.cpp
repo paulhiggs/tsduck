@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -53,15 +53,14 @@ ts::UStringList ts::HFBand::GetAllBands(const UString& region, Report& report)
 
 ts::HFBand::ChannelsRangeList::const_iterator ts::HFBand::getRange(uint32_t channel) const
 {
-    for (auto it = _channels.begin(); it != _channels.end(); ++it) {
-        if (channel < it->first_channel) {
-            return _channels.end();
-        }
-        else if (channel <= it->last_channel) {
-            return it;
+    auto result = _channels.end();
+    for (auto it = _channels.begin(); it != _channels.end() && channel >= it->first_channel; ++it) {
+        if (channel <= it->last_channel) {
+            result = it;
+            break;
         }
     }
-    return _channels.end();
+    return result;
 }
 
 
@@ -353,14 +352,9 @@ ts::HFBand::HFBandPtr ts::HFBand::FromXML(const xml::Element* elem)
 {
     // Get the content of the <hfband> element.
     UString band_type;
-    xml::ElementVector xregions;
-    xml::ElementVector xchannels;
-    bool success =
-        elem->getAttribute(band_type, u"type", true) &&
-        elem->getChildren(xregions, u"region", 1) &&
-        elem->getChildren(xchannels, u"channels", 1);
+    bool ok = elem->getAttribute(band_type, u"type", true);
 
-    if (!success) {
+    if (!ok) {
         elem->report().error(u"Error in <%s> at line %d", elem->name(), elem->lineNumber());
         return HFBandPtr();
     }
@@ -369,30 +363,28 @@ ts::HFBand::HFBandPtr ts::HFBand::FromXML(const xml::Element* elem)
     HFBandPtr hf(new HFBand(band_type));
 
     // Build list of regions.
-    for (const auto& it : xregions) {
+    for (auto& xregion : elem->children(u"region", &ok, 1)) {
         UString name;
-        if (it->getAttribute(name, u"name", true)) {
+        if (xregion.getAttribute(name, u"name", true)) {
             hf->_regions.push_back(name);
         }
         else {
-            success = false;
+            ok = false;
         }
     }
 
     // Build ranges of channels.
-    for (const auto& it : xchannels) {
+    for (auto& xchannel : elem->children(u"channels", &ok, 1)) {
         ChannelsRange chan;
-        const bool ok =
-            it->getIntAttribute(chan.first_channel, u"first_channel", true) &&
-            it->getIntAttribute(chan.last_channel, u"last_channel", true, 0, chan.first_channel) &&
-            it->getIntAttribute(chan.base_frequency, u"base_frequency", true) &&
-            it->getIntAttribute(chan.channel_width, u"channel_width", true) &&
-            it->getIntAttribute(chan.first_offset, u"first_offset", false, 0) &&
-            it->getIntAttribute(chan.last_offset, u"last_offset", false, 0, chan.first_offset) &&
-            it->getIntAttribute(chan.offset_width, u"offset_width", false, 0) &&
-            it->getEnumAttribute(chan.even_polarity, PolarizationEnum(), u"even_polarity", false, POL_NONE) &&
-            it->getEnumAttribute(chan.odd_polarity, PolarizationEnum(), u"odd_polarity", false, POL_NONE);
-        success = success && ok;
+        ok = xchannel.getIntAttribute(chan.first_channel, u"first_channel", true) &&
+             xchannel.getIntAttribute(chan.last_channel, u"last_channel", true, 0, chan.first_channel) &&
+             xchannel.getIntAttribute(chan.base_frequency, u"base_frequency", true) &&
+             xchannel.getIntAttribute(chan.channel_width, u"channel_width", true) &&
+             xchannel.getIntAttribute(chan.first_offset, u"first_offset", false, 0) &&
+             xchannel.getIntAttribute(chan.last_offset, u"last_offset", false, 0, chan.first_offset) &&
+             xchannel.getIntAttribute(chan.offset_width, u"offset_width", false, 0) &&
+             xchannel.getEnumAttribute(chan.even_polarity, PolarizationEnum(), u"even_polarity", false, POL_NONE) &&
+             xchannel.getEnumAttribute(chan.odd_polarity, PolarizationEnum(), u"odd_polarity", false, POL_NONE);
         if (ok) {
             // Insert the channels range in the list.
             // Make "next" point after expected position of new channels range.
@@ -401,8 +393,8 @@ ts::HFBand::HFBandPtr ts::HFBand::FromXML(const xml::Element* elem)
                 ++next;
             }
             if (next != hf->_channels.end() && next->first_channel <= chan.last_channel) {
-                elem->report().error(u"overlapping channel numbers, line %s", it->lineNumber());
-                success = false;
+                elem->report().error(u"overlapping channel numbers, line %s", xchannel.lineNumber());
+                ok = false;
             }
             else {
                 hf->_channels.insert(next, chan);
@@ -411,7 +403,7 @@ ts::HFBand::HFBandPtr ts::HFBand::FromXML(const xml::Element* elem)
         }
     }
 
-    return success ? hf : HFBandPtr();
+    return ok ? hf : HFBandPtr();
 }
 
 

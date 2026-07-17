@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -12,7 +12,6 @@
 #include "tsCRC32.h"
 #include "tsSHA1.h"
 #include "tsMemory.h"
-#include "tsFatal.h"
 
 
 //----------------------------------------------------------------------------
@@ -164,7 +163,7 @@ void ts::Section::reload(TID tid, bool is_private_section, const void* payload, 
 {
     clear();
     if (SHORT_SECTION_HEADER_SIZE + payload_size <= MAX_PRIVATE_SECTION_SIZE) {
-        ByteBlockPtr data(new ByteBlock(SHORT_SECTION_HEADER_SIZE + payload_size));
+        auto data = std::make_shared<ByteBlock>(SHORT_SECTION_HEADER_SIZE + payload_size);
         PutUInt8(data->data(), tid);
         PutUInt16(data->data() + 1, (is_private_section ? 0x4000 : 0x0000) | 0x3000 | uint16_t (payload_size & 0x0FFF));
         MemCopy(data->data() + 3, payload, payload_size);
@@ -192,7 +191,7 @@ void ts::Section::reload(TID tid,
     if (section_number <= last_section_number && version <= 31 &&
         LONG_SECTION_HEADER_SIZE + payload_size + SECTION_CRC32_SIZE <= MAX_PRIVATE_SECTION_SIZE)
     {
-        ByteBlockPtr data(new ByteBlock(LONG_SECTION_HEADER_SIZE + payload_size + SECTION_CRC32_SIZE));
+        auto data = std::make_shared<ByteBlock>(LONG_SECTION_HEADER_SIZE + payload_size + SECTION_CRC32_SIZE);
         PutUInt8(data->data(), tid);
         PutUInt16(data->data() + 1,
                   0x8000 | (is_private_section ? 0x4000 : 0x0000) | 0x3000 |
@@ -592,7 +591,6 @@ std::istream& ts::Section::read(std::istream& strm, CRC32::Validation crc_op, Re
     if (insize == 3) {
         secsize += GetUInt16(header + 1) & 0x0FFF;
         secdata = std::make_shared<ByteBlock>(secsize);
-        CheckNonNull(secdata.get());
         MemCopy(secdata->data(), header, 3);
         strm.read(reinterpret_cast <char*>(secdata->data() + 3), std::streamsize(secsize - 3));
         insize += size_t(strm.gcount());

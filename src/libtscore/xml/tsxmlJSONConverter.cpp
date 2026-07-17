@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -14,7 +14,6 @@
 #include "tsjsonNumber.h"
 #include "tsjsonObject.h"
 #include "tsjsonString.h"
-#include "tsFatal.h"
 
 const ts::UString ts::xml::JSONConverter::HashName(u"#name");
 const ts::UString ts::xml::JSONConverter::HashNodes(u"#nodes");
@@ -50,7 +49,7 @@ ts::json::ValuePtr ts::xml::JSONConverter::convertToJSON(const Document& source,
     else {
         // Ignore the model if the model root has a different name from the source root.
         const Element* modelRoot = rootElement();
-        if (modelRoot != nullptr && !modelRoot->name().similar(docRoot->name())) {
+        if (modelRoot != nullptr && !modelRoot->nameMatch(docRoot)) {
             modelRoot = nullptr;
         }
 
@@ -74,8 +73,7 @@ ts::json::ValuePtr ts::xml::JSONConverter::convertToJSON(const Document& source,
 ts::json::ValuePtr ts::xml::JSONConverter::convertElementToJSON(const Element* model, const Element* source, const Tweaks& xml_tweaks) const
 {
     // Build the JSON object for the node.
-    json::ValuePtr jobj(new json::Object());
-    CheckNonNull(jobj.get());
+    json::ValuePtr jobj = std::make_shared<json::Object>();
     jobj->add(HashName, source->name());
 
     // Get all attributes of the XML element.
@@ -145,7 +143,10 @@ ts::json::ValuePtr ts::xml::JSONConverter::convertElementToJSON(const Element* m
         }
 
         // Add the attribute in the JSON object.
-        jobj->add(it.first, jvalue);
+        // Note: all attributes names are converted to lowercase. This is quite questionable.
+        // However, this was an unfortunate side effect of a previous implementation. Because the
+        // attribute name may be used in many existing JSON parsers, we keep the previous behavior.
+        jobj->add(it.first.toLower(), jvalue);
     }
 
     // Process the list of children, if any.
@@ -164,8 +165,7 @@ ts::json::ValuePtr ts::xml::JSONConverter::convertElementToJSON(const Element* m
 ts::json::ValuePtr ts::xml::JSONConverter::convertChildrenToJSON(const Element* model, const Element* parent, const Tweaks& xml_tweaks) const
 {
     // All JSON children are placed in an array.
-    json::ValuePtr jchildren(new json::Array());
-    CheckNonNull(jchildren.get());
+    json::ValuePtr jchildren = std::make_shared<json::Array>();
 
     // Content of the text children in the model.
     UString textModel;

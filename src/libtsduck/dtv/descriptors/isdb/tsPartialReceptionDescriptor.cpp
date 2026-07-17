@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -96,13 +96,9 @@ void ts::PartialReceptionDescriptor::buildXML(DuckContext& duck, xml::Element* r
 
 bool ts::PartialReceptionDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xserv;
-    bool ok = element->getChildren(xserv, u"service", 0, 127);
-
-    for (auto it = xserv.begin(); ok && it != xserv.end(); ++it) {
-        uint16_t id = 0;
-        ok = (*it)->getIntAttribute(id, u"id", true);
-        service_ids.push_back(id);
+    bool ok = true;
+    for (auto& child : element->children(u"service", &ok, 0, 127)) {
+        ok = child.getIntAttribute(service_ids.emplace_back(), u"id", true);
     }
     return ok;
 }

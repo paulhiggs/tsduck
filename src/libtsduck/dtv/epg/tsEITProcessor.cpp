@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -11,8 +11,6 @@
 #include "tsSection.h"
 #include "tsTime.h"
 #include "tsMJD.h"
-#include "tsFatal.h"
-#include "tsAlgorithm.h"
 
 
 //----------------------------------------------------------------------------
@@ -334,8 +332,7 @@ void ts::EITProcessor::handleSection(SectionDemux& demux, const Section& section
 
     // At this point, we need to keep the section.
     // Build a copy of it for insertion in the queue.
-    const SectionPtr sp(new Section(section, ShareMode::COPY));
-    CheckNonNull(sp.get());
+    const SectionPtr sp = std::make_shared<Section>(section, ShareMode::COPY);
 
     // Update the section if this is an EIT.
     if (is_eit) {

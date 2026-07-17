@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -50,7 +50,10 @@ TSUNIT_REGISTER(TimeTest);
 TSUNIT_DEFINE_TEST(Time)
 {
     ts::Time t1;
-    debug() << "TimeTest: Default constructor: " << t1 << std::endl;
+    cn::milliseconds ms;
+    debug() << "TimeTest: sizeof(Time): " << sizeof(ts::Time) << ", sizeof(instance): " << sizeof(t1) << std::endl
+            << "TimeTest: sizeof(cn::milliseconds): " << sizeof(cn::milliseconds) << ", sizeof(instance): " << sizeof(ms) << std::endl
+            << "TimeTest: Default constructor: " << t1 << std::endl;
     TSUNIT_ASSERT(t1 == ts::Time::Epoch);
 }
 

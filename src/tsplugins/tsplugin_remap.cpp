@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -33,7 +33,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         using CyclingPacketizerPtr = std::shared_ptr<CyclingPacketizer>;
@@ -138,7 +138,7 @@ ts::RemapPlugin::CyclingPacketizerPtr ts::RemapPlugin::getPacketizer(PID pid, bo
         return it->second;
     }
     else if (create) {
-        const CyclingPacketizerPtr ptr(new CyclingPacketizer(duck, pid, CyclingPacketizer::StuffingPolicy::ALWAYS));
+        const auto ptr = std::make_shared<CyclingPacketizer>(duck, pid, CyclingPacketizer::StuffingPolicy::ALWAYS);
         _pzer.insert(std::make_pair(pid, ptr));
         return ptr;
     }
@@ -227,7 +227,7 @@ void ts::RemapPlugin::handleTable(SectionDemux& demux, const BinaryTable& table)
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::RemapPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::RemapPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     const PID pid = pkt.getPID();
     const PID new_pid = remap(pid);

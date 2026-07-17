@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -255,13 +255,13 @@ ts::Time ts::PSIBuffer::getMJD(MJDFormat mjd_fmt)
     const size_t size = MJDSize(mjd_fmt);
     if (readError() || !readIsByteAligned() || (mjd_fmt != MJD_DATE && mjd_fmt != MJD_FULL) || remainingReadBytes() < size) {
         setReadError();
-        return Time::Epoch;
+        result = Time::Epoch;
     }
     else {
         DecodeMJD(currentReadAddress(), mjd_fmt, result);
         skipBytes(size);
-        return result;
     }
+    return result;
 }
 
 

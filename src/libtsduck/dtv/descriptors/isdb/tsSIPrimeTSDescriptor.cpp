@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -130,19 +130,15 @@ void ts::SIPrimeTSDescriptor::buildXML(DuckContext& duck, xml::Element* root) co
 
 bool ts::SIPrimeTSDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xtables;
-    bool ok =
-        element->getIntAttribute(parameter_version, u"parameter_version", true) &&
-        element->getDateAttribute(update_time, u"update_time", true) &&
-        element->getIntAttribute(SI_prime_TS_network_id, u"SI_prime_TS_network_id", true) &&
-        element->getIntAttribute(SI_prime_transport_stream_id, u"SI_prime_transport_stream_id", true) &&
-        element->getChildren(xtables, u"table");
+    bool ok = element->getIntAttribute(parameter_version, u"parameter_version", true) &&
+              element->getDateAttribute(update_time, u"update_time", true) &&
+              element->getIntAttribute(SI_prime_TS_network_id, u"SI_prime_TS_network_id", true) &&
+              element->getIntAttribute(SI_prime_transport_stream_id, u"SI_prime_transport_stream_id", true);
 
-    for (auto it = xtables.begin(); ok && it != xtables.end(); ++it) {
-        Entry entry;
-        ok = (*it)->getIntAttribute(entry.table_id, u"id", true) &&
-             (*it)->getHexaText(entry.table_description, 0, 255);
-        entries.push_back(entry);
+    for (auto& child : element->children(u"table", &ok)) {
+        auto& entry(entries.emplace_back());
+        ok = child.getIntAttribute(entry.table_id, u"id", true) &&
+             child.getHexaText(entry.table_description, 0, 255);
     }
     return ok;
 }

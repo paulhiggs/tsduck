@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ namespace ts {
     //! Can be used as a bit mask.
     //! @ingroup cpp
     //!
-    enum class Replacement : uint8_t {
+    enum class Replacement: uint8_t {
         NONE    = 0x00,  //!< No known standard
         UPDATE  = 0x01,  //!< Update data structures with similar "identifier".
         REPLACE = 0x02,  //!< Replace data structures with similar "identifier".

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -44,7 +44,7 @@ The command receives seven additional parameters:
 4. The string `in` or `out` for splice in / splice out command.
 5. The adjusted PTS value in the splice command.
 6. Pre-roll time in milliseconds. This is the time between the first occurrence of a splice command and the corresponding event.
-7. Number of occurences of the command before the event.
+7. Number of occurrences of the command before the event.
 
 [.optdoc]
 These parameters can be used or ignored by the alarm command.
@@ -87,6 +87,12 @@ Specify a maximum number of repetitions for each splice command.
 
 [.optdoc]
 See option `--alarm-command` for the processing of non-nominal cases.
+
+[.opt]
+*--meta-base64-sections*
+
+[.optdoc]
+Add a Base-64 dump of each section in the XML and JSON metadata.
 
 [.opt]
 *--meta-sections*

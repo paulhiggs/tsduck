@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -20,7 +20,7 @@ namespace ts::hls {
     //! Description of a media segment in an HLS playlist.
     //! @ingroup libtsduck hls
     //!
-    class TSDUCKDLL MediaSegment : public MediaElement
+    class TSDUCKDLL MediaSegment: public MediaElement
     {
         TS_RULE_OF_FIVE(MediaSegment, override);
     public:

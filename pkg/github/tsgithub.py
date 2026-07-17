@@ -2,7 +2,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  This Python module shall be imported by all scripts in this directory
@@ -88,6 +88,10 @@ class repository:
     def check_opt_final(self):
         if len(self.argv) > 1:
             self.fatal('extraneous options: %s' % ' '.join(self.argv[1:]))
+
+    # Get all remaining command line arguments.
+    def get_remaining_args(self):
+        return self.argv[1:]
 
     # Message reporting.
     def verbose(self, message):

@@ -1,14 +1,13 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tsPCSC.h"
 #include "tsSysUtils.h"
-#include "tsFatal.h"
 #include "tsMemory.h"
 #include "tsFeatures.h"
 
@@ -70,7 +69,6 @@ bool ts::pcsc::Success(::LONG status, Report& report)
     // Get the list of smartcard readers
 
     char* names = new char[names_size];
-    CheckNonNull (names);
     status = ::SCardListReaders(context, nullptr, names, &names_size);
 
     // Build the string vector
@@ -97,14 +95,12 @@ bool ts::pcsc::Success(::LONG status, Report& report)
     // Allocate and initializes a structure array
 
     ::SCARD_READERSTATE* c_states = new ::SCARD_READERSTATE[states.size()];
-    CheckNonNull(c_states);
-
-    std::vector<std::string> utf8Names(states.size());
+    std::vector<std::string> utf8_names(states.size());
 
     for (size_t i = 0; i < states.size(); ++i) {
         TS_ZERO(c_states[i]);
-        utf8Names[i] = states[i].reader.toUTF8();
-        c_states[i].szReader = utf8Names[i].c_str();
+        utf8_names[i] = states[i].reader.toUTF8();
+        c_states[i].szReader = utf8_names[i].c_str();
         c_states[i].dwCurrentState = states[i].current_state;
         c_states[i].cbAtr = ::DWORD(std::min(sizeof(c_states[i].rgbAtr), states[i].atr.size()));
         MemCopy(c_states[i].rgbAtr, states[i].atr.data(), c_states[i].cbAtr);

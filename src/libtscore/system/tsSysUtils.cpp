@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -10,6 +10,7 @@
 #include "tsFileUtils.h"
 #include "tsTime.h"
 #include "tsArgs.h"
+#include "tsInitZero.h"
 
 #if defined(TS_WINDOWS)
     #include "tsWinUtils.h"
@@ -57,6 +58,70 @@
 #if defined(TS_WINDOWS) && defined(TS_MSC)
     #pragma comment(lib, "psapi.lib")  // GetProcessMemoryInfo
 #endif
+
+
+//----------------------------------------------------------------------------
+// Translate an error code, mapping to some portable code.
+//----------------------------------------------------------------------------
+
+int ts::TranslateError(int code)
+{
+    // On UNIX and Windows, zero is the usual success code, directly equivalent to SYS_SUCCESS.
+#if defined(TS_WINDOWS)
+    // Warning: do not use SUCCEEDED(code). It works only on HRESULT values and considers that
+    // bit 31 equals to zero means success, which is incorrect for all GetLastError() values.
+    if (code == ERROR_OPERATION_ABORTED) {
+        return SYS_CANCELED;
+    }
+    else if (code == WSAECONNRESET || code == WSAEDISCON || code == ERROR_HANDLE_EOF || code == ERROR_BROKEN_PIPE || code == ERROR_NO_DATA) {
+        // Various types of "end of file", or "end of communication" when the partner disconnected or broke.
+        // ERROR_NO_DATA (= 232) means "the pipe is being closed". It is returned when a pipe is closing.
+        return SYS_EOF;
+    }
+    else if (code == ERROR_IO_PENDING || code == WSA_IO_PENDING) {
+        // ERROR_IO_PENDING and WSA_IO_PENDING may be the same.
+        return SYS_PENDING_IO;
+    }
+#else
+    if (code == EPIPE) {
+        // UNIX has no real errno for eof, read() returns zero.
+        // Broken pipe is the only explicit eof status.
+        return SYS_EOF;
+    }
+    else if (code == EAGAIN || code == EWOULDBLOCK || code == EINPROGRESS) {
+        // Usually EAGAIN and EWOULDBLOCK are the same. They indicate blocking I/O.
+        // EINPROGRESS is usually for connect(). It indicates asynchronous I/O.
+        return SYS_PENDING_IO;
+    }
+#endif
+
+    // Other non-translatable codes.
+    return code;
+}
+
+
+//----------------------------------------------------------------------------
+// Format a system error code into a string.
+//----------------------------------------------------------------------------
+
+std::string ts::SysErrorCodeMessage(int code, const std::error_category* category)
+{
+    // With the default category, try the synthetic code first.
+    if (category == nullptr) {
+        switch (code) {
+            case SYS_SUCCESS:    return "success";
+            case SYS_ERROR:      return "unknown error";
+            case SYS_CANCELED:   return "canceled";
+            case SYS_EOF:        return "end of file";
+            case SYS_REJECTED:   return "rejected";
+            case SYS_PENDING_IO: return "pending I/O";
+            default: break;
+        }
+    }
+
+    // Standard implementation.
+    return std::error_code(code, category != nullptr ? *category : std::system_category()).message();
+}
 
 
 //----------------------------------------------------------------------------
@@ -184,10 +249,9 @@ fs::path ts::CallerLibraryFile()
     // Get return address of current function (in caller code).
     void* const ret = __builtin_return_address(0);
     // Get the shared library into which this address can be found.
-    ::Dl_info info;
-    TS_ZERO(info);
-    if (ret != nullptr && ::dladdr(ret, &info) != 0 && info.dli_fname != nullptr) {
-        return fs::path(info.dli_fname);
+    InitZero<::Dl_info> info;
+    if (ret != nullptr && ::dladdr(ret, &info.data) != 0 && info.data.dli_fname != nullptr) {
+        return fs::path(info.data.dli_fname);
     }
     else {
         return fs::path();
@@ -258,12 +322,11 @@ size_t ts::GetProcessVirtualSize()
 {
 #if defined(TS_WINDOWS)
 
-    ::PROCESS_MEMORY_COUNTERS_EX mem_counters;
-    TS_ZERO(mem_counters);
-    if (::GetProcessMemoryInfo(::GetCurrentProcess(), (::PROCESS_MEMORY_COUNTERS*)&mem_counters, sizeof(mem_counters)) == 0) {
+    InitZero<::PROCESS_MEMORY_COUNTERS_EX> mem_counters;
+    if (::GetProcessMemoryInfo(::GetCurrentProcess(), reinterpret_cast<::PROCESS_MEMORY_COUNTERS*>(&mem_counters.data), sizeof(mem_counters.data)) == 0) {
         throw ts::Exception(u"GetProcessMemoryInfo error", ::GetLastError());
     }
-    return size_t(mem_counters.PrivateUsage);
+    return size_t(mem_counters.data.PrivateUsage);
 
 #elif defined(TS_LINUX)
 
@@ -560,6 +623,58 @@ bool ts::StdErrIsTerminal()
     return StdHandleIsATerminal(STD_ERROR_HANDLE);
 #else
     return ::isatty(STDERR_FILENO);
+#endif
+}
+
+
+//----------------------------------------------------------------------------
+// Close a file descriptor on fork().
+//----------------------------------------------------------------------------
+
+#if defined(TS_UNIX)
+// Set of file descriptors to close on fork().
+TS_STATIC_VARIABLE(std::mutex, CloseOnForkExecMutex);
+TS_STATIC_VARIABLE(std::set<int>, CloseOnForkExecList);
+
+// A handler which is invoked once after fork() in the child process.
+namespace {
+    void CloseOnForkExecHandler()
+    {
+        // Close all file descriptors. No need to use the mutex here, in the child process.
+        auto& list(CloseOnForkExecList());
+        for (int fd : list) {
+            ::close(fd);
+        }
+    }
+}
+#endif
+
+// Add a file descriptor in the list.
+void ts::AddCloseOnForkExec(int fd, bool cloexec)
+{
+#if defined(TS_UNIX)
+    // Register the fork() handler the first time.
+    static std::once_flag CloseOnForkExecOnceFlag;
+    std::call_once(CloseOnForkExecOnceFlag, ::pthread_atfork, nullptr, nullptr, CloseOnForkExecHandler);
+
+    // Also set CLOEXEC flag on the file descriptor.
+    if (cloexec) {
+        ::fcntl(fd, F_SETFD, ::fcntl(fd, F_GETFD) | FD_CLOEXEC);
+    }
+
+    // Store the file descriptor in the list.
+    std::lock_guard<std::mutex> lock(CloseOnForkExecMutex());
+    CloseOnForkExecList().insert(fd);
+#endif
+}
+
+// Remove a file descriptor from the list.
+void ts::RemoveCloseOnForkExec(int fd)
+{
+#if defined(TS_UNIX)
+    // Remove the file descriptor from the list.
+    std::lock_guard<std::mutex> lock(CloseOnForkExecMutex());
+    CloseOnForkExecList().insert(fd);
 #endif
 }
 

@@ -2,7 +2,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  This script builds the project files for "Qt Creator" and "Visual Studio"
@@ -57,7 +57,7 @@ manual_setup = ['tsdektec', 'tsplugin_dektec']
 # "Other" MSBuild projects (ie. not tools, not plugins).
 others = ['config', 'utests-tsduckdll', 'utests-tsducklib',
           'tscoredll', 'tscorelib', 'tsduckdll', 'tsducklib', 'tsdektecdll', 'tsdekteclib',
-          'tsp_static', 'tsprofiling', 'tsmux', 'setpath']
+          'tsp_static', 'setpath']
 
 # MSBuild / Visual Studio solution description.
 cxx_project_guid = '8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942'
@@ -79,8 +79,6 @@ ms_deps = {
     'tsdektec': {'deps': ['tsdektecdll']},
     'tsplugin_dektec': {'deps': ['tsdektecdll']},
     'tsp_static': {'deps': ['tsdekteclib', 'tsducklib', 'tscorelib']},
-    'tsprofiling': {'deps': ['tsduckdll']},
-    'tsmux': {'deps': ['tsduckdll'] + plugins},
     'setpath': {'deps': ['tscorelib']}
 }
 
@@ -197,29 +195,18 @@ with open(ms_dir + '/tsduck.sln', 'w', encoding = 'utf-8-sig', newline = '\r\n')
 
     f.write('Global\n')
     f.write('\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
-    f.write('\t\tDebug|Win32 = Debug|Win32\n')
-    f.write('\t\tDebug|x64 = Debug|x64\n')
-    f.write('\t\tDebug|ARM64 = Debug|ARM64\n')
-    f.write('\t\tRelease|Win32 = Release|Win32\n')
-    f.write('\t\tRelease|x64 = Release|x64\n')
-    f.write('\t\tRelease|ARM64 = Release|ARM64\n')
+    for configuration in ['Release', 'Debug', 'ASan']:
+        for platform in ['x64', 'Win32', 'ARM64']:
+            f.write('\t\t%s|%s = %s|%s\n' % (configuration, platform, configuration, platform))
     f.write('\tEndGlobalSection\n')
     f.write('\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n')
 
     for name in others + plugins + tools:
         guid = get_guid(name)
-        f.write('\t\t{%s}.Debug|Win32.ActiveCfg = Debug|Win32\n' % (guid))
-        f.write('\t\t{%s}.Debug|Win32.Build.0 = Debug|Win32\n' % (guid))
-        f.write('\t\t{%s}.Debug|x64.ActiveCfg = Debug|x64\n' % (guid))
-        f.write('\t\t{%s}.Debug|x64.Build.0 = Debug|x64\n' % (guid))
-        f.write('\t\t{%s}.Debug|ARM64.ActiveCfg = Debug|ARM64\n' % (guid))
-        f.write('\t\t{%s}.Debug|ARM64.Build.0 = Debug|ARM64\n' % (guid))
-        f.write('\t\t{%s}.Release|Win32.ActiveCfg = Release|Win32\n' % (guid))
-        f.write('\t\t{%s}.Release|Win32.Build.0 = Release|Win32\n' % (guid))
-        f.write('\t\t{%s}.Release|x64.ActiveCfg = Release|x64\n' % (guid))
-        f.write('\t\t{%s}.Release|x64.Build.0 = Release|x64\n' % (guid))
-        f.write('\t\t{%s}.Release|ARM64.ActiveCfg = Release|ARM64\n' % (guid))
-        f.write('\t\t{%s}.Release|ARM64.Build.0 = Release|ARM64\n' % (guid))
+        for configuration in ['Release', 'Debug', 'ASan']:
+            for platform in ['x64', 'Win32', 'ARM64']:
+                f.write('\t\t{%s}.%s|%s.ActiveCfg = %s|%s\n' % (guid, configuration, platform, configuration, platform))
+                f.write('\t\t{%s}.%s|%s.Build.0 = %s|%s\n' % (guid, configuration, platform, configuration, platform))
 
     f.write('\tEndGlobalSection\n')
     f.write('\tGlobalSection(SolutionProperties) = preSolution\n')

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -68,12 +68,12 @@ ts::ErrorCommands::ErrorCommands(CommandLine& cmdline, int flags)
 {
     Args* cmd = cmdline.command(u"error", u"Interpret system error code", u"[options] code", flags);
     cmdline.setCommandLineHandler(this, &ErrorCommands::error, u"error");
-    cmd->option(u"", 0, Args::UINT32);
+    cmd->option(u"", 0, Args::INT64, 0, Args::UNLIMITED_COUNT);
     cmd->help(u"", u"Error code values.");
     cmd->option(u"category", 'c', _category_names);
     cmd->help(u"category", u"C++ category (std::error_category).");
     cmd->option(u"windows", 'w');
-    cmd->help(u"windows", u"On Windwos, use Win32 functions instead of C++ standard functions.");
+    cmd->help(u"windows", u"On Windows, use Win32 functions instead of C++ standard functions.");
 }
 
 ts::ErrorCommands::~ErrorCommands()
@@ -85,10 +85,16 @@ ts::CommandStatus ts::ErrorCommands::error(const UString& command, Args& args)
     std::vector<int> codes;
     args.getIntValues(codes, u"");
 
-    const auto category = _categories.find(args.intValue<Category>(u"category", SYSTEM));
-    if (category == _categories.end()) {
-        args.error(u"invalid category");
-        return CommandStatus::ERROR;
+    const std::error_category* category = nullptr;
+    if (args.present(u"category")) {
+        Category cat = SYSTEM;
+        args.getIntValue(cat, u"category");
+        const auto it = _categories.find(cat);
+        if (it == _categories.end()) {
+            args.error(u"invalid category");
+            return CommandStatus::ERROR;
+        }
+        category = it->second;
     }
 
 #if defined(TS_WINDOWS)
@@ -105,7 +111,7 @@ ts::CommandStatus ts::ErrorCommands::error(const UString& command, Args& args)
 #endif
         }
         else {
-            message = UString(SysErrorCodeMessage(code, *category->second));
+            message = UString(SysErrorCodeMessage(code, category));
         }
         std::cout << UString::Format(u"%X: \"%s\"", code, message) << std::endl;
     }
@@ -193,7 +199,7 @@ void ts::WinModuleCommands::displayInt(const UString& name, size_t width, uint64
 {
     std::cout << UString::Format(u"%-*s  0x%X (%d.%d.%d.%d)",
                                  width, name, value,
-                                 value >> 48, (value >> 32) & 0xFFFF, (value >> 16) & 0xFFFF, value & 0xFFFF) 
+                                 value >> 48, (value >> 32) & 0xFFFF, (value >> 16) & 0xFFFF, value & 0xFFFF)
               << std::endl;
 }
 #endif
@@ -204,7 +210,7 @@ void ts::WinModuleCommands::displayInt(const UString& name, size_t width, uint64
 //----------------------------------------------------------------------------
 
 namespace ts {
-    class ZlibCommands : public CommandLineHandler
+    class ZlibCommands: public CommandLineHandler
     {
         TS_NOBUILD_NOCOPY(ZlibCommands);
     public:
@@ -417,7 +423,7 @@ ts::UString ts::NetworkBase::Format(const IPAddress& addr)
 //----------------------------------------------------------------------------
 
 namespace ts {
-    class NetworkCommands : public CommandLineHandler, protected NetworkBase
+    class NetworkCommands: public CommandLineHandler, protected NetworkBase
     {
         TS_NOBUILD_NOCOPY(NetworkCommands);
     public:
@@ -438,6 +444,10 @@ ts::NetworkCommands::NetworkCommands(CommandLine& cmdline, int flags)
     defineIPGenArgs(*cmd);
     cmd->option(u"no-loopback", 'n');
     cmd->help(u"no-loopback", u"Exclude loopback interfaces.");
+    cmd->option(u"no-link-local");
+    cmd->help(u"no-link-local", u"Exclude link-local interfaces.");
+    cmd->option(u"up", 'u');
+    cmd->help(u"up", u"List only interfaces which are up and running.");
 
     cmd = cmdline.command(u"resolve", u"Resolve a network name, as in applications", u"[options] name ...", flags);
     cmdline.setCommandLineHandler(this, &NetworkCommands::resolve, u"resolve");
@@ -461,6 +471,8 @@ ts::CommandStatus ts::NetworkCommands::iflist(const UString& command, Args& args
 {
     loadIPGenArgs(args);
     const bool no_loopback = args.present(u"no-loopback");
+    const bool no_link_local = args.present(u"no-link-local");
+    const bool up_only = args.present(u"up");
 
     NetworkInterfaceVector net;
     if (!NetworkInterface::GetAll(net, !no_loopback, ip_gen, false, args)) {
@@ -469,7 +481,9 @@ ts::CommandStatus ts::NetworkCommands::iflist(const UString& command, Args& args
 
     std::cout << "Local interfaces: " << net.size() << std::endl;
     for (const auto& n : net) {
-        std::cout << "  " << n << std::endl;
+        if (!(up_only && n.down) && !(no_link_local && n.link_local)) {
+            std::cout << "  " << n << std::endl;
+        }
     }
     return CommandStatus::SUCCESS;
 }
@@ -586,19 +600,19 @@ ts::CommandStatus ts::SendRecvCommands::send(const UString& command, Args& args)
     auto status = CommandStatus::SUCCESS;
     if (use_udp) {
         // Send a UDP message.
-        UDPSocket sock;
-        if (!sock.open(ip_gen, args)) {
+        UDPSocket sock(&args);
+        if (!sock.open(ip_gen)) {
             return CommandStatus::ERROR;
         }
         args.info(u"Sending to UDP socket %s ...", _tls_args.server_addr);
         std::string msg(message.toUTF8());
-        if (sock.bind(IPSocketAddress::AnySocketAddress(ip_gen), args) &&
-            sock.send(msg.data(), msg.size(), _tls_args.server_addr, args))
+        if (sock.bind(IPSocketAddress::AnySocketAddress(ip_gen)) &&
+            sock.send(msg.data(), msg.size(), _tls_args.server_addr))
         {
             size_t ret_size = 0;
             IPSocketAddress source, dest;
             msg.resize(8192);
-            if (sock.receive(msg.data(), msg.size(), ret_size, source, dest, nullptr, args)) {
+            if (sock.receive(msg.data(), msg.size(), ret_size, source, dest, nullptr)) {
                 msg.resize(ret_size);
                 args.info(u"Received %d bytes: \"%s\"", ret_size, msg);
                 args.info(u"Source: %s, destination: %s", source, dest);
@@ -607,26 +621,26 @@ ts::CommandStatus ts::SendRecvCommands::send(const UString& command, Args& args)
         else {
             status = CommandStatus::ERROR;
         }
-        sock.close(args);
+        sock.close();
     }
     else {
         // Send a TCP message.
-        TCPConnection tcp_client;
-        TLSConnection tls_client(_tls_args);
+        TCPConnection tcp_client(&args);
+        TLSConnection tls_client(&args, _tls_args);
         TCPConnection* const client = _tls_args.use_tls ? &tls_client : &tcp_client;
         TelnetConnection telnet(*client);
 
-        if (!client->open(ip_gen, args)) {
+        if (!client->open(ip_gen)) {
             return CommandStatus::ERROR;
         }
         args.info(u"Sending to TCP server %s ...", _tls_args.server_addr);
         std::string msg(message.toUTF8());
         ts::IPSocketAddress addr;
-        if (client->bind(IPSocketAddress::AnySocketAddress(ip_gen), args) &&
-            client->connect(_tls_args.server_addr, args) &&
-            client->getLocalAddress(addr, args) &&
-            telnet.sendLine(msg, args) &&
-            telnet.receiveLine(msg, nullptr, args))
+        if (client->bind(IPSocketAddress::AnySocketAddress(ip_gen)) &&
+            client->connect(_tls_args.server_addr) &&
+            client->getLocalAddress(addr) &&
+            telnet.sendLine(msg) &&
+            telnet.receiveLine(msg, nullptr))
         {
             args.info(u"Client address: %s", addr);
             args.info(u"Received line: \"%s\"", msg);
@@ -634,7 +648,7 @@ ts::CommandStatus ts::SendRecvCommands::send(const UString& command, Args& args)
         else {
             status = CommandStatus::ERROR;
         }
-        client->close(args);
+        client->close();
     }
     return status;
 }
@@ -658,67 +672,67 @@ ts::CommandStatus ts::SendRecvCommands::receive(const UString& command, Args& ar
     auto status = CommandStatus::SUCCESS;
     if (use_udp) {
         // Receive a UDP message, send a response.
-        UDPSocket sock;
-        if (!sock.open(ip_gen, args)) {
+        UDPSocket sock(&args);
+        if (!sock.open(ip_gen)) {
             return CommandStatus::ERROR;
         }
         args.info(u"Waiting on UDP socket %s ...", _tls_args.server_addr);
         std::string msg(8192, '\0');
         size_t ret_size = 0;
         IPSocketAddress source, dest;
-        if (sock.reusePort(true, args) &&
-            sock.bind(_tls_args.server_addr, args) &&
-            sock.receive(msg.data(), msg.size(), ret_size, source, dest, nullptr, args))
+        if (sock.reusePort(true) &&
+            sock.bind(_tls_args.server_addr) &&
+            sock.receive(msg.data(), msg.size(), ret_size, source, dest, nullptr))
         {
             msg.resize(ret_size);
             args.info(u"Received %d bytes: \"%s\"", ret_size, msg);
             args.info(u"Source: %s, destination: %s", source, dest);
             msg.insert(0, "-> [");
             msg.append("]");
-            sock.send(msg.data(), msg.size(), source, args);
+            sock.send(msg.data(), msg.size(), source);
         }
         else {
             status = CommandStatus::ERROR;
         }
-        sock.close(args);
+        sock.close();
     }
     else {
         // TCP server, wait for a client, wait for a message, send a response.
-        TCPServer tcp_server;
-        TLSServer tls_server(_tls_args);
+        TCPServer tcp_server(&args);
+        TLSServer tls_server(&args, _tls_args);
         TCPServer* const server = _tls_args.use_tls ? &tls_server : &tcp_server;
 
-        if (!server->open(ip_gen, args) ||
-            !server->reusePort(true, args) ||
-            !server->bind(_tls_args.server_addr, args) ||
-            !server->listen(1, args))
+        if (!server->open(ip_gen) ||
+            !server->reusePort(true) ||
+            !server->bind(_tls_args.server_addr) ||
+            !server->listen(1))
         {
             return CommandStatus::ERROR;
         }
 
         args.info(u"Waiting on TCP server %s ...", _tls_args.server_addr);
-        TCPConnection tcp_client;
-        TLSConnection tls_client;
+        TCPConnection tcp_client(&args);
+        TLSConnection tls_client(&args);
         tls_client.setVerifyPeer(false);
         TCPConnection* const client = _tls_args.use_tls ? &tls_client : &tcp_client;
         TelnetConnection telnet(*client);
         IPSocketAddress addr;
-        if (server->accept(*client, addr, args)) {
+        if (server->accept(*client, addr)) {
             args.info(u"Client connected from %s ...", addr);
             std::string msg;
-            if (telnet.receiveLine(msg, nullptr, args)) {
+            if (telnet.receiveLine(msg)) {
                 args.info(u"Received line: \"%s\"", msg);
                 msg.insert(0, "-> [");
                 msg.append("]");
-                telnet.sendLine(msg, args);
+                telnet.sendLine(msg);
             }
-            client->disconnect(args);
-            client->close(args);
+            client->disconnect();
+            client->close();
         }
         else {
             status = CommandStatus::ERROR;
         }
-        server->close(args);
+        server->close();
     }
     return status;
 }
@@ -729,7 +743,7 @@ ts::CommandStatus ts::SendRecvCommands::receive(const UString& command, Args& ar
 //----------------------------------------------------------------------------
 
 namespace ts {
-    class ServerCommands : public CommandLineHandler, protected NetworkBase
+    class ServerCommands: public CommandLineHandler, protected NetworkBase
     {
         TS_NOBUILD_NOCOPY(ServerCommands);
     public:
@@ -782,14 +796,14 @@ ts::CommandStatus ts::ServerCommands::server(const UString& command, Args& args)
     UStringVector hidden;
     args.getValues(hidden, u"hide-header");
 
-    TCPServer tcp_server;
-    TLSServer tls_server(_tls_args);
+    TCPServer tcp_server(&args);
+    TLSServer tls_server(&args, _tls_args);
     TCPServer* const server = _tls_args.use_tls ? &tls_server : &tcp_server;
 
-    if (!server->open(ip_gen, args) ||
-        !server->reusePort(true, args) ||
-        !server->bind(_tls_args.server_addr, args) ||
-        !server->listen(16, args))
+    if (!server->open(ip_gen) ||
+        !server->reusePort(true) ||
+        !server->bind(_tls_args.server_addr) ||
+        !server->listen(16))
     {
         return CommandStatus::ERROR;
     }
@@ -797,14 +811,14 @@ ts::CommandStatus ts::ServerCommands::server(const UString& command, Args& args)
     while (max_clients-- > 0) {
         args.verbose(u"Waiting on TCP server %s ...", _tls_args.server_addr);
 
-        TCPConnection tcp_client;
-        TLSConnection tls_client;
+        TCPConnection tcp_client(&args);
+        TLSConnection tls_client(&args);
         tls_client.setVerifyPeer(false);
         TCPConnection* const client = _tls_args.use_tls ? &tls_client : &tcp_client;
         TelnetConnection telnet(*client);
 
         IPSocketAddress addr;
-        if (!server->accept(*client, addr, args)) {
+        if (!server->accept(*client, addr)) {
             // Failed to accept a client, try a new one.
             continue;
         }
@@ -820,7 +834,7 @@ ts::CommandStatus ts::ServerCommands::server(const UString& command, Args& args)
         UStringList headers;
         args.info(u"==== Request headers:");
         do {
-            success = telnet.receiveLine(line, nullptr, args);
+            success = telnet.receiveLine(line);
             // Analyze the header line.
             if (first_line) {
                 args.info(line);
@@ -869,7 +883,7 @@ ts::CommandStatus ts::ServerCommands::server(const UString& command, Args& args)
                 // We known how much more data we need.
                 const size_t previous_size = data.size();
                 data.resize(content_size);
-                success = client->receive(&data[previous_size], content_size - previous_size, nullptr, args);
+                success = client->receive(&data[previous_size], content_size - previous_size);
             }
             else if (content_size == 0 && expect_data) {
                 // Unknown content size but there must be some. This is an old client which disconnects at end of request.
@@ -878,7 +892,7 @@ ts::CommandStatus ts::ServerCommands::server(const UString& command, Args& args)
                     constexpr size_t more_size = 4096;
                     size_t ret_size = 0;
                     data.resize(previous_size + more_size);
-                    if (client->receive(&data[previous_size], more_size, ret_size, nullptr, args)) {
+                    if (client->receive(&data[previous_size], more_size, ret_size)) {
                         data.resize(previous_size + ret_size);
                     }
                     else {
@@ -902,17 +916,17 @@ ts::CommandStatus ts::ServerCommands::server(const UString& command, Args& args)
             }
 
             // Send a "no data" response.
-            telnet.sendLine(u"HTTP/1.1 204 No Content", args);
-            telnet.sendLine("Server: TSDuck", args);
-            telnet.sendLine("Connection: close", args);
-            telnet.sendLine(u"", args);
+            telnet.sendLine(u"HTTP/1.0 204 No Content");
+            telnet.sendLine("Server: TSDuck");
+            telnet.sendLine("Connection: close");
+            telnet.sendLine(u"");
         }
 
-        client->disconnect(args);
-        client->close(args);
+        client->disconnect();
+        client->close();
     }
 
-    server->close(args);
+    server->close();
     return CommandStatus::SUCCESS;
 }
 
@@ -977,36 +991,36 @@ ts::CommandStatus ts::ClientCommands::client(const UString& command, Args& args)
     headers.push_front(u"Connection: close");
     headers.push_front(u"User-Agent: TSDuck");
     headers.push_front(u"Host: " + _tls_args.server_name);
-    headers.push_front(request + u" HTTP/1.1");
+    headers.push_front(request + u" HTTP/1.0");
     headers.push_back(u"");
 
     auto status = CommandStatus::SUCCESS;
-    TCPConnection tcp_client;
-    TLSConnection tls_client(_tls_args);
+    TCPConnection tcp_client(&args);
+    TLSConnection tls_client(&args, _tls_args);
     TCPConnection* const client = _tls_args.use_tls ? &tls_client : &tcp_client;
     TelnetConnection telnet(*client);
 
     // Connect to the server.
-    if (!client->open(ip_gen, args) ||
-        !client->bind(IPSocketAddress::AnySocketAddress(ip_gen), args) ||
-        !client->connect(_tls_args.server_addr, args))
+    if (!client->open(ip_gen) ||
+        !client->bind(IPSocketAddress::AnySocketAddress(ip_gen)) ||
+        !client->connect(_tls_args.server_addr))
     {
         return CommandStatus::ERROR;
     }
 
     // Send all input lines.
     for (const auto& line : headers) {
-        if (!telnet.sendLine(line, args)) {
+        if (!telnet.sendLine(line)) {
             return CommandStatus::ERROR;
         }
     }
 
     // Receive responses.
     UString response;
-    while (telnet.receiveLine(response, nullptr, args)) {
+    while (telnet.receiveLine(response)) {
         args.info(response);
     }
-    client->close(args);
+    client->close();
     return status;
 }
 
@@ -1066,7 +1080,7 @@ ts::CommandStatus ts::URLCommands::geturl(const UString& command, Args& args)
     args.getPathValue(output, u"output");
     args.getValues(headers, u"header");
 
-    WebRequest request(args);
+    WebRequest request(&args);
     request.setInsecure(insecure);
     for (const auto& h : headers) {
         const size_t colon = h.find(':');
@@ -1160,14 +1174,14 @@ ts::CommandStatus ts::RESTServerCommands::restServer(const UString& command, Arg
     _rest_args.loadServerArgs(args, u"");
     size_t max_clients = args.intValue<size_t>(u"max-clients", std::numeric_limits<size_t>::max());
 
-    TCPServer tcp_server;
-    TLSServer tls_server(_rest_args);
+    TCPServer tcp_server(&args);
+    TLSServer tls_server(&args, _rest_args);
     TCPServer* const server = _rest_args.use_tls ? &tls_server : &tcp_server;
 
-    if (!server->open(ip_gen, args) ||
-        !server->reusePort(true, args) ||
-        !server->bind(_rest_args.server_addr, args) ||
-        !server->listen(16, args))
+    if (!server->open(ip_gen) ||
+        !server->reusePort(true) ||
+        !server->bind(_rest_args.server_addr) ||
+        !server->listen(16))
     {
         return CommandStatus::ERROR;
     }
@@ -1175,13 +1189,13 @@ ts::CommandStatus ts::RESTServerCommands::restServer(const UString& command, Arg
     while (max_clients-- > 0) {
         args.verbose(u"Waiting on TCP server %s ...", _rest_args.server_addr);
 
-        TCPConnection tcp_client;
-        TLSConnection tls_client;
+        TCPConnection tcp_client(&args);
+        TLSConnection tls_client(&args);
         tls_client.setVerifyPeer(false);
         TCPConnection* const client = _rest_args.use_tls ? &tls_client : &tcp_client;
 
         IPSocketAddress addr;
-        if (!server->accept(*client, addr, args)) {
+        if (!server->accept(*client, addr)) {
             // Failed to accept a client, try a new one.
             continue;
         }
@@ -1223,7 +1237,7 @@ ts::CommandStatus ts::RESTServerCommands::restServer(const UString& command, Arg
                 args.info(u"  %s", UString::Dump(rest.postData(), UString::BPL | UString::HEXA | UString::ASCII, 2, 16).toTrimmed());
             }
             args.info(u"==== End of POST data");
-        }             
+        }
 
         // Send some funky response.
         rest.addResponseHeader(u"X-Foo", u"Bar");
@@ -1232,7 +1246,7 @@ ts::CommandStatus ts::RESTServerCommands::restServer(const UString& command, Arg
         rest.sendResponse(*client, 200, true);
     }
 
-    server->close(args);
+    server->close();
     return CommandStatus::SUCCESS;
 }
 

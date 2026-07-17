@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -37,6 +37,6 @@ namespace ts {
         bool           _nowait = false;   // Don't wait for children termination.
         TSPacketFormat _format = TSPacketFormat::TS;  // Packet format on the pipe
         size_t         _buffer_size = 0;  // Pipe buffer size in packets.
-        TSForkPipe     _pipe {};          // The pipe device.
+        TSForkPipe     _pipe {this};      // The pipe device.
     };
 }

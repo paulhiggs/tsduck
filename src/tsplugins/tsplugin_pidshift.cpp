@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -28,7 +28,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Command line options:
@@ -41,7 +41,7 @@ namespace ts {
         // Working data:
         bool             _pass_all = false;       // Pass all packets after an error.
         PacketCounter    _init_packets = 0;       // Count packets in PID's to shift during initial evaluation phase.
-        TimeShiftBuffer  _buffer {};              // The timeshift buffer logic.
+        TimeShiftBuffer  _buffer {this};          // The timeshift buffer logic.
 
         static constexpr cn::milliseconds DEF_EVAL_MS = cn::milliseconds(1000);  // Default initial evaluation duration in milliseconds.
         static constexpr PacketCounter MAX_EVAL_PACKETS = 30000;                 // Max number of packets after which the bitrate must be known.
@@ -148,7 +148,7 @@ bool ts::PIDShiftPlugin::start()
     if (_shift_packets > 0) {
         // Initialize the buffer only when its size is specified in packets.
         _buffer.setTotalPackets(_shift_packets);
-        return _buffer.open(*this);
+        return _buffer.open();
     }
     else {
         // Need an evaluation phase.
@@ -165,7 +165,7 @@ bool ts::PIDShiftPlugin::start()
 
 bool ts::PIDShiftPlugin::stop()
 {
-    _buffer.close(*this);
+    _buffer.close();
     return true;
 }
 
@@ -174,7 +174,7 @@ bool ts::PIDShiftPlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::PIDShiftPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::PIDShiftPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     const PID pid = pkt.getPID();
 
@@ -215,7 +215,7 @@ ts::ProcessorPlugin::Status ts::PIDShiftPlugin::processPacket(TSPacket& pkt, TSP
             _buffer.setTotalPackets(size_t(count));
 
             // Open the shift buffer.
-            if (!_buffer.open(*this)) {
+            if (!_buffer.open()) {
                 _pass_all = true;
                 return _ignore_errors ? TSP_OK : TSP_END;
             }
@@ -232,7 +232,7 @@ ts::ProcessorPlugin::Status ts::PIDShiftPlugin::processPacket(TSPacket& pkt, TSP
     }
 
     // No longer in evaluation phase, shift packets.
-    if (_pids.test(pid) && !_buffer.shift(pkt, pkt_data, *this)) {
+    if (_pids.test(pid) && !_buffer.shift(pkt, pkt_data)) {
         _pass_all = true;
         return _ignore_errors ? TSP_OK : TSP_END;
     }

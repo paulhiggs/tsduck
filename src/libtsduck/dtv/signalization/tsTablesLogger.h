@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -32,7 +32,7 @@ namespace ts {
     //! This class logs sections and tables.
     //! @ingroup libtsduck mpeg
     //!
-    class TSDUCKDLL TablesLogger :
+    class TSDUCKDLL TablesLogger:
         protected TableHandlerInterface,
         protected SectionHandlerInterface,
         protected InvalidSectionHandlerInterface
@@ -191,6 +191,7 @@ namespace ts {
         bool                     _duration = false;          // Display duration since beginning with each table.
         bool                     _packet_index = false;      // Display packet index with each table.
         bool                     _meta_sections = false;     // Add hexadecimal dump of each section in XML and JSON metadata.
+        bool                     _meta_base64 = false;       // Add Base-64 dump of each section in XML and JSON metadata.
         bool                     _logger = false;            // Table logger.
         size_t                   _log_size = DEFAULT_LOG_SIZE;  // Size of table to log.
         bool                     _no_duplicate = false;      // Exclude consecutive duplicated short sections on a PID.
@@ -221,7 +222,7 @@ namespace ts {
         xml::JSONConverter       _x2j_conv {_report};        // XML-to-JSON converter.
         json::RunningDocument    _json_doc {_report};        // JSON document, built on-the-fly.
         std::ofstream            _bin_file {};               // Binary output file.
-        UDPSocket                _sock {false, IP::Any, _report}; // Output socket.
+        UDPSocket                _sock {&_report};           // Output socket.
         std::map<PID,ByteBlock>  _short_sections {};         // Tracking duplicate short sections by PID with a section hash.
         std::map<PID,ByteBlock>  _last_sections {};          // Tracking duplicate sections by PID with a section hash (with --all-sections).
         std::map<PID,std::set<ByteBlock>> _deep_hashes {};   // Tracking of deep duplicate sections.

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -104,7 +104,7 @@ ts::AbstractDescrambler::ECMStreamPtr ts::AbstractDescrambler::getOrCreateECMStr
         return ecm_it->second;
     }
     else {
-        ECMStreamPtr p(new ECMStream(this));
+        const auto p = std::make_shared<ECMStream>(this);
         _ecm_streams.insert(std::make_pair(ecm_pid, p));
         return p;
     }
@@ -165,7 +165,7 @@ bool ts::AbstractDescrambler::stop()
 
 
 //----------------------------------------------------------------------------
-//  This method is invoked when a PMT is available for the service.
+// This method is invoked when a PMT is available for the service.
 //----------------------------------------------------------------------------
 
 void ts::AbstractDescrambler::handlePMT(const PMT& pmt, PID)
@@ -259,6 +259,12 @@ void ts::AbstractDescrambler::analyzeDescriptors(const DescriptorList& dlist, st
         }
     }
 }
+
+
+// False positive in LLVM thread-safety-analysis: The mutex is used only when _synchronous is false.
+// LLVM 21 is confused with this scenario. It considers that a mutex shall always be used.
+TS_PUSH_WARNING()
+TS_LLVM_NOWARNING(thread-safety-analysis)
 
 
 //----------------------------------------------------------------------------
@@ -444,7 +450,7 @@ void ts::AbstractDescrambler::ECMThread::main()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::AbstractDescrambler::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::AbstractDescrambler::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     const PID pid = pkt.getPID();
 
@@ -529,3 +535,5 @@ ts::ProcessorPlugin::Status ts::AbstractDescrambler::processPacket(TSPacket& pkt
     // Descramble the packet payload.
     return pecm->scrambling.decrypt(pkt) ? TSP_OK : TSP_END;
 }
+
+TS_POP_WARNING()

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -99,7 +99,7 @@ int MainCode(int argc, char *argv[])
 
     if (opt.rest.use_tls) {
         // Use a Web API.
-        ts::RestClient api(opt.rest, opt);
+        ts::RestClient api(&opt, opt.rest);
         api.setAcceptTypes(u"text/plain");
         if (api.call(u"/", opt.command)) {
             ts::UString resp;
@@ -111,22 +111,22 @@ int MainCode(int argc, char *argv[])
     }
     else {
         // Open a text connection to the tsp server.
-        ts::TCPConnection client;
+        ts::TCPConnection client(&opt);
         ts::TelnetConnection telnet(client);
         ts::IPSocketAddress addr;
         ts::UString resp;
 
-        if (client.open(opt.rest.server_addr.generation(), opt) &&
-            client.bind(addr, opt) &&
-            client.connect(opt.rest.server_addr, opt) &&
-            telnet.sendLine(opt.command, opt) &&
-            client.closeWriter(opt))
+        if (client.open(opt.rest.server_addr.generation()) &&
+            client.bind(addr) &&
+            client.connect(opt.rest.server_addr) &&
+            telnet.sendLine(opt.command) &&
+            client.closeWriter())
         {
             // Request successfully sent, read the responses.
-            while (telnet.receiveLine(resp, nullptr, opt)) {
+            while (telnet.receiveLine(resp)) {
                 std::cout << resp << std::endl;
             }
-            client.close(NULLREP);
+            client.close(true);
         }
     }
     return opt.valid() ? EXIT_SUCCESS : EXIT_FAILURE;

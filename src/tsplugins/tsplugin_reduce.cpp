@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -33,7 +33,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual size_t getPacketWindowSize() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
         virtual size_t processPacketWindow(TSPacketWindow& win) override;
 
     private:
@@ -215,7 +215,7 @@ size_t ts::ReducePlugin::getPacketWindowSize()
 // Individual packet processing method. Call in fixed proportion mode.
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::ReducePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::ReducePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     assert(_fixed_inpkt > 0);
     assert(_fixed_rempkt > 0);

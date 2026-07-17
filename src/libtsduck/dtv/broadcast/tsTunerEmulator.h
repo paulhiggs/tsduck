@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -123,8 +123,8 @@ namespace ts {
         UString              _xml_file_path {};      // Main XML file path.
         bool                 _info_only = false;     // Open mode, useless here, just informational.
         State                _state = State::CLOSED; // Current state.
-        TSFile               _file {};               // Current TS file.
-        TSForkPipe           _pipe {};               // Current pipe process.
+        TSFile               _file {&report()};      // Current TS file.
+        TSForkPipe           _pipe {&report()};      // Current pipe process.
         std::vector<Channel> _channels {};           // Map of channels.
         size_t               _tune_index = 0;        // Currently tuned channel.
         uint64_t             _tune_frequency = 0;    // Requested frequency.

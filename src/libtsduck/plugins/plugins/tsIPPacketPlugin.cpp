@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -39,15 +39,15 @@ bool ts::IPPacketPlugin::getOptions()
 
 bool ts::IPPacketPlugin::start()
 {
-    return _datagram.open(*this);
+    return _datagram.open();
 }
 
 bool ts::IPPacketPlugin::stop()
 {
-    return _datagram.close(tsp->bitrate(), false, *this);
+    return _datagram.close(tsp->bitrate(), false);
 }
 
-ts::ProcessorPlugin::Status ts::IPPacketPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::IPPacketPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
-    return _datagram.send(&pkt, &pkt_data, 1, tsp->bitrate(), *this) ? TSP_OK : TSP_END;
+    return _datagram.send(&pkt, &pkt_data, 1, tsp->bitrate()) ? TSP_OK : TSP_END;
 }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2023-2025, Paul Higgs
+// Copyright (c) 2023-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,13 +22,13 @@ namespace ts {
     //! @see ARIB STD-B10, Part 2, 6.2.29
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL ISDBHyperlinkDescriptor : public AbstractDescriptor
+    class TSDUCKDLL ISDBHyperlinkDescriptor: public AbstractDescriptor
     {
     public:
         //!
         //! Service triplet.
         //!
-        class ServiceTriplet
+        class TSDUCKDLL ServiceTriplet
         {
             TS_DEFAULT_COPY_MOVE(ServiceTriplet);
         public:
@@ -38,7 +38,7 @@ namespace ts {
             //!
             //! Default constructor.
             //!
-            ServiceTriplet() = default;
+            ServiceTriplet() {}  // using "= default" breaks std::optional::emplace() with clang
             //!
             //! Read-in constructor.
             //! @param [in,out] buf Deserialization buffer. Read the descriptor payload from
@@ -60,7 +60,7 @@ namespace ts {
         //!
         //! Event triplet (quadruplet in fact).
         //!
-        class EventTriplet : public ServiceTriplet
+        class TSDUCKDLL EventTriplet: public ServiceTriplet
         {
             TS_DEFAULT_COPY_MOVE(EventTriplet);
         public:
@@ -68,7 +68,7 @@ namespace ts {
             //!
             //! Default constructor.
             //!
-            EventTriplet() = default;
+            EventTriplet() {}  // using "= default" breaks std::optional::emplace() with clang
             //!
             //! Read-in constructor.
             //! @param [in,out] buf Deserialization buffer. Read the descriptor payload from
@@ -90,7 +90,7 @@ namespace ts {
         //!
         //! Module triplet.
         //!
-        class ModuleTriplet : public EventTriplet
+        class TSDUCKDLL ModuleTriplet: public EventTriplet
         {
             TS_DEFAULT_COPY_MOVE(ModuleTriplet);
         public:
@@ -99,7 +99,7 @@ namespace ts {
             //!
             //! Default constructor.
             //!
-            ModuleTriplet() = default;
+            ModuleTriplet() {}  // using "= default" breaks std::optional::emplace() with clang
             //!
             //! Read-in constructor.
             //! @param [in,out] buf Deserialization buffer. Read the descriptor payload from
@@ -121,7 +121,7 @@ namespace ts {
         //!
         //! Content triplet.
         //!
-        class ContentTriplet : public ServiceTriplet
+        class TSDUCKDLL ContentTriplet: public ServiceTriplet
         {
             TS_DEFAULT_COPY_MOVE(ContentTriplet);
         public:
@@ -129,7 +129,7 @@ namespace ts {
             //!
             //! Default constructor.
             //!
-            ContentTriplet() = default;
+            ContentTriplet() {}  // using "= default" breaks std::optional::emplace() with clang
             //!
             //! Read-in constructor.
             //! @param [in,out] buf Deserialization buffer. Read the descriptor payload from
@@ -151,7 +151,7 @@ namespace ts {
         //!
         //! Content module triplet.
         //!
-        class ContentModuleTriplet : public ContentTriplet
+        class TSDUCKDLL ContentModuleTriplet: public ContentTriplet
         {
             TS_DEFAULT_COPY_MOVE(ContentModuleTriplet);
         public:
@@ -160,7 +160,7 @@ namespace ts {
             //!
             //! Default constructor.
             //!
-            ContentModuleTriplet() = default;
+            ContentModuleTriplet() {}  // using "= default" breaks std::optional::emplace() with clang
             //!
             //! Read-in constructor.
             //! @param [in,out] buf Deserialization buffer. Read the descriptor payload from
@@ -182,7 +182,7 @@ namespace ts {
         //!
         //! Event relation node.
         //!
-        class ERTNode
+        class TSDUCKDLL ERTNode
         {
             TS_DEFAULT_COPY_MOVE(ERTNode);
         public:
@@ -192,7 +192,7 @@ namespace ts {
             //!
             //! Default constructor.
             //!
-            ERTNode() = default;
+            ERTNode() {}  // using "= default" breaks std::optional::emplace() with clang
             //!
             //! Read-in constructor.
             //! @param [in,out] buf Deserialization buffer. Read the descriptor payload from
@@ -214,7 +214,7 @@ namespace ts {
         //!
         //! Stored content.
         //!
-        class StoredContent
+        class TSDUCKDLL StoredContent
         {
             TS_DEFAULT_COPY_MOVE(StoredContent);
         public:
@@ -222,7 +222,7 @@ namespace ts {
             //!
             //! Default constructor.
             //!
-            StoredContent() = default;
+            StoredContent() {}  // using "= default" breaks std::optional::emplace() with clang
             //!
             //! Read-in constructor.
             //! @param [in,out] buf Deserialization buffer. Read the descriptor payload from

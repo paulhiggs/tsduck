@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -59,5 +59,32 @@ ts::UString ts::Severity::Header(int severity)
             default: // Including Info and Verbose
                 return UString();
         }
+    }
+}
+
+
+//----------------------------------------------------------------------------
+// Add the prefix header for a severity to a given message.
+//----------------------------------------------------------------------------
+
+ts::UString ts::Severity::AddHeader(int severity, const UString& message)
+{
+    // Fast shortcut.
+    if (severity == Info || severity == Verbose) {
+        return message;
+    }
+
+    // Look for the right place to insert the header.
+    // Generally speaking, this is the start of the message.
+    // However, if there are leading new-lines or spaces, find the beginning of the first non-empty line.
+    size_t start = 0;
+    while (start < message.length() && (IsSpace(message[start]) || message[start] == u'*')) {
+        start++;
+    }
+    if (start == 0) {
+        return Header(severity) + message;
+    }
+    else {
+        return message.substr(0, start) + Header(severity) + message.substr(start);
     }
 }

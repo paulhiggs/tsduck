@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSUnit - A simple C++ unitary test framework.
-// Copyright (c) 2019-2025, Thierry Lelegard
+// Copyright (c) 2019-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -14,6 +14,10 @@
 
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(WINDOWS)
     #define WINDOWS 1
+#endif
+
+#if defined(__llvm__)
+#pragma clang diagnostic ignored "-Wdeprecated-declarations" // wstring_convert
 #endif
 
 //---------------------------------------------------------------------------------

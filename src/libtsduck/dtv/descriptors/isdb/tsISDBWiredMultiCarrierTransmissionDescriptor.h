@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -61,7 +61,7 @@ namespace ts {
     //! indicates information that identifies the carrier group that transmits the multiplexed frame using
     //! the extended information, and the value 0x00 shall not be used.
     //!
-    class TSDUCKDLL ISDBWiredMultiCarrierTransmissionDescriptor : public AbstractDescriptor
+    class TSDUCKDLL ISDBWiredMultiCarrierTransmissionDescriptor: public AbstractDescriptor
     {
     public:
         //!

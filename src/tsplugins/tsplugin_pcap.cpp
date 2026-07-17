@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -438,7 +438,7 @@ size_t ts::PcapInputPlugin::extractDataProvision(uint8_t* buffer, size_t buffer_
         return 0;
     }
     mf.factory(ptr);
-    emmgmux::DataProvision* dprov = dynamic_cast<emmgmux::DataProvision*>(ptr.get());
+    const auto dprov = std::dynamic_pointer_cast<emmgmux::DataProvision>(ptr);
     if (dprov == nullptr) {
         return 0;
     }

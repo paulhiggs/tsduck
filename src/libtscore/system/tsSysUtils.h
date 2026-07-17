@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -54,6 +54,82 @@ namespace ts {
     }
 
     //!
+    //! Force the error code of the last operating system call.
+    //! @ingroup system
+    //! @param [in] error_code The error code to force.
+    //!
+    TSCOREDLL inline void SetLastSysErrorCode(int error_code)
+    {
+#if defined(TS_WINDOWS)
+        ::SetLastError(::DWORD(error_code));
+#else
+        errno = error_code;
+#endif
+    }
+
+    //!
+    //! An error code value which means "no error" on all operating systems.
+    //! Note that some Windows error codes indicate success without being equal to zero.
+    //! This SYS_SUCCESS value can be used as a synthetic value to indicate success.
+    //!
+    constexpr int SYS_SUCCESS = 0;
+
+    //!
+    //! A synthetic error code value which means "unspecified error".
+    //! This value is not a valid error code on any operating system.
+    //! It can be used by application to indicate some error without further detail.
+    //!
+    constexpr int SYS_ERROR = -1;
+
+    //!
+    //! A synthetic error code value which means "canceled operation".
+    //! This value is not a valid error code on any operating system.
+    //! It can be used by application to indicate some kind of cancelation, without actual error.
+    //!
+    constexpr int SYS_CANCELED = -2;
+
+    //!
+    //! A synthetic error code value which means "end of file".
+    //! This value is not a valid error code on any operating system.
+    //! It can be used by application to indicate that an end of file or end of stream is reached.
+    //!
+    constexpr int SYS_EOF = -3;
+
+    //!
+    //! A synthetic error code value which means "rejected".
+    //! This value is not a valid error code on any operating system.
+    //! It can be used by application to indicate that some kind of operation was explicitly rejected.
+    //!
+    constexpr int SYS_REJECTED = -4;
+
+    //!
+    //! A synthetic error code value which means "I/O not completed".
+    //! This value is not a valid error code on any operating system.
+    //! On UNIX systems, it means "non-blocking I/O not started".
+    //! On Windows systems, it means "asynchronous I/O in progress".
+    //!
+    constexpr int SYS_PENDING_IO = -5;
+
+    //!
+    //! Translate an error code, mapping to some portable code.
+    //! All successful status are translated into SYS_SUCCESS.
+    //! Cancelation and end-of-file conditions are translated into SYS_CANCELED and SYS_EOF.
+    //! @param [in] code An error code from the operating system.
+    //! @return A translated error code.
+    //!
+    TSCOREDLL int TranslateError(int code);
+
+    //!
+    //! Check if a system error code means success.
+    //! @param [in] code An error code from the operating system.
+    //! @return True is @a code indicate success, false otherwise.
+    //!
+    TSCOREDLL inline bool SysSuccess(int code)
+    {
+        return TranslateError(code) == SYS_SUCCESS;
+    }
+
+    //!
     //! Format a system error code into a string.
     //! @ingroup system
     //! @param [in] code An error code from the operating system.
@@ -61,10 +137,32 @@ namespace ts {
     //! @param [in] category Error category, system by default.
     //! @return A string describing the error.
     //!
-    TSCOREDLL inline std::string SysErrorCodeMessage(int code = LastSysErrorCode(), const std::error_category& category = std::system_category())
-    {
-        return std::error_code(code, category).message();
-    }
+    TSCOREDLL std::string SysErrorCodeMessage(int code = LastSysErrorCode(), const std::error_category* category = nullptr);
+
+    //!
+    //! Data type for system file or device handler or descriptor.
+    //! @ingroup system
+    //! @see SysSocketType
+    //!
+    #if defined(DOXYGEN)
+        using SysHandleType = platform_specific;
+    #elif defined(TS_WINDOWS)
+        using SysHandleType = ::HANDLE;
+    #elif defined(TS_UNIX)
+        using SysHandleType = int;
+    #endif
+
+    //!
+    //! Value of type SysHandleType which is invalid.
+    //! @ingroup system
+    //!
+    #if defined(DOXYGEN)
+        constexpr SysHandleType SYS_HANDLE_INVALID = platform_specific;
+    #elif defined(TS_WINDOWS)
+        constexpr SysHandleType SYS_HANDLE_INVALID = nullptr;
+    #elif defined(TS_UNIX)
+        constexpr SysHandleType SYS_HANDLE_INVALID = -1;
+    #endif
 
     //!
     //! Portable type for ioctl() request parameter.
@@ -210,6 +308,50 @@ namespace ts {
     //! @see SetBinaryModeStdout()
     //!
     TSCOREDLL bool SetBinaryModeStdout(Report& report = CERR);
+
+    //!
+    //! Close a file descriptor on @c fork().
+    //! @ingroup system
+    //!
+    //! On UNIX systems, open file descriptors are inherited on @c fork() and @c exec().
+    //! Most of the time (but not always), a file descriptor has no meaning outside the process
+    //! which created it and it is better to close it after @c fork() (in the child process) and
+    //! after @c exec() (in the new program). It is possible to automatically close a file descriptor
+    //! after @c exec() using the @c FD_CLOEXEC and @c O_CLOEXEC flags. However, there is no
+    //! equivalent flog to close the file descriptor in a child process after @c fork(). This
+    //! function is a solution to that problem.
+    //!
+    //! The provided file descriptor is stored in a global list. After @c fork(), in the child process,
+    //! all file descriptors from that list are closed.
+    //!
+    //! Warning 1: There is still a possible race condition if a child process is created between the
+    //! creation of the file descriptor and the call to AddCloseOnFork().
+    //!
+    //! Warning 2: Do not forget to call RemoveCloseOnFork() just before closing the file descriptor.
+    //! If you fail to do so, the file descriptor may be reallocated to a new device and it would be
+    //! unintentionally closed on @c fork(). Be sure to call RemoveCloseOnFork() before closing the
+    //! file descriptor, not after. If called after, there is a possible race condition if the file
+    //! descriptor is immediately reallocated by the system.
+    //!
+    //! This function is specific to UNIX systems and does nothing on Windows.
+    //!
+    //! @param [in] fd File descriptor to close on @c fork().
+    //! @param [in] cloexec When true (the default), the flag @c FD_CLOEXEC is also set on the file
+    //! descriptor to enforce a close on @c exec().
+    //! @see RemoveCloseOnFork()
+    //!
+    TSCOREDLL void AddCloseOnForkExec(int fd, bool cloexec = true);
+
+    //!
+    //! Remove a file descriptor from the list of those to close on @c fork().
+    //! @ingroup system
+    //!
+    //! This function is specific to UNIX systems and does nothing on Windows.
+    //!
+    //! @param [in] fd File descriptor to no longer close after @a fork().
+    //! @see AddCloseOnFork()
+    //!
+    TSCOREDLL void RemoveCloseOnForkExec(int fd);
 
     //!
     //! Get the name of a class from the @c type_index of a class.

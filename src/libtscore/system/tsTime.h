@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -34,8 +34,6 @@ namespace ts {
     //!
     //! The implementation of the class is designed to be light and fast so that
     //! @c Time objects may be copied without overhead.
-    //! The class is not polymorphic, there is no virtual methods and no vtable.
-    //! In fact, the actual representation is only a 64-bit integer.
     //!
     class TSCOREDLL Time final: public StringifyInterface
     {
@@ -70,10 +68,22 @@ namespace ts {
         //! Clear the time value.
         //! The time value becomes the Epoch.
         //!
-        void clear()
-        {
-            _value = 0;
-        }
+        void clear() { _value = 0; }
+
+        //!
+        //! Set time from broken-down date fields.
+        //! @param [in] year Number of years.
+        //! @param [in] month Number of months (1 to 12).
+        //! @param [in] day Number of days (1 to 31).
+        //! @param [in] hour Number of hours (0 to 23).
+        //! @param [in] minute Number of minutes (0 to 59).
+        //! @param [in] second Number of seconds (0 to 59).
+        //! @param [in] millisecond Number of milliseconds (0 to 999).
+        //! @throw ts::Time::TimeError If any field is out of range
+        //! or if the resulting time is outside the representable range
+        //! for the local operating system.
+        //!
+        void set(int year, int month, int day, int hour, int minute, int second = 0, int millisecond = 0);
 
         //!
         //! Operator Time + std::chrono::duration => Time.
@@ -224,6 +234,15 @@ namespace ts {
         Time(const Fields& fields);
 
         //!
+        //! Set time from broken-down date fields in one single object.
+        //! @param [in] fields The date fields.
+        //! @throw ts::Time::TimeError If any field is out of range
+        //! or if the resulting time is outside the representable range
+        //! for the local operating system.
+        //!
+        void set(const Fields& fields);
+
+        //!
         //! Conversion operator from @c Time to @c Time::Fields.
         //! @return A @c Time::Fields object containing the broken-down time.
         //! @throw ts::Time::TimeError In case of operating system time error.
@@ -266,16 +285,16 @@ namespace ts {
         //! Flags indicating the list of time fields to display.
         //!
         enum FieldMask {
-            YEAR        = 0x01,  //!< Display the year.
-            MONTH       = 0x02,  //!< Display the month.
-            DAY         = 0x04,  //!< Display the day.
-            DATE        = YEAR | MONTH | DAY,  //!< Display the year, month and day.
-            HOUR        = 0x08,  //!< Display the hours.
-            MINUTE      = 0x10,  //!< Display the minutes.
-            SECOND      = 0x20,  //!< Display the seconds.
-            TIME        = HOUR | MINUTE | SECOND,  //!< Display the hours, minutes and seconds.
-            DATETIME    = DATE | TIME,  //!< Display the year, month, day, hours, minutes and seconds.
-            MILLISECOND = 0x40,  //!< Display the milliseconds.
+            YEAR        = 0x01,                       //!< Display the year.
+            MONTH       = 0x02,                       //!< Display the month.
+            DAY         = 0x04,                       //!< Display the day.
+            DATE        = YEAR | MONTH | DAY,         //!< Display the year, month and day.
+            HOUR        = 0x08,                       //!< Display the hours.
+            MINUTE      = 0x10,                       //!< Display the minutes.
+            SECOND      = 0x20,                       //!< Display the seconds.
+            TIME        = HOUR | MINUTE | SECOND,     //!< Display the hours, minutes and seconds.
+            DATETIME    = DATE | TIME,                //!< Display the year, month, day, hours, minutes and seconds.
+            MILLISECOND = 0x40,                       //!< Display the milliseconds.
             ALL         = DATE | TIME | MILLISECOND,  //!< Display all fields.
         };
 
@@ -366,10 +385,7 @@ namespace ts {
         //! @return The time for the beginning of the next hour from this object time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        Time nextHour() const
-        {
-            return thisHour() + cn::hours(1);
-        }
+        Time nextHour() const { return thisHour() + cn::hours(1); }
 
         //!
         //! Get the beginning of the current day.
@@ -383,10 +399,7 @@ namespace ts {
         //! @return The time for the beginning of the next day from this object time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        Time nextDay() const
-        {
-            return thisDay() + cn::days(1);
-        }
+        Time nextDay() const { return thisDay() + cn::days(1); }
 
         //!
         //! Get the beginning of the current month.
@@ -421,160 +434,112 @@ namespace ts {
         //! @return The time for the beginning of the current hour, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time ThisHourUTC()
-        {
-            return CurrentUTC().thisHour();
-        }
+        static inline Time ThisHourUTC() { return CurrentUTC().thisHour(); }
 
         //!
         //! Get the beginning of the current hour, local time.
         //! @return The time for the beginning of the current hour, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time ThisHourLocalTime()
-        {
-            return CurrentLocalTime().thisHour();
-        }
+        static inline Time ThisHourLocalTime() { return CurrentLocalTime().thisHour(); }
 
         //!
         //! Get the beginning of the next hour, UTC.
         //! @return The time for the beginning of the next hour, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time NextHourUTC()
-        {
-            return CurrentUTC().nextHour();
-        }
+        static inline Time NextHourUTC() { return CurrentUTC().nextHour(); }
 
         //!
         //! Get the beginning of the next hour, local time.
         //! @return The time for the beginning of the next hour, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time NextHourLocalTime()
-        {
-            return CurrentLocalTime().nextHour();
-        }
+        static inline Time NextHourLocalTime() { return CurrentLocalTime().nextHour(); }
 
         //!
         //! Get the beginning of the current day, UTC.
         //! @return The time for the beginning of the current day, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time TodayUTC()
-        {
-            return CurrentUTC().thisDay();
-        }
+        static inline Time TodayUTC() { return CurrentUTC().thisDay(); }
 
         //!
         //! Get the beginning of the current day, local time.
         //! @return The time for the beginning of the current day, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time TodayLocalTime()
-        {
-            return CurrentLocalTime().thisDay();
-        }
+        static inline Time TodayLocalTime() { return CurrentLocalTime().thisDay(); }
 
         //!
         //! Get the beginning of the next day, UTC.
         //! @return The time for the beginning of the next day, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time TomorrowUTC()
-        {
-            return CurrentUTC().nextDay();
-        }
+        static inline Time TomorrowUTC() { return CurrentUTC().nextDay(); }
 
         //!
         //! Get the beginning of the next day, local time.
         //! @return The time for the beginning of the next day, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time TomorrowLocalTime()
-        {
-            return CurrentLocalTime().nextDay();
-        }
+        static inline Time TomorrowLocalTime() { return CurrentLocalTime().nextDay(); }
 
         //!
         //! Get the beginning of the current month, UTC.
         //! @return The time for the beginning of the current month, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time ThisMonthUTC()
-        {
-            return CurrentUTC().thisMonth();
-        }
+        static inline Time ThisMonthUTC() { return CurrentUTC().thisMonth(); }
 
         //!
         //! Get the beginning of the current month, local time.
         //! @return The time for the beginning of the current month, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time ThisMonthLocalTime()
-        {
-            return CurrentLocalTime().thisMonth();
-        }
+        static inline Time ThisMonthLocalTime() { return CurrentLocalTime().thisMonth(); }
 
         //!
         //! Get the beginning of the next month, UTC.
         //! @return The time for the beginning of the next month, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time NextMonthUTC()
-        {
-            return CurrentUTC().nextMonth();
-        }
+        static inline Time NextMonthUTC() { return CurrentUTC().nextMonth(); }
 
         //!
         //! Get the beginning of the next month, local time.
         //! @return The time for the beginning of the next month, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time NextMonthLocalTime()
-        {
-            return CurrentLocalTime().nextMonth();
-        }
+        static inline Time NextMonthLocalTime() { return CurrentLocalTime().nextMonth(); }
 
         //!
         //! Get the beginning of the current year, UTC.
         //! @return The time for the beginning of the current year, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time ThisYearUTC()
-        {
-            return CurrentUTC().thisYear();
-        }
+        static inline Time ThisYearUTC() { return CurrentUTC().thisYear(); }
 
         //!
         //! Get the beginning of the current year, local time.
         //! @return The time for the beginning of the current year, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time ThisYearLocalTime()
-        {
-            return CurrentLocalTime().thisYear();
-        }
+        static inline Time ThisYearLocalTime() { return CurrentLocalTime().thisYear(); }
 
         //!
         //! Get the beginning of the next year, UTC.
         //! @return The time for the beginning of the next year, UTC.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time NextYearUTC()
-        {
-            return CurrentUTC().nextYear();
-        }
+        static inline Time NextYearUTC() { return CurrentUTC().nextYear(); }
 
         //!
         //! Get the beginning of the next year, local time.
         //! @return The time for the beginning of the next year, local time.
         //! @throw ts::Time::TimeError In case of operating system time error.
         //!
-        static inline Time NextYearLocalTime()
-        {
-            return CurrentLocalTime().nextYear();
-        }
+        static inline Time NextYearLocalTime() { return CurrentLocalTime().nextYear(); }
 
         //!
         //! Check if a year is a leap year (29 days in February).
@@ -674,6 +639,16 @@ namespace ts {
         //! @return The corresponding UTC time.
         //!
         static Time Win32FileTimeToUTC(const ::FILETIME& fileTime);
+
+        //!
+        //! Convert the time to a Win32 @c FILETIME (Microsoft Windows only).
+        //!
+        //! This function is available on Microsoft Windows systems only
+        //! and should not be used on portable software.
+        //!
+        //! @param [out] fileTime The corresponding Win32 @c FILETIME value.
+        //!
+        void toWin32FileTime(::FILETIME& fileTime) const;
 #endif
 
 #if defined(TS_UNIX) || defined(DOXYGEN)

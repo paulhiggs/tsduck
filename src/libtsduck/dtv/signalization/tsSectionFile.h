@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -15,6 +15,7 @@
 #include "tsxmlJSONConverter.h"
 #include "tsjson.h"
 #include "tsTime.h"
+#include "tsDuckContext.h"
 #include "tsSectionFormat.h"
 #include "tsBinaryTable.h"
 #include "tsCRC32.h"
@@ -234,10 +235,7 @@ namespace ts {
         //! @param [in,out] strm A standard stream in input mode (binary mode).
         //! @return True on success, false on error.
         //!
-        bool loadBinary(std::istream& strm)
-        {
-            return loadBinary(strm, _report);
-        }
+        bool loadBinary(std::istream& strm);
 
         //!
         //! Load a binary section file.
@@ -253,10 +251,7 @@ namespace ts {
         //! @param [in,out] strm A standard stream in output mode (binary mode).
         //! @return True on success, false on error.
         //!
-        bool saveBinary(std::ostream& strm) const
-        {
-            return saveBinary(strm, _report);
-        }
+        bool saveBinary(std::ostream& strm) const;
 
         //!
         //! Save a binary section file.
@@ -326,7 +321,7 @@ namespace ts {
         //!
         const SectionPtrVector& orphanSections() const
         {
-            return _orphanSections;
+            return _orphan_sections;
         }
 
         //!
@@ -353,7 +348,7 @@ namespace ts {
         //!
         void getOrphanSections(SectionPtrVector& sections) const
         {
-            sections.assign(_orphanSections.begin(), _orphanSections.end());
+            sections.assign(_orphan_sections.begin(), _orphan_sections.end());
         }
 
         //!
@@ -433,22 +428,17 @@ namespace ts {
 
     private:
         DuckContext&         _duck;                   // Reference to TSDuck execution context.
-        Report&              _report;                 // Where to report errors.
         BinaryTablePtrVector _tables {};              // Loaded tables.
         SectionPtrVector     _sections {};            // All sections from the file.
-        SectionPtrVector     _orphanSections {};      // Sections which do not belong to any table.
-        xml::JSONConverter   _model {_report};        // XML model for tables.
+        SectionPtrVector     _orphan_sections {};     // Sections which do not belong to any table.
+        xml::JSONConverter   _model {_duck.report()}; // XML model for tables.
         xml::Tweaks          _xmlTweaks {};           // XML formatting and parsing tweaks.
         CRC32::Validation    _crc_op = CRC32::IGNORE; // Processing of CRC32 when loading sections.
 
         // Load the XML model in this instance, if not already done.
         bool loadThisModel();
 
-        // Load/save a binary section file from a stream with specific report.
-        bool loadBinary(std::istream& strm, Report& report);
-        bool saveBinary(std::ostream& strm, Report& report) const;
-
-        // Rebuild _tables and _orphanSections from _sections.
+        // Rebuild _tables and _orphan_sections from _sections.
         void rebuildTables();
 
         // Parse an XML document.
@@ -457,7 +447,7 @@ namespace ts {
         // Generate an XML document.
         bool generateDocument(xml::Document& doc) const;
 
-        // Check it a table can be formed using the last sections in _orphanSections.
+        // Check it a table can be formed using the last sections in _orphan_sections.
         void collectLastTable();
 
         // Generate a JSON document. Point to a JSON Null literal on error.

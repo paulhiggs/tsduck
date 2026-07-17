@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  Common definitions for using qmake.
@@ -75,7 +75,7 @@ linux|mingw {
     QMAKE_CXXFLAGS_WARN_ON += -Wundef -Wcast-align -Wstrict-null-sentinel -Wformat-security \
         -Wswitch-default -Wuninitialized -Wno-unused-parameter -Wfloat-equal -Wpointer-arith \
         -Wsign-promo -Woverloaded-virtual -Wctor-dtor-privacy -Wnon-virtual-dtor \
-        -Woverloaded-virtual -Wzero-as-null-pointer-constant
+        -Woverloaded-virtual -Wsuggest-override -Wzero-as-null-pointer-constant -Wformat-nonliteral
     greaterThan(GCC_MAJOR, 4): QMAKE_CXXFLAGS_WARN_ON += -Wpedantic -Weffc++ -Wshadow
 }
 linux {
@@ -89,6 +89,7 @@ mac {
     LLVM_MAJOR = $$member(LLVM_FIELDS, 0)
     QMAKE_CXXFLAGS_WARN_ON += -Weverything -Wno-c++98-compat-pedantic
     greaterThan(LLVM_MAJOR, 11): QMAKE_CXXFLAGS_WARN_ON += -Wno-poison-system-directories
+    greaterThan(LLVM_MAJOR, 20): QMAKE_CXXFLAGS_WARN_ON += -Wno-thread-safety-negative
     exists(/usr/local/include): QMAKE_CXXFLAGS += -I/usr/local/include
     exists(/opt/homebrew/include): QMAKE_CXXFLAGS += -I/opt/homebrew/include
     LIBS += -framework PCSC
@@ -126,8 +127,6 @@ tsplugin {
     SOURCES += $$SRCROOT/tsplugins/$${TARGET}.cpp
     QMAKE_POST_LINK += mkdir -p ../tsp $$escape_expand(\\n\\t)
     QMAKE_POST_LINK += cp $${TARGET}$$SO ../tsp $$escape_expand(\\n\\t)
-    QMAKE_POST_LINK += mkdir -p ../tsprofiling $$escape_expand(\\n\\t)
-    QMAKE_POST_LINK += cp $${TARGET}$$SO ../tsprofiling $$escape_expand(\\n\\t)
 }
 libtscore {
     # Applications using libtscore shall use "CONFIG += libtscore".

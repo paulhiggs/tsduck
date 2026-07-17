@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -70,26 +70,14 @@ namespace ts {
     //! sizes is larger than the size of the global buffer, the stream processing can enter a deadlock and
     //! stops. The global @c tsp command shall be carefully tuned to avoid that.
     //!
-    class TSDUCKDLL ProcessorPlugin : public Plugin
+    class TSDUCKDLL ProcessorPlugin: public Plugin
     {
         TS_NOBUILD_NOCOPY(ProcessorPlugin);
     public:
         //!
-        //! Status of a packet processing.
-        //! Returned by processPacket() after processing one packet.
+        //! Alias for status of a packet processing (for compatibility only).
         //!
-        enum Status {
-            TSP_OK = 0,    //!< OK, pass packet to next processor or output.
-            TSP_END = 1,   //!< End of processing, tell everybody to terminate.
-            TSP_DROP = 2,  //!< Drop this packet.
-            TSP_NULL = 3   //!< Replace this packet with a null packet.
-        };
-
-        //!
-        //! Names of packet status values.
-        //! @return A constant reference to the enumeration description.
-        //!
-        static const Names& StatusNames();
+        using Status = PacketProcessStatus;
 
         //!
         //! Get the preferred packet window size.
@@ -119,7 +107,7 @@ namespace ts {
         //! @param [in,out] pkt_data TS packet metadata.
         //! @return The processing status.
         //!
-        virtual Status processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data);
+        virtual PacketProcessStatus processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data);
 
         //!
         //! Packet window processing interface.

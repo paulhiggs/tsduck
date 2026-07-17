@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -65,14 +65,14 @@ namespace ts {
         //!
         //! Check if refresh mode is progressive.
         //! @return True if refresh mode is progressive. Note that progressive() and
-        //! interlaced() can return false both if the refresh mode is unspecifed.
+        //! interlaced() can return false both if the refresh mode is unspecified.
         //!
         bool progressive() const {return _is_valid ? _progressive : false;}
 
         //!
         //! Check if refresh mode is interlaced.
         //! @return True if refresh mode is interlaced. Note that progressive() and
-        //! interlaced() can return false both if the refresh mode is unspecifed.
+        //! interlaced() can return false both if the refresh mode is unspecified.
         //!
         bool interlaced() const {return _is_valid ? _interlaced : false;}
 
@@ -159,7 +159,7 @@ namespace ts {
         size_t   _sh_hsize = 0;    // Horizontal size in pixel
         size_t   _sh_vsize = 0;    // Vertical size in pixel
         uint8_t  _sh_ar_code = 0;  // Aspect ratio code (AR_* from tsMPEG.h)
-        size_t   _sh_fr_code = 0;  // Frame rate code
+        uint8_t  _sh_fr_code = 0;  // Frame rate code
         uint32_t _sh_bitrate = 0;  // Maximum bitrate
         size_t   _sh_vbv_size = 0; // Video Buffering Verifier size in bits
 

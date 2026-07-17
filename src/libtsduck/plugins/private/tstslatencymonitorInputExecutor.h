@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Amos Cheung
+// Copyright (c) 2005-2026, Amos Cheung
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ namespace ts {
         //! Execution context of a tslatencymonitor input plugin.
         //! @ingroup libtsduck plugin
         //!
-        class InputExecutor : public PluginThread
+        class InputExecutor: public PluginThread
         {
             TS_NOBUILD_NOCOPY(InputExecutor);
         public:

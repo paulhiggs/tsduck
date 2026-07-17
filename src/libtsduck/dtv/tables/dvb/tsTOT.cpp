@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -248,9 +248,8 @@ bool ts::TOT::analyzeXML(DuckContext& duck, const xml::Element* element)
     // Always cache this value.
     _time_reference_offset = duck.timeReferenceOffset();
 
+    // Get all descriptors in a separate list.
     DescriptorList orig(this);
-
-    // Get all descriptors in a separated list.
     const bool ok = element->getDateTimeAttribute(utc_time, u"UTC_time", true) && orig.fromXML(duck, element);
 
     // Then, split local_time_offset_descriptor and others.

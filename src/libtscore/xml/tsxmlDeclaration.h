@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -50,7 +50,7 @@ namespace ts::xml {
         // Inherited from xml::Node.
         virtual Node* clone() const override;
         virtual UString typeName() const override;
-        virtual void print(TextFormatter& output, bool keepNodeOpen = false) const override;
+        virtual void print(TextFormatter& output, bool keep_node_open = false) const override;
 
     protected:
         // Inherited from xml::Node.

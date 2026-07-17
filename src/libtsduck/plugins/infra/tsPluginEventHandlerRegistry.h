@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -90,7 +90,7 @@ namespace ts {
         void registerEventHandler(PluginEventHandlerInterface* handler, const Criteria& criteria = Criteria::Any);
 
         //!
-        //! Unregister all occurences of an event handler.
+        //! Unregister all occurrences of an event handler.
         //! Note: calling this function while executing a plugin event hander does nothing.
         //! This is typically used in the destructor of an event handler.
         //! @param [in] handler The event handler to unregister. When null, all events are unregistered.

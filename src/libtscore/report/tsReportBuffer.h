@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -120,6 +120,5 @@ void ts::ReportBuffer<SAFETY>::writeLog(int severity, const UString& message)
     if (!_buffer.empty()) {
         _buffer.append(u'\n');
     }
-    _buffer.append(Severity::Header(severity));
-    _buffer.append(message);
+    _buffer.append(Severity::AddHeader(severity, message));
 }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -24,7 +24,7 @@ namespace ts {
     //! @see Free TV Australia Operational Practice OP-41, section 2.2
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL AustraliaLogicalChannelDescriptor : public AbstractLogicalChannelDescriptor
+    class TSDUCKDLL AustraliaLogicalChannelDescriptor: public AbstractLogicalChannelDescriptor
     {
     public:
         //!

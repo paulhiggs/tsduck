@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -11,6 +11,10 @@
 #include "tsSysUtils.h"
 #include "tsSysInfo.h"
 #include "tsIntegerUtils.h"
+
+#if defined(TS_WINDOWS)
+    #include "tsWinUtils.h"
+#endif
 
 #if defined(TS_LINUX)
     #include "tsBeforeStandardHeaders.h"
@@ -179,7 +183,7 @@ bool ts::Thread::start()
 
     // Windows implementation.
     // Create the thread in suspended state.
-    _handle = ::CreateThread(nullptr, _attributes._stackSize, Thread::ThreadProc, this, CREATE_SUSPENDED, &_thread_id);
+    _handle = ::CreateThread(nullptr, _attributes._stack_size, Thread::ThreadProc, this, CREATE_SUSPENDED, &_thread_id);
     if (_handle == nullptr) {
         return false;
     }
@@ -208,9 +212,9 @@ bool ts::Thread::start()
     }
 
     // Set required stack size.
-    if (_attributes._stackSize > 0) {
+    if (_attributes._stack_size > 0) {
         // Round to a multiple of the page size. This is required on macOS.
-        const size_t size = round_up(std::max<size_t>(PTHREAD_STACK_MIN, _attributes._stackSize), SysInfo::Instance().memoryPageSize());
+        const size_t size = round_up(std::max<size_t>(PTHREAD_STACK_MIN, _attributes._stack_size), SysInfo::Instance().memoryPageSize());
         if (::pthread_attr_setstacksize(&attr, size) != 0) {
             ::pthread_attr_destroy(&attr);
             return false;
@@ -276,7 +280,7 @@ bool ts::Thread::waitForTermination()
 
         // If "delete when terminated" is true, we cannot wait.
         // The thread will cleanup itself.
-        if (_attributes._deleteWhenTerminated) {
+        if (_attributes._delete_when_terminated) {
             return false;
         }
 
@@ -314,50 +318,6 @@ bool ts::Thread::waitForTermination()
 
 
 //----------------------------------------------------------------------------
-// Dynamically resolve SetThreadDescription() on Windows.
-// Implemented as a static function to allow "initialize once" later.
-//
-// On Windows, SetThreadDescription() is used to set the thread name.
-// This function in defined in Kernel32.dll on recent versions of Windows.
-// On older versions, referencing this symbol fails. According to
-// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreaddescription
-// on Windows Server 2016, Windows 10 LTSB 2016 and Windows 10 version 1607,
-// SetThreadDescription is only available by Run Time Dynamic Linking in
-// KernelBase.dll. So, we try Kernel32 first, then KernelBase. Eventually,
-// it may not be defined at all and we return a null pointer.
-//
-// Kernel32 and KernelBase are supposed to be already loaded in any user
-// process, so we directly use GetModuleHandle() instead of ts::SharedLibrary.
-//----------------------------------------------------------------------------
-
-#if defined(TS_WINDOWS)
-namespace {
-
-    // Profile for SetThreadDescription().
-    // Note: WINAPI is mandatory on Win32, otherwise calling the function crashes. This is the default with x64.
-    using SetThreadDescriptionProfile = ::HRESULT (WINAPI*)(::HANDLE hThread, ::PCWSTR lpThreadDescription);
-
-    // Dynamically resolve SetThreadDescription() on Windows.
-    SetThreadDescriptionProfile GetSetThreadDescription()
-    {
-        void* addr = nullptr;
-        const ::HMODULE k32 = ::GetModuleHandleA("Kernel32.dll");
-        if (k32 != nullptr) {
-            addr = ::GetProcAddress(k32, "SetThreadDescription");
-        }
-        if (addr == nullptr) {
-            const ::HMODULE kbase = ::GetModuleHandleA("KernelBase.dll");
-            if (kbase != nullptr) {
-                addr = ::GetProcAddress(kbase, "SetThreadDescription");
-            }
-        }
-        return reinterpret_cast<SetThreadDescriptionProfile>(addr);
-    }
-}
-#endif
-
-
-//----------------------------------------------------------------------------
 // Static method. Actual starting point of threads. Parameter is "this".
 //----------------------------------------------------------------------------
 
@@ -385,8 +345,23 @@ void ts::Thread::mainWrapper()
 #elif defined(TS_FREEBSD) || defined(TS_DRAGONFLYBSD)
         ::pthread_setname_np(_pthread, name.toUTF8().c_str());
 #elif defined(TS_WINDOWS)
+        // Dynamically resolve SetThreadDescription() on Windows.
+        // On Windows, SetThreadDescription() is used to set the thread name.
+        // This function in defined in Kernel32.dll on recent versions of Windows.
+        // On older versions, referencing this symbol fails. According to
+        // https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreaddescription
+        // on Windows Server 2016, Windows 10 LTSB 2016 and Windows 10 version 1607,
+        // SetThreadDescription is only available by Run Time Dynamic Linking in
+        // KernelBase.dll. So, we try Kernel32 first, then KernelBase. Eventually,
+        // it may not be defined at all and we return a null pointer.
+
+        // Profile for SetThreadDescription().
+        using SetThreadDescriptionProfile = ::HRESULT(WINAPI*)(::HANDLE hThread, ::PCWSTR lpThreadDescription);
+
         // Thread-safe init-safe static data pattern:
-        static const SetThreadDescriptionProfile SetThreadDescriptionAddr = GetSetThreadDescription();
+        static const SetThreadDescriptionProfile SetThreadDescriptionAddr =
+            reinterpret_cast<SetThreadDescriptionProfile>(GetFunctionFromDLL("SetThreadDescription", {"Kernel32.dll", "KernelBase.dll"}));
+
         if (SetThreadDescriptionAddr != nullptr) {
             SetThreadDescriptionAddr(::GetCurrentThread(), name.wc_str());
         }
@@ -415,7 +390,7 @@ void ts::Thread::mainWrapper()
     thread->mainWrapper();
 
     // Perform auto-deallocation
-    if (thread->_attributes._deleteWhenTerminated) {
+    if (thread->_attributes._delete_when_terminated) {
         ::CloseHandle(thread->_handle);
         thread->_started = false;
         delete thread;
@@ -441,7 +416,7 @@ void* ts::Thread::ThreadProc(void* parameter)
     thread->mainWrapper();
 
     // Perform auto-deallocation
-    if (thread->_attributes._deleteWhenTerminated) {
+    if (thread->_attributes._delete_when_terminated) {
         ::pthread_detach(thread->_pthread);
         thread->_started = false;
         delete thread;

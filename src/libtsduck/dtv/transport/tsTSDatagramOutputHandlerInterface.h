@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -33,9 +33,8 @@ namespace ts {
         //! Must be implemented by classes which are in charge of sending datagrams.
         //! @param [in] address Address of datagram content.
         //! @param [in] size Size in bytes of datagram content.
-        //! @param [in,out] report Where to report errors.
         //! @return True on success, false on error.
         //!
-        virtual bool sendDatagram(const void* address, size_t size, Report& report) = 0;
+        virtual bool sendDatagram(const void* address, size_t size) = 0;
     };
 }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -147,7 +147,7 @@ void ts::MPEDemux::handleTable(SectionDemux& demux, const BinaryTable& table)
         }
 
         case TID_PMT: {
-            PMTPtr pmt(new PMT(_duck, table));
+            std::shared_ptr<PMT> pmt = std::make_shared<PMT>(_duck, table);
             if (pmt != nullptr && pmt->isValid()) {
                 // Keep track of all PMT's in the TS.
                 _pmts[pmt->service_id] = pmt;

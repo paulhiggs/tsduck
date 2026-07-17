@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -25,6 +25,7 @@
 #else
     #include "tsBeforeStandardHeaders.h"
     #include <sys/ioctl.h>
+    #include <sys/time.h>
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <unistd.h>
@@ -167,7 +168,7 @@ ts::UString ts::AbsoluteFilePath(const UString& path, const UString& base)
 // Build a relative form of a file path, relative to a base directory.
 //----------------------------------------------------------------------------
 
-ts::UString ts::RelativeFilePath(const ts::UString &path, const ts::UString &base, ts::CaseSensitivity caseSensitivity, bool portableSlashes)
+ts::UString ts::RelativeFilePath(const ts::UString &path, const ts::UString &base, ts::CaseSensitivity case_sensitivity, bool portable_slashes)
 {
     // Build absolute file path of the target.
     UString target(AbsoluteFilePath(path));
@@ -177,7 +178,7 @@ ts::UString ts::RelativeFilePath(const ts::UString &path, const ts::UString &bas
     ref.append(fs::path::preferred_separator);
 
     // See how many leading characters are matching.
-    size_t same = target.commonPrefixSize(ref, caseSensitivity);
+    size_t same = target.commonPrefixSize(ref, case_sensitivity);
 
     // Move backward right after the previous path separator to
     // get the length of the common directory parts
@@ -205,7 +206,7 @@ ts::UString ts::RelativeFilePath(const ts::UString &path, const ts::UString &bas
     }
 
     // Convert portable slashes.
-    if (portableSlashes && fs::path::preferred_separator != u'/') {
+    if (portable_slashes && fs::path::preferred_separator != u'/') {
         target.substitute(fs::path::preferred_separator, u'/');
     }
 
@@ -278,7 +279,7 @@ fs::path ts::UserHomeDirectory()
 {
 #if defined(TS_WINDOWS)
 
-    ::HANDLE process = INVALID_HANDLE_VALUE;
+    ::HANDLE process = nullptr;
     if (::OpenProcessToken(::GetCurrentProcess(), TOKEN_QUERY, &process) == 0) {
         throw ts::Exception(u"cannot open current process", ::GetLastError());
     }
@@ -314,7 +315,6 @@ fs::path ts::TempFile(const UString& suffix)
 
 //----------------------------------------------------------------------------
 // Get the time of last modification of a file.
-// Return Time::Epoch in case of error.
 //----------------------------------------------------------------------------
 
 ts::Time ts::GetFileModificationTimeUTC(const UString& path)
@@ -336,18 +336,50 @@ ts::Time ts::GetFileModificationTimeLocal(const UString& path)
 
 
 //----------------------------------------------------------------------------
+// Set the time of the last modification of a file.
+//----------------------------------------------------------------------------
+
+bool ts::SetFileModificationTimeUTC(const UString& path, const Time& time)
+{
+#if defined(TS_WINDOWS)
+    const ::HANDLE h = ::CreateFileW(path.wc_str(), FILE_WRITE_ATTRIBUTES, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (!WinHandleValid(h)) {
+        return false;
+    }
+    ::FILETIME ft;
+    time.toWin32FileTime(ft);
+    const bool success = ::SetFileTime(h, nullptr, &ft, &ft) != 0;
+    ::CloseHandle(h);
+    return success;
+#else
+    const cn::microseconds usec = std::max(cn::microseconds::zero(), cn::duration_cast<cn::microseconds>(time - Time::UnixEpoch));
+    ::timeval times[2];
+    // times[0] specifies the new access time, and times[1] specifies the new modification time.
+    times[0].tv_sec = times[1].tv_sec = timeval_sec_t(usec.count() / 1'000'000);
+    times[0].tv_usec = times[1].tv_usec = timeval_usec_t(usec.count() % 1'000'000);
+    return ::utimes(path.toUTF8().c_str(), times) == 0;
+#endif
+}
+
+bool ts::SetFileModificationTimeLocal(const UString& path, const Time& time)
+{
+    return SetFileModificationTimeUTC(path, time == Time::Epoch ? time : time.localToUTC());
+}
+
+
+//----------------------------------------------------------------------------
 // Search an executable file.
 //----------------------------------------------------------------------------
 
-ts::UString ts::SearchExecutableFile(const UString& fileName, const UString& pathName)
+ts::UString ts::SearchExecutableFile(const UString& file_name, const UString& path_name)
 {
     // Don't search if empty.
-    if (fileName.empty()) {
+    if (file_name.empty()) {
         return UString();
     }
 
     // Adjust file name with the executable suffix.
-    UString name(fileName);
+    UString name(file_name);
     if (!name.ends_with(EXECUTABLE_FILE_SUFFIX, FILE_SYSTEM_CASE_SENSITVITY)) {
         name.append(EXECUTABLE_FILE_SUFFIX);
     }
@@ -356,14 +388,14 @@ ts::UString ts::SearchExecutableFile(const UString& fileName, const UString& pat
     const fs::perms exec = fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
 
     // If there is at least one path separator in the middle, there is a directory specified, don't search.
-    if (LastPathSeparator(fileName) != NPOS) {
+    if (LastPathSeparator(file_name) != NPOS) {
         // If the file does not exist or is not executable, not suitable.
         return fs::exists(name) && (fs::status(name, &ErrCodeReport()).permissions() & exec) != fs::perms::none ? name : UString();
     }
 
     // Search in the path.
     UStringList dirs;
-    GetEnvironmentPath(dirs, pathName);
+    GetEnvironmentPath(dirs, path_name);
     for (const auto& dir : dirs) {
         const UString full(dir + fs::path::preferred_separator + name);
         if (fs::exists(full) && (fs::status(full, &ErrCodeReport()).permissions() & exec) != fs::perms::none) {
@@ -377,20 +409,44 @@ ts::UString ts::SearchExecutableFile(const UString& fileName, const UString& pat
 
 
 //----------------------------------------------------------------------------
+// Get the system-dependent root of installed packages.
+//----------------------------------------------------------------------------
+
+const ts::UString& ts::DefaultPackageInstallationRoot()
+{
+    static const UString path =
+#if defined(TS_WINDOWS)
+        GetEnvironment(u"TSDUCK");
+#elif defined(TS_MAC) && defined(TS_X86_64)
+        u"/usr/local";
+#elif defined(TS_MAC) && defined(TS_ARM64)
+        u"/opt/homebrew";
+#elif defined(TS_FREEBSD) || defined(TS_OPENBSD) || defined(TS_DRAGONFLYBSD)
+        u"/usr/local";
+#elif defined(TS_NETBSD)
+        u"/usr/pkg";
+#else
+        u"/usr";
+#endif
+    return path;
+}
+
+
+//----------------------------------------------------------------------------
 // Search a configuration file.
 //----------------------------------------------------------------------------
 
-ts::UString ts::SearchConfigurationFile(const UString& fileName)
+ts::UString ts::SearchConfigurationFile(const UString& file_name)
 {
-    if (fileName.empty()) {
+    if (file_name.empty()) {
         // No file specified, no file found...
         return UString();
     }
-    if (fs::exists(fileName)) {
+    if (fs::exists(file_name)) {
         // The file exists as is, no need to search.
-        return fileName;
+        return file_name;
     }
-    if (LastPathSeparator(fileName) != NPOS) {
+    if (LastPathSeparator(file_name) != NPOS) {
         // There is a path separator, there is a directory specified and the file does not exist, don't search.
         return UString();
     }
@@ -426,21 +482,17 @@ ts::UString ts::SearchConfigurationFile(const UString& fileName)
     // application is not a TSDuck one but a third-party application which uses the
     // TSDuck library. In that case, relative paths from the executables are useless.
 #if defined(TS_WINDOWS)
-    const UString tsroot(GetEnvironment(u"TSDUCK"));
-    if (!tsroot.empty()) {
-        dirList.push_back(tsroot + u"\\bin");
+    if (!DefaultPackageInstallationRoot().empty()) {
+        dirList.push_back(DefaultPackageInstallationRoot() + u"\\bin");
     }
-#elif defined(TS_MAC) && defined(TS_X86_64)
-    dirList.push_back(u"/usr/local/share/tsduck");
-#elif defined(TS_MAC) && defined(TS_ARM64)
-    dirList.push_back(u"/opt/homebrew/share/tsduck");
-#elif defined(TS_UNIX)
-    dirList.push_back(u"/usr/share/tsduck");
+#else
+    dirList.push_back(DefaultPackageInstallationRoot() + u"/share/tsduck");
 #endif
 
     // Search the file.
     for (const auto& dir : dirList) {
-        const UString path(dir + fs::path::preferred_separator + fileName);
+        const UString path(dir + fs::path::preferred_separator + file_name);
+        CERR.debug(u"looking for %s", path);
         if (fs::exists(path)) {
             return path;
         }
@@ -455,7 +507,7 @@ ts::UString ts::SearchConfigurationFile(const UString& fileName)
 // Build the name of a user-specific configuration file.
 //----------------------------------------------------------------------------
 
-ts::UString ts::UserConfigurationFileName(const UString& fileName, const UString& winFileName)
+ts::UString ts::UserConfigurationFileName(const UString& file_name, const UString& win_file_name)
 {
 #if defined(TS_WINDOWS)
     UString root(GetEnvironment(u"APPDATA"));
@@ -465,8 +517,8 @@ ts::UString ts::UserConfigurationFileName(const UString& fileName, const UString
     else {
         root.append(u"\\tsduck");
     }
-    return root + u"\\" + (winFileName.empty() ? fileName : winFileName);
+    return root + u"\\" + (win_file_name.empty() ? file_name : win_file_name);
 #else
-    return UserHomeDirectory() + u"/" + fileName;
+    return UserHomeDirectory() + u"/" + file_name;
 #endif
 }

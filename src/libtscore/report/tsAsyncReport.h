@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ namespace ts {
     //!
     //! Messages are displayed on the standard error device by default.
     //!
-    class TSCOREDLL AsyncReport : public Report, private Thread
+    class TSCOREDLL AsyncReport: public Report, private Thread
     {
         TS_NOCOPY(AsyncReport);
     public:

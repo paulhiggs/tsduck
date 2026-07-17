@@ -1,33 +1,32 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tstlvLogger.h"
-#include "tsNullReport.h"
 
 
 //----------------------------------------------------------------------------
-// Constructors.
+// Constructors and destructor.
 //----------------------------------------------------------------------------
 
-ts::tlv::Logger::Logger(int default_level, Report* default_report) :
-    _report(default_report != nullptr ? default_report : &NULLREP),
+ts::tlv::Logger::Logger(Report* report, int default_level, Object* owner) :
+    ReporterBase(report, owner),
     _default_level(default_level)
 {
 }
 
-
-//----------------------------------------------------------------------------
-// Set a new default report object.
-//----------------------------------------------------------------------------
-
-void ts::tlv::Logger::setReport(Report* default_report)
+ts::tlv::Logger::Logger(ReporterBase* delegate, int default_level, Object* owner) :
+    ReporterBase(delegate, owner),
+    _default_level(default_level)
 {
-    _report = default_report != nullptr ? default_report : &NULLREP;
+}
+
+ts::tlv::Logger::~Logger()
+{
 }
 
 
@@ -52,17 +51,16 @@ void ts::tlv::Logger::resetSeverities(int default_level)
 // Report a TLV message.
 //----------------------------------------------------------------------------
 
-void ts::tlv::Logger::log(const Message& msg, const UString& comment, Report* report)
+void ts::tlv::Logger::log(const Message& msg, const UString& comment) const
 {
-    Report* rep = report != nullptr ? report : _report;
     const int level = severity(msg.tag());
-    if (rep->maxSeverity() >= level) {
+    if (report().maxSeverity() >= level) {
         const UString dump(msg.dump(4));
         if (comment.empty()) {
-            rep->log(level, dump);
+            report().log(level, dump);
         }
         else {
-            rep->log(level, u"%s\n%s", comment, dump);
+            report().log(level, u"%s\n%s", comment, dump);
         }
     }
 }

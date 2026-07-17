@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -65,7 +65,7 @@ namespace ts {
     //!     A 2-byte PID value.
     //!
     //! PRM_TIMESTAMP
-    //!     A timestamp identifying the occurence of the event. Same format
+    //!     A timestamp identifying the occurrence of the event. Same format
     //!     as the activation_time in the EIS<=>SCS DVB Simulcrypt protocol:
     //!        year       2 bytes
     //!        month      1 byte
@@ -151,7 +151,7 @@ namespace ts {
         //! Generic description of the TSDuck internal messaging protocol.
         //---------------------------------------------------------------------
 
-        class TSDUCKDLL Protocol : public tlv::Protocol
+        class TSDUCKDLL Protocol: public tlv::Protocol
         {
             TS_NOCOPY(Protocol);
         public:
@@ -174,7 +174,7 @@ namespace ts {
         //!
         //! Message to log a section.
         //!
-        class TSDUCKDLL LogSection : public tlv::Message
+        class TSDUCKDLL LogSection: public tlv::Message
         {
             TS_VERSIONED_TLV_MESSAGE(LogSection, Tags::MSG_LOG_SECTION);
         public:
@@ -186,7 +186,7 @@ namespace ts {
         //!
         //! Message to log a table.
         //!
-        class TSDUCKDLL LogTable : public tlv::Message
+        class TSDUCKDLL LogTable: public tlv::Message
         {
             TS_VERSIONED_TLV_MESSAGE(LogTable, Tags::MSG_LOG_TABLE);
         public:
@@ -198,7 +198,7 @@ namespace ts {
         //!
         //! Fake / demo  clear ECM.
         //!
-        class TSDUCKDLL ClearECM : public tlv::Message
+        class TSDUCKDLL ClearECM: public tlv::Message
         {
             TS_VERSIONED_TLV_MESSAGE(ClearECM, Tags::MSG_ECM);
         public:
@@ -210,7 +210,7 @@ namespace ts {
         //!
         //! Error message.
         //!
-        class TSDUCKDLL Error : public tlv::Message
+        class TSDUCKDLL Error: public tlv::Message
         {
             TS_VERSIONED_TLV_MESSAGE(Error, Tags::MSG_ERROR);
         public:

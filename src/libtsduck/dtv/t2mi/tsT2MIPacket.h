@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ namespace ts {
     //! @ingroup libtsduck mpeg
     //! @see ETSI TS 102 773 V1.4.1, section 5.1
     //!
-    class TSDUCKDLL T2MIPacket : public DemuxedData
+    class TSDUCKDLL T2MIPacket: public DemuxedData
     {
     public:
         //!

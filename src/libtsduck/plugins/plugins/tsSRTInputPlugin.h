@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2020-2025, Lola Delannoy
+// Copyright (c) 2020-2026, Lola Delannoy
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -37,6 +37,6 @@ namespace ts {
     private:
         bool             _multiple = false;  // Accept multiple (sequential) connections.
         cn::milliseconds _restart_delay {};  // If _multiple, wait before reconnecting.
-        SRTSocket        _sock {};           // Incoming SRT socket.
+        SRTSocket        _sock {this};       // Incoming SRT socket.
     };
 }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -41,6 +41,16 @@ ts::xml::Attribute::Attribute(const UString& name, const UString& value, size_t 
     _line(line),
     _sequence(++_allocator)
 {
+}
+
+
+//----------------------------------------------------------------------------
+// Check if the name of the attribute matches a given value.
+//----------------------------------------------------------------------------
+
+bool ts::xml::Attribute::nameMatch(const UChar* str, bool ignore_namespace) const
+{
+    return str != nullptr && (ignore_namespace ? _name.similarAfterLast(str, u':') : _name.similar(str));
 }
 
 

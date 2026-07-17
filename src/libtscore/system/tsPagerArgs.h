@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -13,7 +13,6 @@
 
 #pragma once
 #include "tsOutputPager.h"
-#include "tsCerrReport.h"
 
 namespace ts {
 
@@ -25,20 +24,21 @@ namespace ts {
     //!
     class TSCOREDLL PagerArgs
     {
-        TS_NOCOPY(PagerArgs);
+        TS_NOBUILD_NOCOPY(PagerArgs);
     public:
         // Public fields
-        bool page_by_default = false; //!< Use a page process by default.
-        bool use_pager = false;       //!< Actually use a page process.
+        bool use_pager = false;  //!< Actually use a page process.
 
         //!
         //! Default constructor.
-        //! @param [in] pageByDefault If true, paging is enabled by default and option @c -\-no-pager
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists. If @a report is null, log messages are discarded.
+        //! @param [in] page_by_default If true, paging is enabled by default and option @c -\-no-pager
         //! is defined. If false, do not page by default and option @c -\-pager is defined.
-        //! @param [in] stdoutOnly If true, use only stdout. If false, if stdout is not a terminal but
+        //! @param [in] stdout_only If true, use only stdout. If false, if stdout is not a terminal but
         //! stderr is one, then use stderr for paging.
         //!
-        PagerArgs(bool pageByDefault = false, bool stdoutOnly = true);
+        explicit PagerArgs(Report* report, bool page_by_default = false, bool stdout_only = true);
 
         //!
         //! Destructor.
@@ -61,12 +61,12 @@ namespace ts {
 
         //!
         //! Return the output device for display.
-        //! @param [in,out] report Where to report errors.
         //! @return A reference to the output device, either @c std::cout or a pager stream.
         //!
-        std::ostream& output(Report& report = CERR);
+        std::ostream& output();
 
     private:
+        bool _page_by_default = false;
         OutputPager _pager;
     };
 }

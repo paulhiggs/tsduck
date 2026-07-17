@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -21,14 +21,14 @@ namespace ts {
     //! @see Astra LCN Technical Specification, 2.1
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL SGT : public AbstractLongTable
+    class TSDUCKDLL SGT: public AbstractLongTable
     {
     public:
         //!
         //! Description of a service.
         //! Note: by inheriting from EntryWithDescriptors, there is a public field "DescriptorList descs".
         //!
-        class TSDUCKDLL Service : public EntryWithDescriptors
+        class TSDUCKDLL Service: public EntryWithDescriptors
         {
             TS_NO_DEFAULT_CONSTRUCTORS(Service);
             TS_DEFAULT_ASSIGMENTS(Service);

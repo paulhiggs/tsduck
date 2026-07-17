@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -43,7 +43,7 @@ void ts::PluginEventHandlerRegistry::registerEventHandler(PluginEventHandlerInte
 
 
 //----------------------------------------------------------------------------
-// Unregister all occurences of an event handler.
+// Unregister all occurrences of an event handler.
 //----------------------------------------------------------------------------
 
 void ts::PluginEventHandlerRegistry::unregisterEventHandler(PluginEventHandlerInterface* handler)

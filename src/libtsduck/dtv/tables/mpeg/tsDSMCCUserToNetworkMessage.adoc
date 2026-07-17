@@ -13,7 +13,7 @@ Defined by MPEG in <<ISO-13818-6>>.
     message_id="uint16, required"
     transaction_id="uint32, required">
 
-  <!-- Exactly one of DSI or DII -->
+  <!-- required when message_id == 0x1006 (DownloadServerInitiate) -->
   <DSI>
     <server_id>
       Hexadecimal content
@@ -35,6 +35,7 @@ Defined by MPEG in <<ISO-13818-6>>.
       </descriptor>
     </compatibilityDescriptor>
 
+    <!-- DSM-CC IOR() structure (object-carousel DSI body) -->
     <IOR>
       <type_id>
         Hexadecimal content
@@ -91,8 +92,36 @@ Defined by MPEG in <<ISO-13818-6>>.
       </tagged_profile>
     </IOR>
 
+    <!-- DSM-CC GroupInfoIndication() structure (data-carousel DSI body) -->
+    <GroupInfoIndication>
+      <!-- Zero or more groups -->
+      <group group_id="uint32, required" group_size="uint32, required">
+        <compatibilityDescriptor>
+          <!-- Zero or more descriptors -->
+          <descriptor
+              descriptorType="uint8, required"
+              specifierType="uint8, default=1"
+              specifierData="uint24, required"
+              model="uint16, default=0"
+              version="uint16, default=0">
+            <!-- Zero or more subdescriptors -->
+            <subDescriptor subDescriptorType="uint8, required">
+              Hexadecimal content
+            </subDescriptor>
+          </descriptor>
+        </compatibilityDescriptor>
+        <group_info>
+          Hexadecimal content
+        </group_info>
+      </group>
+      <private_data>
+        Hexadecimal content
+      </private_data>
+    </GroupInfoIndication>
+
   </DSI>
 
+  <!-- required when message_id == 0x1002 (DownloadInfoIndication) -->
   <DII download_id="uint32, required" block_size="uint16, required">
 
     <!-- Optional DSM-CC compatibilityDescriptor() structure -->

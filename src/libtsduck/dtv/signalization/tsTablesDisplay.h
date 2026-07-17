@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -70,6 +70,12 @@ namespace ts {
         //! @return A reference to the TSDuck execution context.
         //!
         DuckContext& duck() { return _duck; }
+
+        //!
+        //! Get the associated report.
+        //! @return A reference to the report.
+        //!
+        Report& report() { return _duck.report(); }
 
         //!
         //! Get the output stream.

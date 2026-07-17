@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ namespace ts {
     //! All shared libraries providing output capability shall return
     //! an object implementing this abstract interface.
     //!
-    class TSDUCKDLL OutputPlugin : public Plugin
+    class TSDUCKDLL OutputPlugin: public Plugin
     {
         TS_NOBUILD_NOCOPY(OutputPlugin);
     public:

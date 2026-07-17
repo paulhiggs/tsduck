@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ namespace ts {
     //! @see ATSC A/81, section 9.9.3.
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL AETT : public AbstractLongTable
+    class TSDUCKDLL AETT: public AbstractLongTable
     {
     public:
         //!

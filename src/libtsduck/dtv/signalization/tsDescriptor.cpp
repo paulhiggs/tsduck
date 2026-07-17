@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -10,6 +10,9 @@
 #include "tsMemory.h"
 #include "tsAbstractDescriptor.h"
 #include "tsxmlElement.h"
+
+TS_PUSH_WARNING()
+TS_GCC_NOWARNING(array-bounds) // Bug in gcc 16.0.1 in Fedora 44
 
 
 //----------------------------------------------------------------------------
@@ -210,7 +213,7 @@ bool ts::Descriptor::fromXML(DuckContext& duck, EDID& edid, const xml::Element* 
     }
 
     // Try to decode a generic descriptor.
-    if (node->name().similar(AbstractDescriptor::XML_GENERIC_DESCRIPTOR)) {
+    if (node->nameMatch(AbstractDescriptor::XML_GENERIC_DESCRIPTOR)) {
         DID tag = 0xFF;
         ByteBlock payload;
         if (node->getIntAttribute<DID>(tag, u"tag", true, 0xFF, 0x00, 0xFF) && node->getHexaText(payload, 0, 255)) {
@@ -228,3 +231,5 @@ bool ts::Descriptor::fromXML(DuckContext& duck, EDID& edid, const xml::Element* 
     node->report().error(u"<%s>, line %d, is not a valid descriptor", node->name(), node->lineNumber());
     return false;
 }
+
+TS_POP_WARNING()

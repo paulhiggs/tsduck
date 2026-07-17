@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Command line options.
@@ -71,7 +71,7 @@ ts::ContinuityPlugin::ContinuityPlugin(TSP* tsp_) :
          u"By default, with --fix, duplicated input packets are replicated as duplicated on output "
          u"(the corresponding output packets have the same continuity counters). "
          u"When this option is specified, the input packets are not considered as duplicated and "
-         u"the output packets receive individually incremented countinuity counters.");
+         u"the output packets receive individually incremented continuity counters.");
 
     option(u"pid", 'p', PIDVAL, 0, UNLIMITED_COUNT);
     help(u"pid", u"pid1[-pid2]",
@@ -136,7 +136,7 @@ bool ts::ContinuityPlugin::start()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::ContinuityPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::ContinuityPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     _cc_analyzer.feedPacket(pkt);
     return TSP_OK;

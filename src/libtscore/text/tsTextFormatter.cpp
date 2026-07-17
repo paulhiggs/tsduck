@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -15,7 +15,7 @@
 //----------------------------------------------------------------------------
 
 ts::TextFormatter::TextFormatter(Report& report) :
-    AbstractOutputStream(),
+    AbstractStandardOutputStream(),
     _report(report),
     _out(&_out_file)  // _out is never null, points by default to a closed file (discard output)
 {
@@ -43,13 +43,20 @@ ts::TextFormatter& ts::TextFormatter::setStream(std::ostream& strm)
 // Set output to a text file.
 //----------------------------------------------------------------------------
 
-bool ts::TextFormatter::setFile(const fs::path& fileName)
+bool ts::TextFormatter::setFile(const fs::path& file_name)
 {
     close();
-    _report.debug(u"creating file %s", fileName);
-    _out_file.open(fileName, std::ios::out);
+
+    // If the specified file is empty or "-", use the standard output.
+    if (file_name.empty() || file_name == u"-") {
+        _out = &std::cout;
+        return true;
+    }
+
+    _report.debug(u"creating file %s", file_name);
+    _out_file.open(file_name, std::ios::out);
     if (!_out_file) {
-        _report.error(u"cannot create file %s", fileName);
+        _report.error(u"cannot create file %s", file_name);
         return false;
     }
     else {
@@ -160,7 +167,7 @@ ts::TextFormatter& ts::TextFormatter::setMarginSize(size_t margin)
 
 
 //----------------------------------------------------------------------------
-// Implementation of AbstractOutputStream
+// Implementation of AbstractStandardOutputStream
 //----------------------------------------------------------------------------
 
 bool ts::TextFormatter::writeStreamBuffer(const void* addr, size_t size)

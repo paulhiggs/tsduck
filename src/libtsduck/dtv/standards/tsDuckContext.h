@@ -1,7 +1,7 @@
 //-------------------       ---------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -12,6 +12,7 @@
 //----------------------------------------------------------------------------
 
 #pragma once
+#include "tsReporterBase.h"
 #include "tsUString.h"
 #include "tsByteBlock.h"
 #include "tsCharset.h"
@@ -55,7 +56,7 @@ namespace ts {
     //! The class DuckContext is not thread-safe. It shall be used from one
     //! single thread or explicit synchronization is required.
     //!
-    class TSDUCKDLL DuckContext
+    class TSDUCKDLL DuckContext: public ReporterBase
     {
         TS_NOCOPY(DuckContext);
     public:
@@ -63,25 +64,19 @@ namespace ts {
         //! Constructor.
         //! @param [in] report Address of the report for log and error messages. If null, use the standard error.
         //! @param [in] output The output stream to use, @c std::cout on null pointer.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
         //!
-        DuckContext(Report* report = nullptr, std::ostream* output = nullptr);
+        DuckContext(Report* report = nullptr, std::ostream* output = nullptr, Object* owner = nullptr);
+
+        //!
+        //! Destructor.
+        //!
+        virtual ~DuckContext() override;
 
         //!
         //! Reset the TSDuck context to initial configuration.
         //!
         void reset();
-
-        //!
-        //! Get the current report for log and error messages.
-        //! @return A reference to the current output report.
-        //!
-        Report& report() const { return *_report; }
-
-        //!
-        //! Set a new report for log and error messages.
-        //! @param [in] report Address of the report for log and error messages. If null, use the standard error.
-        //!
-        void setReport(Report* report);
 
         //!
         //! Get the current output stream to issue long text output.
@@ -515,7 +510,6 @@ namespace ts {
         void restoreArgs(const SavedArgs& args);
 
     private:
-        Report*            _report;        // Pointer to a report for error messages. Never null.
         std::ostream*      _initial_out;   // Initial text output stream. Never null.
         std::ostream*      _out;           // Pointer to text output stream. Never null.
         std::ofstream      _outFile {};    // Open stream when redirected to a file by name.
@@ -546,6 +540,6 @@ namespace ts {
         };
 
         // Define several classes of command line options in an Args.
-        void defineOptions(Args& args, int cmdOptionsMask);
+        void defineOptions(Args& args, int cmd_options_mask);
     };
 }

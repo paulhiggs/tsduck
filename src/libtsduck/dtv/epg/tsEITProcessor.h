@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -35,9 +35,7 @@ namespace ts {
     //! By default, there is only one input PID which is also used as
     //! output PID. This is PID 0x12, the standard DVB PID for EIT's.
     //!
-    class TSDUCKDLL EITProcessor :
-        private SectionHandlerInterface,
-        private SectionProviderInterface
+    class TSDUCKDLL EITProcessor: private SectionHandlerInterface, private SectionProviderInterface
     {
         TS_NOBUILD_NOCOPY(EITProcessor);
     public:

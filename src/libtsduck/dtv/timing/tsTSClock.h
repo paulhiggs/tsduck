@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -29,7 +29,7 @@ namespace ts {
     //! By default, the clock is based on real UTC time and TS packets are unused.
     //! @ingroup libtsduck mpeg
     //!
-    class TSDUCKDLL TSClock : private TableHandlerInterface, SectionHandlerInterface
+    class TSDUCKDLL TSClock: private TableHandlerInterface, SectionHandlerInterface
     {
         TS_NOBUILD_NOCOPY(TSClock);
     public:

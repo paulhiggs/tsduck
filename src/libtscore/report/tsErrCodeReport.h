@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -29,10 +29,7 @@ namespace ts {
     //! is the following:
     //!
     //! @code
-    //! if (!std::filesystem::create_directory(dir, &ErrCodeReport(report, "error creating directory", dir))) {
-    //!     // error processing, error message already logged to report
-    //!     return false;
-    //! }
+    //! std::filesystem::create_directory(dir, &ErrCodeReport(report, u"error creating directory", dir));
     //! @endcode
     //!
     //! The first important point is the usage of a constructor, directly as a parameter
@@ -59,7 +56,7 @@ namespace ts {
     //! various common combinations of parameter types. More constructors may need to be defined with
     //! new code.
     //!
-    class TSCOREDLL ErrCodeReport : public std::error_code
+    class TSCOREDLL ErrCodeReport: public std::error_code
     {
         TS_NOCOPY(ErrCodeReport);
     public:

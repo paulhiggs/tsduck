@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2022-2025, Vision Advance Technology Inc. (VATek)
+// Copyright (c) 2022-2026, Vision Advance Technology Inc. (VATek)
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,15 +22,15 @@
 //----------------------------------------------------------------------------
 
 ts::VatekControl::VatekControl(int argc, char *argv[]) :
-    Args(u"Control VATek devices", u"[options] [device]")
+    Args(u"Control AstroMeta (formerly VATek) devices", u"[options] [device]")
 {
     option(u"", 0, UNSIGNED, 0, 1);
     help(u"",
-         u"Device index, from 0 to N-1 (with N being the number of VATek devices in the system). "
+         u"Device index, from 0 to N-1 (with N being the number of AstroMeta devices in the system). "
          u"The default is 0. Use option --all to have a complete list of devices in the system.");
 
     option(u"all", 'a');
-    help(u"all", u"List all VATek devices available on the system.");
+    help(u"all", u"List all AstroMeta devices available on the system.");
 
     analyze(argc, argv);
 

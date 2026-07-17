@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2020-2025, Thierry Lelegard
+// Copyright (c) 2020-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -40,6 +40,6 @@ namespace ts {
         Guts* _guts = nullptr;
 
         // Implementation of TSDatagramOutputHandlerInterface.
-        virtual bool sendDatagram(const void* address, size_t size, Report& report) override;
+        virtual bool sendDatagram(const void* address, size_t size) override;
     };
 }

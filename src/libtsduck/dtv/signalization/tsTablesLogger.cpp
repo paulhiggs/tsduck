@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -26,7 +26,7 @@
 ts::TablesLogger::TablesLogger(TablesDisplay& display) :
     _display(display),
     _duck(_display.duck()),
-    _report(_duck.report())
+    _report(_display.report())
 {
     // Create an instance of each registered section filter.
     TablesLoggerFilterRepository::Instance().createFilters(_section_filters);
@@ -155,6 +155,9 @@ void ts::TablesLogger::defineArgs(Args& args)
 
     args.option(u"max-tables", 'x', Args::POSITIVE);
     args.help(u"max-tables", u"Maximum number of tables to dump. Stop logging tables when this limit is reached.");
+
+    args.option(u"meta-base64-sections");
+    args.help(u"meta-base64-sections", u"Add Base-64 dump of each section in XML and JSON metadata.");
 
     args.option(u"meta-sections");
     args.help(u"meta-sections", u"Add hexadecimal dump of each section in XML and JSON metadata.");
@@ -330,6 +333,7 @@ bool ts::TablesLogger::loadArgs(DuckContext& duck, Args& args)
     _duration = args.present(u"duration");
     _packet_index = args.present(u"packet-index");
     _meta_sections = args.present(u"meta-sections");
+    _meta_base64 = args.present(u"meta-base64-sections");
     _logger = args.present(u"log");
     args.getIntValue(_log_size, u"log-size", DEFAULT_LOG_SIZE);
     _no_duplicate = args.present(u"no-duplicate");
@@ -363,6 +367,7 @@ bool ts::TablesLogger::loadArgs(DuckContext& duck, Args& args)
     _xml_options.setLocalTime = _time_stamp;
     _xml_options.setPackets = _packet_index;
     _xml_options.setSections = _meta_sections;
+    _xml_options.setBase64 = _meta_base64;
     return _xml_tweaks.loadArgs(args);
 }
 
@@ -392,7 +397,7 @@ bool ts::TablesLogger::open()
         _bin_file.close();
     }
     if (_sock.isOpen()) {
-        _sock.close(_report);
+        _sock.close();
     }
 
     // Set PID's to filter.
@@ -468,12 +473,12 @@ bool ts::TablesLogger::open()
         // Create UDP socket.
         _abort =
             !dest.resolve(_udp_destination, _report) ||
-            !_sock.open(dest.generation(), _report) ||
-            !_sock.setDefaultDestination(dest, _report) ||
-            (!_udp_local.empty() && !_sock.setOutgoingMulticast(_udp_local, _report)) ||
-            (_udp_ttl > 0 && !_sock.setTTL(_udp_ttl, _report));
+            !_sock.open(dest.generation()) ||
+            !_sock.setDefaultDestination(dest) ||
+            (!_udp_local.empty() && !_sock.setOutgoingMulticast(_udp_local)) ||
+            (_udp_ttl > 0 && !_sock.setTTL(_udp_ttl));
         if (_abort) {
-            _sock.close(_report);
+            _sock.close();
             return false;
         }
     }
@@ -505,7 +510,7 @@ void ts::TablesLogger::close()
             _bin_file.close();
         }
         if (_sock.isOpen()) {
-            _sock.close(_report);
+            _sock.close();
         }
 
         // Now completed.
@@ -930,7 +935,7 @@ void ts::TablesLogger::sendUDP(const ts::BinaryTable& table)
             const UString line(_udp_format == SectionFormat::XML ? doc.oneLiner() : buildJSON(doc));
             std::string utf8;
             line.toUTF8(utf8);
-            _sock.send(utf8.data(), utf8.size(), _report);
+            _sock.send(utf8.data(), utf8.size());
         }
     }
     else if (_udp_raw) {
@@ -941,11 +946,11 @@ void ts::TablesLogger::sendUDP(const ts::BinaryTable& table)
             const Section& sect(*table.sectionAt(i));
             bin.append(sect.content(), sect.size());
         }
-        _sock.send(bin.data(), bin.size(), _report);
+        _sock.send(bin.data(), bin.size());
     }
     else {
         // Build a TLV message with all sections.
-        ByteBlockPtr bin(new ByteBlock);
+        const auto bin = std::make_shared<ByteBlock>();
         bin->reserve(table.totalSize() + 32 + 4 * table.sectionCount());
         duck::LogTable msg(_duck_protocol);
         msg.pid = table.sourcePID();
@@ -955,7 +960,7 @@ void ts::TablesLogger::sendUDP(const ts::BinaryTable& table)
         }
         tlv::Serializer serial(bin);
         msg.serialize(serial);
-        _sock.send(bin->data(), bin->size(), _report);
+        _sock.send(bin->data(), bin->size());
     }
 }
 
@@ -970,7 +975,7 @@ void ts::TablesLogger::sendUDP(const ts::Section& section)
     if (_udp_format == SectionFormat::BINARY) {
         if (_udp_raw) {
             // Send raw content of section as one single UDP message
-            _sock.send(section.content(), section.size(), _report);
+            _sock.send(section.content(), section.size());
         }
         else {
             // Build a TLV message.
@@ -980,12 +985,12 @@ void ts::TablesLogger::sendUDP(const ts::Section& section)
             msg.section = std::make_shared<Section>(section, ShareMode::SHARE);
 
             // Serialize the message.
-            ByteBlockPtr bin(new ByteBlock);
+            const auto bin = std::make_shared<ByteBlock>();
             tlv::Serializer serial(bin);
             msg.serialize(serial);
 
             // Send TLV message over UDP
-            _sock.send(bin->data(), bin->size(), _report);
+            _sock.send(bin->data(), bin->size());
         }
     }
 }
@@ -1019,7 +1024,7 @@ bool ts::TablesLogger::AnalyzeUDPMessage(const duck::Protocol& protocol, const u
             if (sect_size == 0) {
                 return false;
             }
-            const SectionPtr section(new Section(data, sect_size, ts::PID_NULL, ts::CRC32::CHECK));
+            const auto section = std::make_shared<Section>(data, sect_size, ts::PID_NULL, ts::CRC32::CHECK);
             if (!section->isValid()) {
                 return false;
             }
@@ -1034,23 +1039,23 @@ bool ts::TablesLogger::AnalyzeUDPMessage(const duck::Protocol& protocol, const u
         tlv::MessagePtr msg(mf.factory());
 
         // We expected only two possible messages:
-        const duck::LogSection* logSection = dynamic_cast<const duck::LogSection*>(msg.get());
-        const duck::LogTable* logTable = dynamic_cast<const duck::LogTable*>(msg.get());
+        const auto log_section = std::dynamic_pointer_cast<duck::LogSection>(msg);
+        const auto log_table = std::dynamic_pointer_cast<duck::LogTable>(msg);
 
-        if (logSection != nullptr) {
-            scDate = logSection->timestamp;
-            pid = logSection->pid;
-            if (logSection->section == nullptr || !logSection->section->isValid()) {
+        if (log_section != nullptr) {
+            scDate = log_section->timestamp;
+            pid = log_section->pid;
+            if (log_section->section == nullptr || !log_section->section->isValid()) {
                 return false;
             }
             else {
-                sections.push_back(logSection->section);
+                sections.push_back(log_section->section);
             }
         }
-        else if (logTable != nullptr) {
-            scDate = logTable->timestamp;
-            pid = logTable->pid;
-            sections = logTable->sections;
+        else if (log_table != nullptr) {
+            scDate = log_table->timestamp;
+            pid = log_table->pid;
+            sections = log_table->sections;
         }
         else {
             return false;

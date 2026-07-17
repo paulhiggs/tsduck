@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -62,10 +62,7 @@ namespace ts {
         //! Replace the MPE handler.
         //! @param [in] h The new handler.
         //!
-        void setHandler(MPEHandlerInterface* h)
-        {
-            _handler = h;
-        }
+        void setHandler(MPEHandlerInterface* h) { _handler = h; }
 
     protected:
         // Inherited methods from AbstractDemux.
@@ -77,8 +74,7 @@ namespace ts {
         virtual void handleSection(SectionDemux& demux, const Section& section) override;
 
         // Keep a map of all PMT's per service id.
-        using PMTPtr = std::shared_ptr<PMT>;
-        using PMTMap = std::map<uint16_t, PMTPtr>;
+        using PMTMap = std::map<uint16_t, std::shared_ptr<PMT>>;
 
         // We record here all MPE PID's from the IP/MAC Notification Table (INT).
         // In the INT, an MPE PID is defined by a 16-bit service id and an 8-bit component tag.

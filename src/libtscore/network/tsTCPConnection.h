@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -15,6 +15,7 @@
 
 #pragma once
 #include "tsTCPSocket.h"
+#include "tsSocketOp.h"
 #include "tsAbortInterface.h"
 
 namespace ts {
@@ -60,7 +61,7 @@ namespace ts {
     //!
     class TSCOREDLL TCPConnection: public TCPSocket
     {
-        TS_NOCOPY(TCPConnection);
+        TS_NOBUILD_NOCOPY(TCPConnection);
     public:
         //!
         //! Reference to the superclass.
@@ -68,9 +69,21 @@ namespace ts {
         using SuperClass = TCPSocket;
 
         //!
-        //! Constructor
+        //! Constructor.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists or setReport() is used with another Report object. If @a report is null, log messages are discarded.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
         //!
-        TCPConnection() = default;
+        explicit TCPConnection(Report* report, bool non_blocking = false, Object* owner = nullptr) : TCPSocket(report, non_blocking, owner) {}
+
+        //!
+        //! Constructor.
+        //! @param [in] delegate Use the report of another ReporterBase. If @a delegate is null, log messages are discarded.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        explicit TCPConnection(ReporterBase* delegate, bool non_blocking = false, Object* owner = nullptr) : TCPSocket(delegate, non_blocking, owner) {}
 
         //!
         //! Connect to a remote address and port.
@@ -79,11 +92,25 @@ namespace ts {
         //! Do not use on server side: the TCPConnection object is passed
         //! to TCPServer::accept() which establishes the connection.
         //!
-        //! @param [in] addr IP address and port of the server to connect.
-        //! @param [in,out] report Where to report error.
+        //! @param [in] addr IP address and port of the server to connect to.
+        //! @param [in,out] iosb Address of an IOSB structure. If non-null, the socket must be in non-blocking mode.
+        //! When null, the socket must be in blocking mode (the default). See the description of IOSB.
+        //! Important: The parameter @a iosb should not be used by applications. It should be used only by
+        //! "reactive classes", which work in combination with a Reactor.
+        //! @return True on success, false on error. In case of non-blocking mode, if the connection is successfully started
+        //! but still pending, iosb->pending is set to true and the method returns true.
+        //!
+        virtual bool connect(const IPSocketAddress& addr, IOSB* iosb = nullptr);
+
+        //!
+        //! Update the status of an asynchronous connect().
+        //! - With non-blocking I/O, @a error_code shall be the error from the write-ready notification.
+        //! - With asynchronous I/O, @a iosb is used to complete the socket state.
+        //! @param [in,out] iosb Address of the IOSB structure which was used when connect() was called.
+        //! @param [in] error_code Error code in the context of the connection.
         //! @return True on success, false on error.
         //!
-        virtual bool connect(const IPSocketAddress& addr, Report& report = CERR);
+        bool setConnectStatus(IOSB* iosb, int error_code);
 
         //!
         //! Check if the socket is connected.
@@ -92,18 +119,24 @@ namespace ts {
         bool isConnected() const { return isOpen() && _is_connected; }
 
         //!
+        //! Check if the socket is the server-side end of a connection.
+        //! @return True if the socket is the server-side end of a connection, where the connection is the result of an
+        //! accept(). False if the socket is the client-side end of a connection, where the connection used connect().
+        //!
+        bool isServerSide() const { return _is_server_side; }
+
+        //!
         //! Get the connected remote peer.
         //! @param [out] addr IP address and port of the remote socket.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool getPeer(IPSocketAddress& addr, Report& report = CERR) const;
+        bool getPeer(IPSocketAddress& addr);
 
         //!
         //! Get the connected remote peer as a string.
         //! @return A string representation of the IP address and port of the remote socket.
         //!
-        UString peerName() const;
+        UString peerName();
 
         //!
         //! Close the write direction of the connection.
@@ -112,105 +145,108 @@ namespace ts {
         //! message but may still want to receive messages, waiting for the
         //! peer to voluntary disconnect.
         //!
-        //! @param [in,out] report Where to report error.
+        //! @param [in] silent If true, do not report errors through the logger. This is typically useful when the socket
+        //! is in some error condition and closing it is necessary although it may generate additional meaningless errors.
         //! @return True on success, false on error.
         //!
-        virtual bool closeWriter(Report& report = CERR);
+        virtual bool closeWriter(bool silent = false);
 
         //!
         //! Disconnect from remote partner.
-        //! @param [in,out] report Where to report error.
+        //! @param [in] silent If true, do not report errors through the logger. This is typically useful when the socket
+        //! is in some error condition and closing it is necessary although it may generate additional meaningless errors.
         //! @return True on success, false on error.
         //!
-        virtual bool disconnect(Report& report = CERR);
+        virtual bool disconnect(bool silent = false);
 
         //!
         //! Send data.
         //! @param [in] data Address of the data to send.
         //! @param [in] size Size in bytes of the data to send.
-        //! @param [in,out] report Where to report error.
-        //! @return True on success, false on error.
+        //! @param [in,out] iosb Address of an IOSB structure. If non-null, the socket must be in non-blocking mode.
+        //! When null, the socket must be in blocking mode (the default). See the description of IOSB.
+        //! Important: The parameter @a iosb should not be used by applications. It should be used only by
+        //! "reactive classes", which work in combination with a Reactor.
+        //! @return True on success, false on error. In case of non-blocking mode, if the I/O is successfully started
+        //! but still pending, iosb->pending is set to true and the method returns true.
         //!
-        virtual bool send(const void* data, size_t size, Report& report = CERR);
+        virtual bool send(const void* data, size_t size, IOSB* iosb = nullptr);
 
         //!
         //! Receive data.
         //!
-        //! This version of receiveMessage() returns when "some" data are received into
-        //! the user buffer. The actual received data may be shorter than the
-        //! user buffer size.
+        //! This version of receiveMessage() returns when "some" data are received into the user buffer.
+        //! The actual received data may be shorter than the user buffer size.
         //!
-        //! The version is typically useful when the application cannot predict
-        //! how much data will be received and must respond even if the user
-        //! buffer is not full.
+        //! The version is typically useful when the application cannot predict how much data will be
+        //! received and must respond even if the user buffer is not full.
         //!
         //! @param [out] buffer Address of the buffer for the received data.
         //! @param [in] max_size Size in bytes of the reception buffer.
-        //! @param [out] ret_size Size in bytes of the received data.
-        //! Will never be larger than @a max_size.
-        //! @param [in] abort If non-zero, invoked when I/O is interrupted
-        //! (in case of user-interrupt, return, otherwise retry).
-        //! @param [in,out] report Where to report error.
-        //! @return True on success, false on error.
+        //! @param [out] ret_size Size in bytes of the received data. Will never be larger than @a max_size.
+        //! @param [in] abort If non-zero, invoked when I/O is interrupted (in case of user-interrupt, return, otherwise retry).
+        //! @param [in,out] iosb Address of an IOSB structure. If non-null, the socket must be in non-blocking mode.
+        //! When null, the socket must be in blocking mode (the default). See the description of IOSB.
+        //! Important: The parameter @a iosb should not be used by applications. It should be used only by
+        //! "reactive classes", which work in combination with a Reactor.
+        //! @return True on success, false on error. In case of non-blocking mode, if the I/O is successfully started
+        //! but still pending, iosb->pending is set to true and the method returns true.
         //!
-        virtual bool receive(void* buffer,
-                             size_t max_size,
-                             size_t& ret_size,
-                             const AbortInterface* abort = nullptr,
-                             Report& report = CERR);
+        virtual bool receive(void* buffer, size_t max_size, size_t& ret_size, const AbortInterface* abort = nullptr, IOSB* iosb = nullptr);
 
         //!
         //! Receive data until buffer is full.
         //!
-        //! This version of receiveMessage() returns only when sufficient data are
-        //! received to completely fill the user buffer. The size of the actual
-        //! received data is identical to the user buffer size.
+        //! This version of receive() returns only when sufficient data are received to completely fill the user buffer.
+        //! The size of the actual received data is identical to the user buffer size. If some data, but not all, were
+        //! received before the connection was closed, these data are ignored and the method returns false. The version
+        //! is typically useful when the application knows that a certain amount of data is expected and must wait for them.
         //!
-        //! The version is typically useful when the application knows that
-        //! a certain amount of data is expected and must wait for them.
+        //! This method is only allowed when the socket is in blocking-mode (the default) because this method is blocking
+        //! by definition. Therefore, there is no @a iosb parameter.
         //!
-        //! This base implementation uses the variable-length version of receiveMessage().
-        //! Therefore, a subclass may only override the variable-length version.
+        //! This base implementation uses the variable-length version of receive(). Therefore, a subclass may only override
+        //! the variable-length version and not this one.
         //!
         //! @param [out] buffer Address of the buffer for the received data.
         //! @param [in] size Size in bytes of the buffer.
-        //! @param [in] abort If non-zero, invoked when I/O is interrupted
-        //! (in case of user-interrupt, return, otherwise retry).
-        //! @param [in,out] report Where to report error.
+        //! @param [in] abort If non-zero, invoked when I/O is interrupted (in case of user-interrupt, return, otherwise retry).
         //! @return True on success, false on error.
         //!
-        virtual bool receive(void* buffer,
-                             size_t size,
-                             const AbortInterface* abort = nullptr,
-                             Report& report = CERR);
-
-    protected:
-        //!
-        //! This virtual method can be overriden by subclasses to be notified of connection.
-        //! All subclasses should explicitly invoke their superclass' handlers.
-        //! @param [in,out] report Where to report error.
-        //!
-        virtual void handleConnected(Report& report = CERR);
-
-        //!
-        //! This virtual method can be overriden by subclasses to be notified of disconnection.
-        //! All subclasses should explicitly invoke their superclass' handlers.
-        //! @param [in,out] report Where to report error.
-        //!
-        virtual void handleDisconnected(Report& report = CERR);
-
-        // Overriden methods
-        virtual void handleClosed(Report& report = CERR) override;
+        virtual bool receive(void* buffer, size_t size, const AbortInterface* abort = nullptr);
 
     private:
         volatile bool _is_connected = false;
+        volatile bool _is_server_side = false;
+
+        // Implementation of Socket interface.
+        virtual void declareOpened(SysSocketType sock) override;
+        virtual bool closeImplementation(bool silent) override;
 
         // Declare that the socket has just become connected / disconnected.
-        void declareConnected(Report& report = CERR);
-        void declareDisconnected(Report& report = CERR);
+        void declareConnected();
+        void declareDisconnected(bool silent);
         friend class TCPServer;
 
         // Shutdown the socket.
-        bool shutdownSocket(int how, Report& report = CERR);
+        bool shutdownSocket(int how, bool silent);
+
+#if defined(TS_WINDOWS)
+        // For Windows asynchronous I/O, we need to keep parameter in one single structure which lives during the I/O.
+        class TSCOREDLL TCPAsyncBuffers: public Object
+        {
+            TS_NOBUILD_NOCOPY(TCPAsyncBuffers);
+        public:
+            SocketOp type;                    // Operation type, for debug purpose.
+            ::WSABUF buf {};                  // Pointer to user's buffer (send/receive).
+            ::DWORD flags = 0;                // WSARecv flags.
+            ::sockaddr_storage peer_sock {};  // Peer socket (connect).
+            int peer_sock_len = 0;            // Actual length of peer_socket.
+
+            // Constructor and destructor.
+            TCPAsyncBuffers(SocketOp op) : type(op) {}
+            virtual ~TCPAsyncBuffers() override;
+        };
+#endif
     };
 }

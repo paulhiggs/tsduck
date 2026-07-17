@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -19,6 +19,7 @@
 #include "tsEnvironment.h"
 #include "tsSysInfo.h"
 #include "tsErrCodeReport.h"
+#include "tsCerrReport.h"
 #include "tsRegistry.h"
 #include "tsTime.h"
 #include "tsUID.h"
@@ -57,13 +58,16 @@ class SysUtilsTest: public tsunit::Test
     TSUNIT_DECLARE_TEST(AbsoluteFilePath);
     TSUNIT_DECLARE_TEST(CleanupFilePath);
     TSUNIT_DECLARE_TEST(RelativeFilePath);
+    TSUNIT_DECLARE_TEST(OpenFileName);
 
 public:
     virtual void beforeTestSuite() override;
     virtual void afterTestSuite() override;
+    virtual void afterTest() override;
 
 private:
     cn::milliseconds _precision {};
+    fs::path _temp_dir {};
  };
 
 TSUNIT_REGISTER(SysUtilsTest);
@@ -79,11 +83,22 @@ void SysUtilsTest::beforeTestSuite()
     _precision = cn::milliseconds(2);
     ts::SetTimersPrecision(_precision);
     debug() << "SysUtilsTest: timer precision = " << ts::UString::Chrono(_precision) << std::endl;
+
+    _temp_dir = ts::TempFile(u".sysutilstest");
 }
 
 // Test suite cleanup method.
 void SysUtilsTest::afterTestSuite()
 {
+}
+
+// Test cleanup method.
+void SysUtilsTest::afterTest()
+{
+    if (fs::is_directory(_temp_dir)) {
+        debug() << "SysUtilsTest: deleting directory " << _temp_dir << std::endl;
+        fs::remove_all(_temp_dir, &ts::ErrCodeReport(CERR, u"error removing", _temp_dir));
+    }
 }
 
 // Vectors of strings
@@ -385,9 +400,9 @@ TSUNIT_DEFINE_TEST(ErrorCode)
 #endif
 
     const ts::UString codeMessage(ts::SysErrorCodeMessage(code));
-    const ts::UString successMessage(ts::SysErrorCodeMessage(0));
+    const ts::UString successMessage(ts::SysErrorCodeMessage(ts::SYS_SUCCESS));
 
-    debug() << "SysUtilsTest: SUCCESS message = \"" << successMessage << "\"" << std::endl
+    debug() << "SysUtilsTest: SYS_SUCCESS message = \"" << successMessage << "\"" << std::endl
             << "SysUtilsTest: test code = " << code << std::endl
             << "SysUtilsTest: test code message = \"" << codeMessage << "\"" << std::endl;
 
@@ -461,10 +476,10 @@ TSUNIT_DEFINE_TEST(TempFiles)
 
 TSUNIT_DEFINE_TEST(FileTime)
 {
-    const fs::path tmpName(ts::TempFile());
+    const fs::path tmp_name(ts::TempFile());
 
     const ts::Time before(ts::Time::CurrentUTC());
-    TSUNIT_ASSERT(_CreateFile(tmpName, 0));
+    TSUNIT_ASSERT(_CreateFile(tmp_name, 0));
     const ts::Time after(ts::Time::CurrentUTC());
 
     // Some systems (Linux) do not store the milliseconds in the file time.
@@ -486,34 +501,48 @@ TSUNIT_DEFINE_TEST(FileTime)
     // SysUtilsTest:      after:       2020/08/27 09:23:26.000
     // SysUtilsTest:      file local:  2020/08/27 11:23:25.000
 
-    ts::Time::Fields beforeFields(before);
-    const cn::milliseconds adjustment = cn::milliseconds(beforeFields.millisecond < 100 ? 1009 : 0);
-    beforeFields.millisecond = 0;
-    ts::Time beforeBase(beforeFields);
-    beforeBase -= adjustment;
+    ts::Time::Fields before_fields(before);
+    const cn::milliseconds adjustment = cn::milliseconds(before_fields.millisecond < 100 ? 1009 : 0);
+    before_fields.millisecond = 0;
+    ts::Time before_base(before_fields);
+    before_base -= adjustment;
 
-    TSUNIT_ASSERT(fs::exists(tmpName));
-    const ts::Time fileUtc(ts::GetFileModificationTimeUTC(tmpName));
-    const ts::Time fileLocal(ts::GetFileModificationTimeLocal(tmpName));
+    TSUNIT_ASSERT(fs::exists(tmp_name));
+    const ts::Time file_utc(ts::GetFileModificationTimeUTC(tmp_name));
+    const ts::Time file_local(ts::GetFileModificationTimeLocal(tmp_name));
 
-    debug() << "SysUtilsTest: file: " << tmpName << std::endl
+    debug() << "SysUtilsTest: file: " << tmp_name << std::endl
             << "SysUtilsTest:      before:      " << before << std::endl
-            << "SysUtilsTest:      before base: " << beforeBase << std::endl
-            << "SysUtilsTest:      file UTC:    " << fileUtc << std::endl
+            << "SysUtilsTest:      before base: " << before_base << std::endl
+            << "SysUtilsTest:      file UTC:    " << file_utc << std::endl
             << "SysUtilsTest:      after:       " << after << std::endl
-            << "SysUtilsTest:      file local:  " << fileLocal << std::endl;
+            << "SysUtilsTest:      file local:  " << file_local << std::endl;
 
     // Check that file modification occured between before and after.
     // Some systems may not store the milliseconds in the file time.
     // So we use before without milliseconds
 
-    TSUNIT_ASSERT(beforeBase <= fileUtc);
-    TSUNIT_ASSERT(fileUtc <= after);
-    TSUNIT_ASSERT(fileUtc.UTCToLocal() == fileLocal);
-    TSUNIT_ASSERT(fileLocal.localToUTC() == fileUtc);
+    TSUNIT_ASSERT(before_base <= file_utc);
+    TSUNIT_ASSERT(file_utc <= after);
+    TSUNIT_ASSERT(file_utc.UTCToLocal() == file_local);
+    TSUNIT_ASSERT(file_local.localToUTC() == file_utc);
 
-    TSUNIT_ASSERT(fs::remove(tmpName, &ts::ErrCodeReport(CERR, u"error deleting", tmpName)));
-    TSUNIT_ASSERT(!fs::exists(tmpName));
+    // Update modification time, one hour later.
+
+    TSUNIT_ASSERT(ts::SetFileModificationTimeUTC(tmp_name, file_utc + cn::hours(1)));
+    const ts::Time new_utc(ts::GetFileModificationTimeUTC(tmp_name));
+    const ts::Time new_local(ts::GetFileModificationTimeLocal(tmp_name));
+
+    debug() << "SysUtilsTest:      new UTC:     " << new_utc << std::endl
+            << "SysUtilsTest:      new local:   " << new_local << std::endl;
+
+    TSUNIT_ASSERT(before_base + cn::hours(1) <= new_utc);
+    TSUNIT_ASSERT(new_utc <= after + cn::hours(1));
+    TSUNIT_ASSERT(new_utc.UTCToLocal() == new_local);
+    TSUNIT_ASSERT(new_local.localToUTC() == new_utc);
+
+    TSUNIT_ASSERT(fs::remove(tmp_name, &ts::ErrCodeReport(CERR, u"error deleting", tmp_name)));
+    TSUNIT_ASSERT(!fs::exists(tmp_name));
 }
 
 TSUNIT_DEFINE_TEST(Wildcard)
@@ -644,18 +673,24 @@ TSUNIT_DEFINE_TEST(IsTerminal)
 TSUNIT_DEFINE_TEST(SysInfo)
 {
     debug() << "SysUtilsTest::testSysInfo: " << std::endl
-            << "    arch() = " << int(ts::SysInfo::Instance().arch()) << std::endl
-            << "    os() = " << int(ts::SysInfo::Instance().os()) << std::endl
-            << "    osFlavor() = " << int(ts::SysInfo::Instance().osFlavor()) << std::endl
+            << "    arch = " << int(ts::SysInfo::Instance().arch()) << std::endl
+            << "    os = " << int(ts::SysInfo::Instance().os()) << std::endl
+            << "    osFlavor = " << int(ts::SysInfo::Instance().osFlavor()) << std::endl
+            << "    crcInstructions = " << ts::SysInfo::Instance().crcInstructions() << std::endl
             << "    systemVersion = \"" << ts::SysInfo::Instance().systemVersion() << '"' << std::endl
             << "    systemMajorVersion = " << ts::SysInfo::Instance().systemMajorVersion() << std::endl
+            << "    systemBuild = " << ts::SysInfo::Instance().systemBuild() << std::endl
             << "    systemName = \"" << ts::SysInfo::Instance().systemName() << '"' << std::endl
             << "    hostName = \"" << ts::SysInfo::Instance().hostName() << '"' << std::endl
-            << "    memoryPageSize = " << ts::SysInfo::Instance().memoryPageSize() << std::endl;
+            << "    cpuName = \"" << ts::SysInfo::Instance().cpuName() << '"' << std::endl
+            << "    memoryPageSize = " << ts::SysInfo::Instance().memoryPageSize() << std::endl
+            << "    cpuCoreCount = " << ts::SysInfo::Instance().cpuCoreCount() << std::endl
+            << "    std::thread::hardware_concurrency = " << std::thread::hardware_concurrency() << std::endl;
 
 #if defined(TS_WINDOWS)
     TSUNIT_EQUAL(ts::SysInfo::WINDOWS, ts::SysInfo::Instance().os());
     TSUNIT_EQUAL(ts::SysInfo::NONE, ts::SysInfo::Instance().osFlavor());
+    TSUNIT_ASSERT(ts::SysInfo::Instance().systemBuild() > 0);
 #elif defined(TS_LINUX)
     TSUNIT_EQUAL(ts::SysInfo::LINUX, ts::SysInfo::Instance().os());
 #elif defined(TS_MAC)
@@ -698,6 +733,9 @@ TSUNIT_DEFINE_TEST(SysInfo)
 #elif defined(TS_S390X)
     TSUNIT_EQUAL(ts::SysInfo::S390X, ts::SysInfo::Instance().arch());
 #endif
+
+    // We can't predict the number of CPU cores, except that this must be non-zero.
+    TSUNIT_ASSERT(ts::SysInfo::Instance().cpuCoreCount() > 0);
 
     // We can't predict the memory page size, except that it must be a multiple of 256.
     TSUNIT_ASSERT(ts::SysInfo::Instance().memoryPageSize() > 0);
@@ -767,4 +805,59 @@ TSUNIT_DEFINE_TEST(RelativeFilePath)
     TSUNIT_EQUAL(u"../ab/cd/ef", ts::RelativeFilePath(u"/ab/cd/ef", u"/xy"));
     TSUNIT_EQUAL(u"ab/cd/ef", ts::RelativeFilePath(u"/ab/cd/ef", u"/"));
 #endif
+}
+
+TSUNIT_DEFINE_TEST(OpenFileName)
+{
+    // Chinese UTF-8 sequence for "hello".
+    static const uint8_t hello_bin[] = {0xE4, 0xBD, 0xA0, 0xE5, 0xA5, 0xBD, 0x00};
+    static const ts::UString hello(ts::UString::FromUTF8(reinterpret_cast<const char*>(&hello_bin)));
+
+    const ts::UString prefix = _temp_dir + fs::path::preferred_separator + hello;
+    debug() << "TestSysUtils::OpenFileName: \"" << prefix << "\"" << std::endl;
+    TSUNIT_EQUAL(2, hello.length());
+
+    // Create temporary directory
+    fs::create_directory(_temp_dir, &ts::ErrCodeReport(CERR, u"error removing", _temp_dir));
+    TSUNIT_ASSERT(fs::is_directory(_temp_dir));
+
+    std::ofstream out;
+    std::ifstream in;
+    ts::UStringVector files;
+    std::string line;
+
+    // On Windows, creating a file with UTF-8 name fails (invalid name).
+    // On other operating systems, it works.
+#if !defined(TS_WINDOWS)
+    out.open((prefix + u".utf8").toUTF8().c_str());
+    TSUNIT_ASSERT(bool(out));
+    out << "ABCD" << std::endl;
+    out.close();
+
+    TSUNIT_ASSERT(ts::ExpandWildcard(files, _temp_dir + fs::path::preferred_separator + u"*.utf8"));
+    TSUNIT_EQUAL(1, files.size());
+    TSUNIT_EQUAL(hello + u".utf8", ts::BaseName(files.front()));
+
+    in.open(fs::path(prefix + u".utf8"));
+    TSUNIT_ASSERT(bool(in));
+    TSUNIT_ASSERT(bool(std::getline(in, line)));
+    TSUNIT_EQUAL("ABCD", line);
+    in.close();
+#endif
+
+    // Using fs::path works on all operating systems.
+    out.open(fs::path(prefix + u".path"));
+    TSUNIT_ASSERT(bool(out));
+    out << "WXYZ" << std::endl;
+    out.close();
+
+    TSUNIT_ASSERT(ts::ExpandWildcard(files, _temp_dir + fs::path::preferred_separator + u"*.path"));
+    TSUNIT_EQUAL(1, files.size());
+    TSUNIT_EQUAL(hello + u".path", ts::BaseName(files.front()));
+
+    in.open(fs::path(prefix + u".path"));
+    TSUNIT_ASSERT(bool(in));
+    TSUNIT_ASSERT(bool(std::getline(in, line)));
+    TSUNIT_EQUAL("WXYZ", line);
+    in.close();
 }

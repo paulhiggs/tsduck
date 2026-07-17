@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -34,15 +34,15 @@ bool ts::FileOutputPlugin::getOptions()
 
 bool ts::FileOutputPlugin::start()
 {
-    return _file.open(*this, tsp);
+    return _file.open(tsp);
 }
 
 bool ts::FileOutputPlugin::stop()
 {
-    return _file.close(*this);
+    return _file.close();
 }
 
 bool ts::FileOutputPlugin::send(const TSPacket* buffer, const TSPacketMetadata* pkt_data, size_t packet_count)
 {
-    return _file.write(buffer, pkt_data, packet_count, *this, tsp);
+    return _file.write(buffer, pkt_data, packet_count, tsp);
 }

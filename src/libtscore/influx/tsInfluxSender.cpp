@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -13,8 +13,8 @@
 // Constructor.
 //----------------------------------------------------------------------------
 
-ts::InfluxSender::InfluxSender(Report& report) :
-    _report(report)
+ts::InfluxSender::InfluxSender(Report* report, Object* owner) :
+    ReporterBase(report, owner)
 {
 }
 
@@ -53,7 +53,7 @@ bool ts::InfluxSender::send(InfluxRequestPtr& request)
         return true;
     }
     else {
-        _report.warning(u"lost metrics, consider increasing --queue-size (current: %d)", _queue.getMaxMessages());
+        report().warning(u"lost metrics, consider increasing --queue-size (current: %d)", _queue.getMaxMessages());
         return false;
     }
 }
@@ -65,7 +65,7 @@ bool ts::InfluxSender::send(InfluxRequestPtr& request)
 
 void ts::InfluxSender::main()
 {
-    _report.debug(u"metrics output thread started");
+    report().debug(u"metrics output thread started");
 
     for (;;) {
         // Wait for one message, stop on null pointer.
@@ -79,5 +79,5 @@ void ts::InfluxSender::main()
         msg->send();
     }
 
-    _report.debug(u"metrics output thread terminated");
+    report().debug(u"metrics output thread terminated");
 }

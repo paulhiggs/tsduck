@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2022-2025, Paul Higgs
+// Copyright (c) 2022-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ namespace ts {
     //!
     //! Note: SOGI = Service Of General Interest
     //!
-    class TSDUCKDLL DVBServiceProminenceDescriptor : public AbstractDescriptor
+    class TSDUCKDLL DVBServiceProminenceDescriptor: public AbstractDescriptor
     {
     public:
         //!

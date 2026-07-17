@@ -2,7 +2,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  Manage TSDuck release on GitHub.
@@ -125,6 +125,15 @@ def get_release(tag):
         repo.fatal('invalid tag "%s"' % release.tag_name)
     return release
 
+# Get the title of a release.
+# Attribute 'title' has been deprecated, replaced by 'name'.
+# On older versions, 'name' is a property which is None and cannot be set.
+def get_release_title(release):
+    if hasattr(release, 'name') and release.name is not None:
+        return release.name
+    else:
+        return release.title
+
 # A function to get the TSDuck version from tsVersion.h in the repo.
 def get_tsduck_version():
     match = re.search(r'^ *#define +TS_VERSION_MAJOR +(\d+) *$.*' +
@@ -191,7 +200,8 @@ def build_body_text(release):
     for ins in installers:
         if not ins.dev:
             body.add_all_urls(ins.name, ins.re_pattern())
-    body.add_ref('macOS', 'use Homebrew', 'https://tsduck.io/docs/tsduck-dev.html#macinstall')
+    body.add_ref('macOS', 'Use Homebrew', 'https://tsduck.io/docs/tsduck-dev.html#macinstall')
+    body.add_ref('FreeBSD', 'Use FreeBSD Ports', 'https://tsduck.io/docs/tsduck-dev.html#freebsdinstall')
     body.add_line('')
     body.add_line('Binaries for development environment:')
     body.add_line('* Windows: Included in installer (select option "Development")')
@@ -199,6 +209,7 @@ def build_body_text(release):
         if ins.dev:
             body.add_all_urls(ins.name, ins.re_pattern())
     body.add_line('* macOS: Included in Homebrew package')
+    body.add_line('* FreeBSD: Included in FreeBSD Ports package')
     return body.get_text()
 
 # Get the version string "major.minor-commit" of a release.
@@ -227,7 +238,7 @@ def list_releases():
     for rel in repo.repo.get_releases():
         date = '%04d-%02d-%02d' % (rel.created_at.year, rel.created_at.month, rel.created_at.day)
         type = 'draft' if rel.draft else ('prerelease' if rel.prerelease else ('latest' if rel.id == latest.id else ''))
-        text.append([rel.tag_name, type, date, rel.title])
+        text.append([rel.tag_name, type, date, get_release_title(rel)])
     width = [0] * len(text[0])
     for line in text:
         for i in range(len(line)):
@@ -267,7 +278,7 @@ if opt_verify:
 if opt_update:
     release = get_release(opt_tag)
     version = release.tag_name[1:]
-    repo.info('Release: %s' % release.title)
+    repo.info('Release: %s' % get_release_title(release))
     repo.info('Version: %s' % version)
 
     # Locate packages for that version and upload missing ones.
@@ -277,13 +288,13 @@ if opt_update:
     # Update title and body.
     title = build_title(release)
     body = build_body_text(release)
-    if title == release.title:
+    if title == get_release_title(release):
         repo.info('Release title is already set')
     if body == release.body:
         repo.info('Release body text is already set')
-    if title != release.title or body != release.body:
+    if title != get_release_title(release) or body != release.body:
         if repo.dry_run:
-            if title != release.title:
+            if title != get_release_title(release):
                 repo.warning('title should be changed to: %s' % title)
             if body != release.body:
                 repo.warning('body text should be updated')
@@ -319,7 +330,7 @@ if opt_create:
     releases = [rel for rel in repo.repo.get_releases() if rel.tag_name == tag_name]
     if len(releases) > 0:
         release = releases[0]
-        repo.info('A release already exists for tag %s (%s)' % (tag_name, release.title))
+        repo.info('A release already exists for tag %s (%s)' % (tag_name, get_release_title(release)))
     else:
         title = 'Version %s' % version
         repo.info('Creating release "%s"' % title)

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -16,7 +16,6 @@
 #include "tsSectionDemux.h"
 #include "tsPacketizer.h"
 #include "tsBoolPredicate.h"
-#include "tsFatal.h"
 
 
 //----------------------------------------------------------------------------
@@ -34,7 +33,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Command line options.
@@ -347,8 +346,7 @@ void ts::SectionsPlugin::handleSection(SectionDemux& demux, const Section& secti
         // At this point, we need to keep the section.
 
         // Build a copy of it for insertion in the queue.
-        SectionPtr sp(new Section(section, ShareMode::SHARE));
-        CheckNonNull(sp.get());
+        SectionPtr sp = std::make_shared<Section>(section, ShareMode::SHARE);
 
         // Process XML patching.
         if (!_patch_xml.applyPatches(sp)) {
@@ -368,7 +366,7 @@ void ts::SectionsPlugin::handleSection(SectionDemux& demux, const Section& secti
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::SectionsPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::SectionsPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     const PID pid = pkt.getPID();
 

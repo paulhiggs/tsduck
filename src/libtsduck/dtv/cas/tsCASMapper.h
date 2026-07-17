@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ namespace ts {
     //! All packets are passed through this object. It tracks the location of all
     //! EMM and ECM PID's and records the corresponding CAS attributes.
     //!
-    class TSDUCKDLL CASMapper : private TableHandlerInterface
+    class TSDUCKDLL CASMapper: private TableHandlerInterface
     {
         TS_NOBUILD_NOCOPY(CASMapper);
     public:

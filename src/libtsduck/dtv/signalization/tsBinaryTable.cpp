@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -539,7 +539,7 @@ ts::xml::Element* ts::BinaryTable::toXML(DuckContext& duck, xml::Element* parent
     }
 
     // Add optional metadata.
-    if ((opt.setPID && _source_pid != PID_NULL) || opt.setLocalTime || opt.setPackets || opt.setSections) {
+    if ((opt.setPID && _source_pid != PID_NULL) || opt.setLocalTime || opt.setPackets || opt.setSections || opt.setBase64) {
         // Add <metadata> element as first child of the table.
         // This element is not part of the table but describes how the table was collected.
         xml::Element* meta = AbstractTable::GetOrCreateMetadata(node);
@@ -553,10 +553,16 @@ ts::xml::Element* ts::BinaryTable::toXML(DuckContext& duck, xml::Element* parent
             meta->setIntAttribute(u"first_ts_packet", firstTSPacketIndex());
             meta->setIntAttribute(u"last_ts_packet", lastTSPacketIndex());
         }
-        if (opt.setSections) {
+        if (opt.setSections || opt.setBase64) {
             for (const auto& sec : _sections) {
                 if (sec != nullptr && sec->isValid()) {
-                    meta->addHexaTextChild(u"section", sec->content(), sec->size());
+                    xml::Element* xsection = meta->addElement(u"section");
+                    if (opt.setBase64) {
+                        xsection->setBase64Attribute(u"base64", sec->content(), sec->size());
+                    }
+                    if (opt.setSections) {
+                        xsection->addHexaText(sec->content(), sec->size());
+                    }
                 }
             }
         }
@@ -605,7 +611,7 @@ bool ts::BinaryTable::fromXML(DuckContext& duck, const xml::Element* node)
     }
 
     // There are two possible forms of generic tables.
-    if (node->name().similar(AbstractTable::XML_GENERIC_SHORT_TABLE)) {
+    if (node->nameMatch(AbstractTable::XML_GENERIC_SHORT_TABLE)) {
         TID tid = 0xFF;
         bool priv = true;
         ByteBlock payload;
@@ -619,35 +625,28 @@ bool ts::BinaryTable::fromXML(DuckContext& duck, const xml::Element* node)
         return true;
     }
 
-    if (node->name().similar(AbstractTable::XML_GENERIC_LONG_TABLE)) {
+    if (node->nameMatch(AbstractTable::XML_GENERIC_LONG_TABLE)) {
         TID tid = 0xFF;
-        uint16_t tidExt = 0xFFFF;
+        uint16_t tid_ext = 0xFFFF;
         uint8_t version = 0;
         bool priv = true;
         bool current = true;
-        xml::ElementVector sectionNodes;
-        if (node->getIntAttribute<TID>(tid, u"table_id", true, 0xFF, 0x00, 0xFF) &&
-            node->getIntAttribute<uint16_t>(tidExt, u"table_id_ext", false, 0xFFFF, 0x0000, 0xFFFF) &&
-            node->getIntAttribute<uint8_t>(version, u"version", false, 0, 0, 31) &&
-            node->getBoolAttribute(current, u"current", false, true) &&
-            node->getBoolAttribute(priv, u"private", false, true) &&
-            node->getChildren(sectionNodes, u"section", 1, 256))
-        {
-            for (size_t index = 0; index < sectionNodes.size(); ++index) {
-                assert(sectionNodes[index] != nullptr);
-                ByteBlock payload;
-                if (sectionNodes[index]->getHexaText(payload, 0, MAX_PSI_LONG_SECTION_PAYLOAD_SIZE)) {
-                    addNewSection(tid, priv, tidExt, version, current, uint8_t(index), uint8_t(index), payload.data(), payload.size());
-                }
-                else {
-                    // Invalid <section> content.
-                    clear();
-                    break;
-                }
-            }
+        uint8_t section_number = 0;
+        bool ok = node->getIntAttribute(tid, u"table_id", true, 0xFF, 0x00, 0xFF) &&
+                  node->getIntAttribute(tid_ext, u"table_id_ext", false, 0xFFFF, 0x0000, 0xFFFF) &&
+                  node->getIntAttribute(version, u"version", false, 0, 0, 31) &&
+                  node->getBoolAttribute(current, u"current", false, true) &&
+                  node->getBoolAttribute(priv, u"private", false, true);
+        for (auto& child : node->children(u"section", &ok, 1, 256)) {
+            ByteBlock payload;
+            ok = child.getHexaText(payload, 0, MAX_PSI_LONG_SECTION_PAYLOAD_SIZE);
+            addNewSection(tid, priv, tid_ext, version, current, section_number, section_number, payload.data(), payload.size());
+            section_number++;
         }
-        // The XML element name was valid.
-        return true;
+        if (!ok) {
+            clear();
+        }
+        return ok;
     }
 
     // At this point, the table is invalid.

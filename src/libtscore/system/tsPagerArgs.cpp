@@ -1,13 +1,12 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tsPagerArgs.h"
-#include "tsNullReport.h"
 #include "tsArgs.h"
 
 
@@ -15,18 +14,15 @@
 // Constructors and destructors.
 //----------------------------------------------------------------------------
 
-ts::PagerArgs::PagerArgs(bool pageByDefault, bool stdoutOnly) :
-    page_by_default(pageByDefault),
-    use_pager(pageByDefault),
-    _pager(ts::OutputPager::DEFAULT_PAGER, stdoutOnly)
+ts::PagerArgs::PagerArgs(Report* report, bool page_by_default, bool stdout_only) :
+    use_pager(page_by_default),
+    _page_by_default(page_by_default),
+    _pager(report, OutputPager::DEFAULT_PAGER, stdout_only)
 {
 }
 
 ts::PagerArgs::~PagerArgs()
 {
-    if (_pager.isOpen()) {
-        _pager.close(NULLREP);
-    }
 }
 
 
@@ -36,7 +32,7 @@ ts::PagerArgs::~PagerArgs()
 
 void ts::PagerArgs::defineArgs(Args& args)
 {
-    if (page_by_default) {
+    if (_page_by_default) {
         args.option(u"no-pager");
         args.help(u"no-pager",
                   u"Do not send output through a pager process. "
@@ -57,7 +53,7 @@ void ts::PagerArgs::defineArgs(Args& args)
 
 bool ts::PagerArgs::loadArgs(Args& args)
 {
-    if (page_by_default) {
+    if (_page_by_default) {
         use_pager = !args.present(u"no-pager");
     }
     else {
@@ -71,9 +67,9 @@ bool ts::PagerArgs::loadArgs(Args& args)
 // Return the output device for display.
 //----------------------------------------------------------------------------
 
-std::ostream& ts::PagerArgs::output(Report& report)
+std::ostream& ts::PagerArgs::output()
 {
-    if (use_pager && _pager.canPage() && (_pager.isOpen() || _pager.open(true, 0, report))) {
+    if (use_pager && _pager.canPage() && (_pager.isOpen() || _pager.open(true, 0))) {
         // Paging is in use.
         return _pager;
     }

@@ -1,14 +1,14 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
 
 #include "tsSysInfo.h"
 #include "tsEnvironment.h"
-#include "tsMemory.h"
+#include "tsInitZero.h"
 #include "tsCryptoAcceleration.h"
 #include "tsFeatures.h"
 
@@ -22,6 +22,10 @@
 
 #if defined(TS_UNIX)
     #include "tsSysCtl.h"
+#endif
+
+#if defined(TS_WINDOWS)
+    #include "tsWinUtils.h"
 #endif
 
 TS_DEFINE_SINGLETON(ts::SysInfo);
@@ -204,21 +208,20 @@ ts::SysInfo::SysInfo() :
 
 #elif defined(TS_WINDOWS)
 
-    TS_PUSH_WARNING()
-    TS_GCC_NOWARNING(deprecated-declarations)
-    TS_LLVM_NOWARNING(deprecated-declarations)
-    TS_MSC_NOWARNING(4996) // warning C4996: 'GetVersionExW': was declared deprecated
+    // GetVersionExW was declared deprecated. Dynamically load RtlGetVersion instead.
+    using RtlGetVersionProfile = ::DWORD(WINAPI*)(::OSVERSIONINFOW*);
+    static const RtlGetVersionProfile RtlGetVersionAddr = reinterpret_cast<RtlGetVersionProfile>(GetFunctionFromDLL("RtlGetVersion", {"ntdll.dll"}));
 
     // System version.
-    ::OSVERSIONINFOW info;
-    TS_ZERO(info);
-    info.dwOSVersionInfoSize = sizeof(info);
-    if (::GetVersionExW(&info)) {
-        _systemVersion = UString::Format(u"Windows %d.%d Build %d %s", info.dwMajorVersion, info.dwMinorVersion, info.dwBuildNumber, UString(info.szCSDVersion));
-        _systemVersion.trim();
+    if (RtlGetVersionAddr != nullptr) {
+        InitZero<::OSVERSIONINFOW> info;
+        info.data.dwOSVersionInfoSize = sizeof(info.data);
+        if (RtlGetVersionAddr(&info.data) == ERROR_SUCCESS) {
+            _systemBuild = int(info.data.dwBuildNumber);
+            _systemVersion = UString::Format(u"Windows %d.%d Build %d %s", info.data.dwMajorVersion, info.data.dwMinorVersion, info.data.dwBuildNumber, UString(info.data.szCSDVersion));
+            _systemVersion.trim();
+        }
     }
-
-    TS_POP_WARNING()
 
     // Detect 32-bit application on 64-bit system.
     ::BOOL wow64 = 0;
@@ -284,6 +287,31 @@ ts::SysInfo::SysInfo() :
     }
 
 #endif
+
+    //
+    // Get the number of CPU cores.
+    //
+#if defined(TS_WINDOWS)
+
+    // SYSTEM_INFO already fetched.
+    _cpuCoreCount = size_t(sysinfo.dwNumberOfProcessors);
+
+#elif defined(TS_UNIX)
+
+    const long core_count = ::sysconf(_SC_NPROCESSORS_ONLN);
+    if (core_count > 0) {
+        _cpuCoreCount = size_t(core_count);
+    }
+
+#endif
+
+    // If not implemented of default to 1, use std::thread::hardware_concurrency().
+    if (_cpuCoreCount < 2) {
+        const size_t hc = std::thread::hardware_concurrency();
+        if (hc > _cpuCoreCount) {
+            _cpuCoreCount = size_t(hc);
+        }
+    }
 
     //
     // Get support for specialized instructions.

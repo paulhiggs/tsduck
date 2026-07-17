@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -64,7 +64,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Description of PID's. Map of safe pointers to PID contexts, indexed by PID.
@@ -338,7 +338,7 @@ void ts::PCRAdjustPlugin::handleTable(SectionDemux& demux, const BinaryTable& ta
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::PCRAdjustPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::PCRAdjustPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Pass all packets to the demux.
     _demux.feedPacket(pkt);

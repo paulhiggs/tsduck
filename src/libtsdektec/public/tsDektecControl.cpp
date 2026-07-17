@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -28,17 +28,17 @@ class ts::DektecControl::Guts
 private:
     Report& _report;
 public:
-    bool   _list_all = false;    // List all Dektec devices
-    bool   _normalized = false;  // List in "normalized" format
-    size_t _devindex = 0;        // Dektec device
-    bool   _reset = false;       // Reset the device
-    bool   _set_led = false;     // Change LED state
-    int    _led_state = 0;       // State of the LED (one of DTAPI_LED_*)
-    int    _set_input = 0;       // Port number to set as input, for directional ports
-    int    _set_output = 0;      // Port number to set as output, for directional ports
-    int    _power_mode = -1;     // Power mode to set on DTU-315
-    json::OutputArgs _json {};   // List in JSON format
-    cn::seconds _wait_sec {};    // Wait time before exit
+    bool   _list_all = false;          // List all Dektec devices
+    bool   _normalized = false;        // List in "normalized" format
+    size_t _devindex = 0;              // Dektec device
+    bool   _reset = false;             // Reset the device
+    bool   _set_led = false;           // Change LED state
+    int    _led_state = 0;             // State of the LED (one of DTAPI_LED_*)
+    int    _set_input = 0;             // Port number to set as input, for directional ports
+    int    _set_output = 0;            // Port number to set as output, for directional ports
+    int    _power_mode = -1;           // Power mode to set on DTU-315
+    json::OutputArgs _json {&_report}; // List in JSON format
+    cn::seconds _wait_sec {};          // Wait time before exit
 
     // Constructor
     Guts(Report& report) : _report(report) {}

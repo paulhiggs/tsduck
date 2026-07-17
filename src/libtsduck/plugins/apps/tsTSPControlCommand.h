@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -20,7 +20,7 @@ namespace ts {
     //! These commands are used with the @a tspcontrol utility to inspect or modify a running @a tsp command.
     //! @ingroup libtsduck plugin
     //!
-    class TSDUCKDLL TSPControlCommand : public CommandLine
+    class TSDUCKDLL TSPControlCommand: public CommandLine
     {
         TS_NOCOPY(TSPControlCommand);
     public:

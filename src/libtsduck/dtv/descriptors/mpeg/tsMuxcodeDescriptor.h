@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2022-2025, Paul Higgs
+// Copyright (c) 2022-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ namespace ts {
     //! @see ISO/IEC 13818-1, ITU-T Rec. H.222.0, 2.6.48 and ISO/IEC 14496-1, 7.4.2.5.
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL MuxCodeDescriptor : public AbstractDescriptor
+    class TSDUCKDLL MuxCodeDescriptor: public AbstractDescriptor
     {
     public:
         //!
@@ -30,7 +30,7 @@ namespace ts {
         class TSDUCKDLL substructure_type {
         public:
             substructure_type() = default;             //!< Constructor
-            uint8_t              repititionCount = 0;  //!< 3 bits
+            uint8_t              repetitionCount = 0;  //!< 3 bits
             std::vector<uint8_t> m4MuxChannel {};      //!< list of 8 bit values
             std::vector<uint8_t> numberOfBytes {};     //!< list of 8 bit values
         };

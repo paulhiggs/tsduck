@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -24,17 +24,33 @@ namespace ts {
     //! @see https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/
     //! @see https://docs.influxdata.com/influxdb/v2/api/v2/#operation/PostWrite
     //!
-    class TSCOREDLL InfluxRequest : public WebRequest
+    class TSCOREDLL InfluxRequest: public WebRequest
     {
         TS_NOBUILD_NOCOPY(InfluxRequest);
     public:
         //!
         //! Constructor.
-        //! @param [in,out] report Where to report errors.
-        //! @param [in] args The connection information to the InfluxDB server.
-        //! A reference is kept in this object.
+        //! @param [in] args The connection information to the InfluxDB server. A reference is kept in this object.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
         //!
-        InfluxRequest(Report& report, const InfluxArgs& args);
+        explicit InfluxRequest(const InfluxArgs& args, Object* owner = nullptr);
+
+        //!
+        //! Constructor.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists or setReport() is used with another Report object. If @a report is null, log messages are discarded.
+        //! @param [in] args The connection information to the InfluxDB server. A reference is kept in this object.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        InfluxRequest(Report* report, const InfluxArgs& args, Object* owner = nullptr);
+
+        //!
+        //! Constructor.
+        //! @param [in] delegate Use the report of another ReporterBase. If @a delegate is null, log messages are discarded.
+        //! @param [in] args The connection information to the InfluxDB server. A reference is kept in this object.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        InfluxRequest(ReporterBase* delegate, const InfluxArgs& args, Object* owner = nullptr);
 
         //!
         //! Destructor.
@@ -45,7 +61,7 @@ namespace ts {
         //! Start building a request to the InfluxDB server.
         //! @param [in] timestamp Value of the timestamp for that request.
         //!
-        void start(Time timestamp);
+        void start(const Time& timestamp);
 
         //!
         //! Add a line in the request being built, with one single integer value.
@@ -114,6 +130,9 @@ namespace ts {
         UString           _precision {};
         UString           _additional_tags {};
         UString           _builder {};
+
+        // Initialize _additional_tags from _args.
+        void InitAdditionalFlags();
 
         // Helper for escape strings.
         static UString Escape(const UString& name, const UString& specials, bool add_quotes);

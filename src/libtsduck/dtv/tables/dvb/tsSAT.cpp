@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2022-2025, Paul Higgs
+// Copyright (c) 2022-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -234,10 +234,10 @@ void ts::SAT::satellite_position_v2_info_type::serialize(PSIBuffer& buf) const
     buf.putReservedZero(7);
     buf.putBits(position_system, 1);
     if ((position_system == POSITION_SYSTEM_GEOSTATIONARY) && geostationaryPosition.has_value()) {
-        geostationaryPosition.value().serialize(buf);
+        geostationaryPosition->serialize(buf);
     }
     else if ((position_system == POSITION_SYSTEM_EARTH_ORBITING) && earthOrbiting.has_value()) {
-        earthOrbiting.value().serialize(buf);
+        earthOrbiting->serialize(buf);
     }
 }
 
@@ -260,10 +260,10 @@ void ts::SAT::satellite_position_v2_info_type::toXML(xml::Element* root)
 {
     root->setIntAttribute(u"satellite_id", satellite_id, true);
     if ((position_system == POSITION_SYSTEM_GEOSTATIONARY) && geostationaryPosition.has_value()) {
-        geostationaryPosition.value().toXML(root->addElement(u"geostationary"));
+        geostationaryPosition->toXML(root->addElement(u"geostationary"));
     }
     else if ((position_system == POSITION_SYSTEM_EARTH_ORBITING) && earthOrbiting.has_value()) {
-        earthOrbiting.value().toXML(root->addElement(u"earth_orbiting"));
+        earthOrbiting->toXML(root->addElement(u"earth_orbiting"));
     }
 }
 
@@ -422,9 +422,9 @@ bool ts::SAT::cell_fragment_info_type::obsolescent_delivery_system_id_type::from
 void ts::SAT::cell_fragment_info_type::serialize(PSIBuffer& buf) const
 {
     buf.putUInt32(cell_fragment_id);
-    buf.putBit(first_occurence);
-    buf.putBit(last_occurence);
-    if (first_occurence) {
+    buf.putBit(first_occurrence);
+    buf.putBit(last_occurrence);
+    if (first_occurrence) {
         buf.putReservedZero(4);
         buf.putBits(center_latitude.value(), 18);
         buf.putReservedZero(5);
@@ -454,9 +454,9 @@ void ts::SAT::cell_fragment_info_type::serialize(PSIBuffer& buf) const
 void ts::SAT::cell_fragment_info_type::deserialize(PSIBuffer& buf)
 {
     cell_fragment_id = buf.getUInt32();
-    first_occurence = buf.getBool();
-    last_occurence = buf.getBool();
-    if (first_occurence) {
+    first_occurrence = buf.getBool();
+    last_occurrence = buf.getBool();
+    if (first_occurrence) {
         buf.skipBits(4);
         buf.getBits(center_latitude, 18);
         buf.skipBits(5);
@@ -492,8 +492,8 @@ void ts::SAT::cell_fragment_info_type::deserialize(PSIBuffer& buf)
 void ts::SAT::cell_fragment_info_type::toXML(xml::Element* root)
 {
     root->setIntAttribute(u"cell_fragment_id", cell_fragment_id, true);
-    root->setBoolAttribute(u"first_occurence", first_occurence);
-    root->setBoolAttribute(u"last_occurence", last_occurence);
+    root->setBoolAttribute(u"first_occurrence", first_occurrence);
+    root->setBoolAttribute(u"last_occurrence", last_occurrence);
     root->setOptionalIntAttribute(u"center_latitude", center_latitude);
     root->setOptionalIntAttribute(u"center_longitude", center_longitude);
     root->setOptionalIntAttribute(u"max_distance", max_distance);
@@ -513,8 +513,8 @@ void ts::SAT::cell_fragment_info_type::toXML(xml::Element* root)
 bool ts::SAT::cell_fragment_info_type::fromXML(const xml::Element* element)
 {
     bool ok = element->getIntAttribute(cell_fragment_id, u"cell_fragment_id", true) &&
-        element->getBoolAttribute(first_occurence, u"first_occurence", true) &&
-        element->getBoolAttribute(last_occurence, u"last_occurence", true) &&
+        element->getBoolAttribute(first_occurrence, u"first_occurrence", true) &&
+        element->getBoolAttribute(last_occurrence, u"last_occurrence", true) &&
         element->getOptionalIntAttribute(center_latitude, u"center_latitude", -90000, 90000) &&
         element->getOptionalIntAttribute(center_longitude, u"center_longitude", -180000, 180000) &&
         element->getOptionalIntAttribute(max_distance, u"max_distance", 0, 0xFFFFFF);
@@ -672,15 +672,15 @@ uint16_t ts::SAT::beam_hopping_time_plan_info_type::plan_length(void) const
     uint16_t plan_length = 7 + time_of_application.serialized_length() + cycle_duration.serialized_length();
     switch (time_plan_mode()) {
     case HOP_1_TRANSMISSION:
-        plan_length += dwell_duration.value().serialized_length() + on_time.value().serialized_length();
+        plan_length += dwell_duration->serialized_length() + on_time->serialized_length();
         break;
     case HOP_MULTI_TRANSMISSION:
         plan_length += 4
             + ((uint16_t(slot_transmission_on.size()) + padding_size_K(slot_transmission_on.size())) / 8);
         break;
     case HOP_GRID:
-        plan_length += grid_size.value().serialized_length() + revisit_duration.value().serialized_length()
-            + sleep_time.value().serialized_length() + sleep_duration.value().serialized_length();
+        plan_length += grid_size->serialized_length() + revisit_duration->serialized_length()
+            + sleep_time->serialized_length() + sleep_duration->serialized_length();
         break;
     default:
         plan_length = 0;
@@ -716,8 +716,8 @@ void ts::SAT::beam_hopping_time_plan_info_type::serialize(PSIBuffer& buf) const
     time_of_application.serialize(buf);
     cycle_duration.serialize(buf);
     if (_time_plan_mode == HOP_1_TRANSMISSION) {
-        dwell_duration.value().serialize(buf);
-        on_time.value().serialize(buf);
+        dwell_duration->serialize(buf);
+        on_time->serialize(buf);
     }
     else if (_time_plan_mode == HOP_MULTI_TRANSMISSION) {
         buf.putReservedZero(1);
@@ -730,10 +730,10 @@ void ts::SAT::beam_hopping_time_plan_info_type::serialize(PSIBuffer& buf) const
         buf.putReservedZero(padding_size_K(slot_transmission_on.size()));
     }
     else if (_time_plan_mode == HOP_GRID) {
-        grid_size.value().serialize(buf);
-        revisit_duration.value().serialize(buf);
-        sleep_time.value().serialize(buf);
-        sleep_duration.value().serialize(buf);
+        grid_size->serialize(buf);
+        revisit_duration->serialize(buf);
+        sleep_time->serialize(buf);
+        sleep_duration->serialize(buf);
     }
 }
 
@@ -782,8 +782,8 @@ void ts::SAT::beam_hopping_time_plan_info_type::toXML(xml::Element* root)
 
     if (time_plan_mode() == HOP_1_TRANSMISSION) {
         xml::Element* e = root->addElement(u"time_plan_mode_0");
-        dwell_duration.value().toXML(e, u"dwell_duration");
-        on_time.value().toXML(e, u"on_time");
+        dwell_duration->toXML(e, u"dwell_duration");
+        on_time->toXML(e, u"on_time");
     }
     else if (time_plan_mode() == HOP_MULTI_TRANSMISSION) {
         xml::Element* e = root->addElement(u"time_plan_mode_1");
@@ -794,10 +794,10 @@ void ts::SAT::beam_hopping_time_plan_info_type::toXML(xml::Element* root)
     }
     else if (time_plan_mode() == HOP_GRID) {
         xml::Element* e = root->addElement(u"time_plan_mode_2");
-        grid_size.value().toXML(e, u"grid_size");
-        revisit_duration.value().toXML(e, u"revisit_duration");
-        sleep_time.value().toXML(e, u"sleep_time");
-        sleep_duration.value().toXML(e, u"sleep_duration");
+        grid_size->toXML(e, u"grid_size");
+        revisit_duration->toXML(e, u"revisit_duration");
+        sleep_time->toXML(e, u"sleep_time");
+        sleep_duration->toXML(e, u"sleep_duration");
     }
 }
 
@@ -808,10 +808,10 @@ bool ts::SAT::beam_hopping_time_plan_info_type::fromXML(const xml::Element* elem
         time_of_application.fromXML(element, u"time_of_application") &&
         cycle_duration.fromXML(element, u"cycle_duration");
 
-    if (ok && element->findFirstChild(u"time_plan_mode_0", true)) {
+    if (ok && element->findFirstChild(u"time_plan_mode_0")) {
         time_plan_mode = 0;
         NCR_type newNCR;
-        const xml::Element* plan = element->findFirstChild(u"time_plan_mode_0", true);
+        const xml::Element* plan = element->findFirstChild(u"time_plan_mode_0");
 
         ok = newNCR.fromXML(plan, u"dwell_duration");
         if (ok) {
@@ -822,9 +822,9 @@ bool ts::SAT::beam_hopping_time_plan_info_type::fromXML(const xml::Element* elem
             on_time = newNCR;
         }
     }
-    else if (ok && element->findFirstChild(u"time_plan_mode_1", true)) {
+    else if (ok && element->findFirstChild(u"time_plan_mode_1")) {
         time_plan_mode = 1;
-        const xml::Element* plan = element->findFirstChild(u"time_plan_mode_1", true);
+        const xml::Element* plan = element->findFirstChild(u"time_plan_mode_1");
         ok = plan->getOptionalIntAttribute(current_slot, u"current_slot", 0, 0x7FFF);
         xml::ElementVector slots;
         ok &= plan->getChildren(slots, u"slot", 1, 0x7FFF);
@@ -851,10 +851,10 @@ bool ts::SAT::beam_hopping_time_plan_info_type::fromXML(const xml::Element* elem
             ok = false;
         }
     }
-    else if (ok && element->findFirstChild(u"time_plan_mode_2", true)) {
+    else if (ok && element->findFirstChild(u"time_plan_mode_2")) {
         time_plan_mode = 2;
         NCR_type newNCR;
-        const xml::Element* plan = element->findFirstChild(u"time_plan_mode_2", true);
+        const xml::Element* plan = element->findFirstChild(u"time_plan_mode_2");
 
         ok = newNCR.fromXML(plan, u"grid_size");
         if (ok) {
@@ -934,10 +934,10 @@ void ts::SAT::satellite_position_v3_info_type::v3_satellite_type::v3_satellite_m
     buf.putBits(interpolation_type.value_or(0), 3);
     buf.putBits(interpolation_degree.value_or(0), 3);
     if (usable_start_time.has_value()) {
-        usable_start_time.value().serialize(buf);
+        usable_start_time->serialize(buf);
     }
     if (usable_stop_time.has_value()) {
-        usable_stop_time.value().serialize(buf);
+        usable_stop_time->serialize(buf);
     }
 }
 
@@ -979,10 +979,10 @@ void ts::SAT::satellite_position_v3_info_type::v3_satellite_type::v3_satellite_m
         root->setIntAttribute(u"interpolation_degree", interpolation_degree.value());
     }
     if (usable_start_time.has_value()) {
-        usable_start_time.value().toXML(root->addElement(u"usable_start_time"));
+        usable_start_time->toXML(root->addElement(u"usable_start_time"));
     }
     if (usable_stop_time.has_value()) {
-        usable_stop_time.value().toXML(root->addElement(u"usable_stop_time"));
+        usable_stop_time->toXML(root->addElement(u"usable_stop_time"));
     }
 }
 
@@ -1171,19 +1171,19 @@ void ts::SAT::satellite_position_v3_info_type::v3_satellite_type::serialize(PSIB
     buf.putUInt24(satellite_id);
     buf.putBits(0x00, 3);
     buf.putBit(metadata.has_value());
-    buf.putBit(metadata.has_value() && metadata.value().usable_start_time.has_value());  // usable_start_time_flag
-    buf.putBit(metadata.has_value() && metadata.value().usable_stop_time.has_value());  // usable_stop_time_flag
+    buf.putBit(metadata.has_value() && metadata->usable_start_time.has_value());  // usable_start_time_flag
+    buf.putBit(metadata.has_value() && metadata->usable_stop_time.has_value());  // usable_stop_time_flag
     buf.putBit(hasEphemerisAcceleration2());  // ephemeris_accel_flag
     buf.putBit(covariance.has_value());  //covariance_flag
     if (metadata.has_value()) {
-        metadata.value().serialize(buf);
+        metadata->serialize(buf);
     }
     buf.putBits(ephemeris_data.size(), 16);
     for (const auto& it : ephemeris_data) {
         it.serialize(buf);
     }
     if (covariance.has_value()) {
-        covariance.value().serialize(buf);
+        covariance->serialize(buf);
     }
 }
 
@@ -1215,13 +1215,13 @@ void ts::SAT::satellite_position_v3_info_type::v3_satellite_type::toXML(xml::Ele
 {
     root->setIntAttribute(u"satellite_id", satellite_id, true);
     if (metadata.has_value()) {
-        metadata.value().toXML(root);
+        metadata->toXML(root);
     }
     for (auto it : ephemeris_data) {
         it.toXML(root->addElement(u"ephemeris_data"));
     }
     if (covariance.has_value()) {
-        covariance.value().toXML(root->addElement(u"covariance"));
+        covariance->toXML(root->addElement(u"covariance"));
     }
 }
 
@@ -1445,7 +1445,7 @@ void ts::SAT::serializePayload(BinaryTable& table, PSIBuffer& buf) const
             break;
         case SATELLITE_POSITION_V3_INFO:
             if (satellite_position_v3_info.has_value()) {
-                satellite_position_v3_info.value().serialize(buf);
+                satellite_position_v3_info->serialize(buf);
             }
             break;
         default:
@@ -1580,10 +1580,10 @@ void ts::SAT::DisplaySection(TablesDisplay& disp, const ts::Section& section, PS
             loop = 1;
             while (buf.canReadBytes(4)) {
                 disp << margin << UString::Format(u"[%d] Cell fragment id: %08x", loop++, buf.getUInt32());
-                bool _first_occurence = buf.getBool();
-                bool _last_occurence = buf.getBool();
-                disp << ", first: " << UString::TrueFalse(_first_occurence) << ", last: " << UString::TrueFalse(_last_occurence) << std::endl;
-                if (_first_occurence) {
+                bool _first_occurrence = buf.getBool();
+                bool _last_occurrence = buf.getBool();
+                disp << ", first: " << UString::TrueFalse(_first_occurrence) << ", last: " << UString::TrueFalse(_last_occurrence) << std::endl;
+                if (_first_occurrence) {
                     buf.skipReservedBits(4, 0);
                     disp << margin << "  Center latitude: " << degrees18(buf.getBits<uint32_t>(18));
                     buf.skipReservedBits(5, 0);

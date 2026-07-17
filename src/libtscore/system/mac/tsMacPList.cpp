@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -15,10 +15,10 @@
 // Constructor.
 //----------------------------------------------------------------------------
 
-ts::MacPList::MacPList(const ts::UString& fileName, Report& report) : SuperClass()
+ts::MacPList::MacPList(const ts::UString& file_name, Report& report) : SuperClass()
 {
-    if (!fileName.empty()) {
-        load(fileName, report);
+    if (!file_name.empty()) {
+        load(file_name, report);
     }
 }
 
@@ -27,11 +27,11 @@ ts::MacPList::MacPList(const ts::UString& fileName, Report& report) : SuperClass
 // Reload from a MacOS XML PList file.
 //----------------------------------------------------------------------------
 
-bool ts::MacPList::load(const ts::UString& fileName, Report& report)
+bool ts::MacPList::load(const ts::UString& file_name, Report& report)
 {
     // Load the XML file.
     xml::Document doc(report);
-    if (!doc.load(fileName, false)) {
+    if (!doc.load(file_name, false)) {
         return false;
     }
 
@@ -39,7 +39,7 @@ bool ts::MacPList::load(const ts::UString& fileName, Report& report)
     const xml::Element* root = doc.rootElement();
 
     // Get the <dict> element inside <plist>
-    const xml::Element* dict = root == nullptr ? nullptr : root->findFirstChild(u"dict");
+    const xml::Element* dict = root == nullptr ? nullptr : root->findFirstChild(u"dict", true);
     if (dict == nullptr) {
         return false;
     }

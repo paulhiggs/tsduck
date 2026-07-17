@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ endif::[]
 
 |aes
 |packet
-|Experimental AES scrambling
+|AES scrambling (experimental)
 
 |analyze
 |packet
@@ -89,6 +89,10 @@ endif::[]
 |output
 |Drop output packets
 
+|dsmcc
+|packet
+|Extract DSM-CC carousel content
+
 |dump
 |packet
 |Dump transport stream packets
@@ -124,6 +128,10 @@ endif::[]
 |filter
 |packet
 |Filter TS packets according to various criteria
+
+|flute
+|packet
+|FLUTE protocol analyzer
 
 |fork
 |input, output, packet
@@ -189,6 +197,10 @@ endif::[]
 |packet
 |Extract MPE (Multi-Protocol Encapsulation) datagrams
 
+|mpeextract
+|packet
+|Extract a UDP or RTP transport stream from MPE
+
 |mpeinject
 |packet
 |Encapsulate and inject an incoming UDP stream into MPE
@@ -196,6 +208,14 @@ endif::[]
 |mux
 |packet
 |Inject TS packets from a file into the transport
+
+|nip
+|packet
+|DVB-NIP (Native IP) analyzer
+
+|nipextract
+|packet
+|DVB-NIP (Native IP) live service extraction
 
 |nit
 |packet
@@ -399,7 +419,7 @@ endif::[]
 
 |vatek
 |output
-|Send the transport stream to a VATek-based modulator device
+|Send the transport stream to an AstroMeta-based modulator device (AstroMeta was formerly known as VATek).
 
 |zap
 |packet

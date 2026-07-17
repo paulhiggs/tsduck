@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -120,21 +120,12 @@ void ts::GreenExtensionDescriptor::buildXML(DuckContext& duck, xml::Element* roo
 
 bool ts::GreenExtensionDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xvoltage;
-    xml::ElementVector xvariation;
-    uint16_t id = 0;
-
-    bool ok =
-        element->getChildren(xvoltage, u"constant_backlight_voltage_time_interval", 0, MAX_COUNT) &&
-        element->getChildren(xvariation, u"max_variation", 0, MAX_COUNT);
-
-    for (auto it = xvoltage.begin(); ok && it != xvoltage.end(); ++it) {
-        ok = (*it)->getIntAttribute(id, u"value", true);
-        constant_backlight_voltage_time_intervals.push_back(id);
+    bool ok = true;
+    for (auto& xvoltage : element->children(u"constant_backlight_voltage_time_interval", &ok, 0, MAX_COUNT)) {
+        ok = xvoltage.getIntAttribute(constant_backlight_voltage_time_intervals.emplace_back(), u"value", true);
     }
-    for (auto it = xvariation.begin(); ok && it != xvariation.end(); ++it) {
-        ok = (*it)->getIntAttribute(id, u"value", true);
-        max_variations.push_back(id);
+    for (auto& xvariation : element->children(u"max_variation", &ok, 0, MAX_COUNT)) {
+        ok = xvariation.getIntAttribute(max_variations.emplace_back(), u"value", true);
     }
     return ok;
 }

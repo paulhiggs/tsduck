@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ namespace ts {
     //! - For decryption, the next key is used each time a new scrambling_control
     //!   value is found in a TS header.
     //!
-    class TSDUCKDLL TSScrambling : private BlockCipherAlertInterface
+    class TSDUCKDLL TSScrambling: private BlockCipherAlertInterface
     {
     public:
         //!
@@ -191,7 +191,7 @@ namespace ts {
         Report&          _report;
         uint8_t          _scrambling_type = SCRAMBLING_RESERVED;
         bool             _explicit_type = false;
-        UString          _out_cw_name {};
+        fs::path         _out_cw_name {};
         std::ofstream    _out_cw_file {};
         CWList           _cw_list {};
         CWList::iterator _next_cw {};

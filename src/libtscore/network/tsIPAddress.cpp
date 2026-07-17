@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -9,6 +9,7 @@
 #include "tsIPAddress.h"
 #include "tsMemory.h"
 #include "tsUString.h"
+#include "tsInitZero.h"
 #include "tsSysUtils.h"
 #include "tsIPUtils.h" // Windows
 
@@ -411,6 +412,22 @@ bool ts::IPAddress::isMulticast() const
     }
 }
 
+// Check if two IPv6 multicast addresses are identical, excluding the "scope" bits.
+bool ts::IPAddress::sameMulticast6(const IPAddress& mc) const
+{
+    return _gen == IP::v6 && mc._gen == IP::v6 &&
+           port() == mc.port() &&
+           _bytes6[0] == 0xFF && mc._bytes6[0] == 0xFF &&
+           (_bytes6[1] & 0xF0) == (mc._bytes6[1] & 0xF0) &&
+           MemCompare(_bytes6 + 2, mc._bytes6 + 2, BYTES6 - 2) == 0;
+}
+
+// Get the IPv6 multicast "scope" bits of this address.
+uint8_t ts::IPAddress::scopeMulticast6() const
+{
+    return _gen == IP::v6 && _bytes6[0] == 0xFF ? (_bytes6[1] & 0x0F) : 0xFF;
+}
+
 // SSM: source specific multicast.
 bool ts::IPAddress::isSSM() const
 {
@@ -420,7 +437,7 @@ bool ts::IPAddress::isSSM() const
     }
     else {
         // IPv4 SSM addresses are in the range 232.0.0.0/8.
-        return (_addr4 & 0xFF000000) == 0xE800'0000;
+        return (_addr4 & 0xFF00'0000) == 0xE800'0000;
     }
 }
 
@@ -434,7 +451,7 @@ bool ts::IPAddress::isLinkLocal() const
     }
     else {
         // IPv4 link-local address are 169.254.0.0/16.
-        return (_addr4 & 0xFFFF0000) == 0xA9FE'0000;
+        return (_addr4 & 0xFFFF'0000) == 0xA9FE'0000;
     }
 }
 
@@ -450,18 +467,27 @@ bool ts::IPAddress::match(const IPAddress& other) const
         return true;
     }
     else if (_gen == IP::v6) {
-        if (other._gen == IP::v6) {
+        if (other._gen == IP::v4) {
+            // Compare an IPv6 address with an IPv4 address: possible is the IPv6 address is IPv4-mapped.
+            return isIPv4Mapped() && GetUInt32BE(_bytes6 + 12) == other._addr4;
+        }
+        else if (_bytes6[0] != 0xFF || other._bytes6[0] != 0xFF) {
+            // Compare two IPv6 addresses, at least one of them is not multicast.
             return IsEqual6(_bytes6, other._bytes6);
         }
         else {
-            return isIPv4Mapped() && GetUInt32BE(_bytes6 + 12) == other._addr4;
+            // Compare two IPv6 multicast addresses, the comparison shall exclude the "scope" bits.
+            return (_bytes6[1] & 0xF0) == (other._bytes6[1] & 0xF0) && MemCompare(_bytes6 + 2, other._bytes6 + 2, BYTES6 - 2) == 0;
         }
     }
     else {
+        // This address is IPv4.
         if (other._gen == IP::v4) {
+            // Compare two IPv4 addresses.
             return _addr4 == other._addr4;
         }
         else {
+            // The other address is IPv6, same comment as in the opposite case above.
             return other.isIPv4Mapped() && GetUInt32BE(other._bytes6 + 12) == _addr4;
         }
     }
@@ -853,20 +879,19 @@ bool ts::IPAddress::ResolveAllAddresses(IPAddressVector& addresses, const UStrin
         return nullptr;
     }
 
-    ::addrinfo hints;
-    TS_ZERO(hints);
+    InitZero<::addrinfo> hints;
     if (gen == IP::v4) {
-        hints.ai_family = AF_INET;
+        hints.data.ai_family = AF_INET;
     }
     else if (gen == IP::v6) {
-        hints.ai_family = AF_INET6;
+        hints.data.ai_family = AF_INET6;
     }
     else {
-        hints.ai_family = AF_UNSPEC;
+        hints.data.ai_family = AF_UNSPEC;
     }
 
     ::addrinfo* res = nullptr;
-    const int status = ::getaddrinfo(name.toUTF8().c_str(), nullptr, &hints, &res);
+    const int status = ::getaddrinfo(name.toUTF8().c_str(), nullptr, &hints.data, &res);
 
     // Error processing depending on operating system and class of error.
     if (status != 0) {
@@ -877,7 +902,7 @@ bool ts::IPAddress::ResolveAllAddresses(IPAddressVector& addresses, const UStrin
             report.error(u"%s: %s", name, SysErrorCodeMessage(LastSysErrorCode()));
         }
         else {
-            report.error(u"%s: %s", name, SysErrorCodeMessage(status, getaddrinfo_category()));
+            report.error(u"%s: %s", name, SysErrorCodeMessage(status, &getaddrinfo_category()));
         }
     #endif
     }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -87,7 +87,7 @@ void ts::TablesPlugin::handleSection(SectionDemux&, const Section& sect)
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::TablesPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::TablesPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     if (_terminated) {
         // Typically waiting for joint termination, pass packet without processing.

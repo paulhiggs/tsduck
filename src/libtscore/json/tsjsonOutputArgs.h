@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -27,12 +27,14 @@ namespace ts::json {
     //!
     class TSCOREDLL OutputArgs
     {
-        TS_NOCOPY(OutputArgs);
+        TS_NOBUILD_NOCOPY(OutputArgs);
     public:
         //!
-        //! Default constructor.
+        //! Constructor.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists. If @a report is null, log messages are discarded.
         //!
-        OutputArgs() = default;
+        explicit OutputArgs(Report* report);
 
         //!
         //! Virtual destructor.
@@ -74,6 +76,16 @@ namespace ts::json {
         //!
         //! Issue a JSON report according to options.
         //! @param [in] root JSON root object.
+        //! @param [in] file_name Output file name when @c -\-json is specified.
+        //! If the specified file is empty or "-", use the standard output.
+        //! @param [in] rep Logger to report errors or output one-line JSON when @c -\-json-line is specified.
+        //! @return True on success, false on error.
+        //!
+        bool report(const json::Value& root, const fs::path& file_name, Report& rep);
+
+        //!
+        //! Issue a JSON report according to options.
+        //! @param [in] root JSON root object.
         //! @param [in] stm Output stream when @c -\-json is specified.
         //! @param [in] rep Logger to report errors or output one-line JSON when @c -\-json-line is specified.
         //! @return True on success, false on error.
@@ -110,16 +122,16 @@ namespace ts::json {
         IPAddress         _udp_local {};            // Name of outgoing local address.
         int               _udp_ttl = 0;             // Time-to-live socket option.
         size_t            _sock_buffer_size = 0;    // Socket buffer size (TCP and UDP).
-        UDPSocket         _udp_sock {};             // Output UDP socket.
-        TCPConnection     _tcp_sock {};             // Output TCP socket.
+        UDPSocket         _udp_sock;                // Output UDP socket.
+        TCPConnection     _tcp_sock;                // Output TCP socket.
         TelnetConnection  _telnet_sock {_tcp_sock}; // Output TCP socket.
 
         // Open/close the UDP socket.
         bool udpOpen(Report& rep);
-        bool udpClose(Report& rep);
+        bool udpClose();
 
         // Connect/disconnect the TCP session.
         bool tcpConnect(Report& rep);
-        bool tcpDisconnect(bool force, Report& rep);
+        bool tcpDisconnect(bool force);
     };
 }

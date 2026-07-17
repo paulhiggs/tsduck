@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -19,7 +19,7 @@
 #include "tsPacketizer.h"
 #include "tsMessagePriorityQueue.h"
 #include "tsThread.h"
-#include "tsNullReport.h"
+#include "tsReporterGuard.h"
 #include "tsReportBuffer.h"
 #include "tsErrCodeReport.h"
 
@@ -66,7 +66,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Command line options:
@@ -101,7 +101,7 @@ namespace ts {
         // Splice command object as stored internally
         // ------------------------------------------
 
-        class SpliceCommand : public StringifyInterface
+        class SpliceCommand: public StringifyInterface
         {
             TS_NOBUILD_NOCOPY(SpliceCommand);
         private:
@@ -135,7 +135,7 @@ namespace ts {
         // File listener thread
         // --------------------
 
-        class FileListener : public Thread, private PollFilesListener
+        class FileListener: public Thread, private PollFilesListener
         {
             TS_NOBUILD_NOCOPY(FileListener);
         public:
@@ -159,7 +159,7 @@ namespace ts {
         // UDP listener thread
         // -------------------
 
-        class UDPListener : public Thread
+        class UDPListener: public Thread
         {
             TS_NOBUILD_NOCOPY(UDPListener);
         public:
@@ -170,7 +170,7 @@ namespace ts {
         private:
             SpliceInjectPlugin* const _plugin;
             volatile bool _terminate = false;
-            UDPReceiver _client {*_plugin};
+            UDPReceiver _client {_plugin};
 
             // Implementation of Thread.
             virtual void main() override;
@@ -522,7 +522,7 @@ bool ts::SpliceInjectPlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::SpliceInjectPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::SpliceInjectPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Detect PID conflict with injection PID.
     const PID pid = pkt.getPID();
@@ -820,7 +820,7 @@ void ts::SpliceInjectPlugin::processSectionMessage(const uint8_t* addr, size_t s
                 error(u"unexpected section, %s, ignored", TIDName(duck, sec->tableId(), sec->sourcePID(), CASID_NULL, NamesFlags::NAME_VALUE));
             }
             else {
-                CommandPtr cmd(new SpliceCommand(this, sec));
+                auto cmd = std::make_shared<SpliceCommand>(this, sec);
                 if (cmd == nullptr || !cmd->sit.isValid()) {
                     error(u"received invalid splice information section, ignored");
                 }
@@ -1059,7 +1059,7 @@ bool ts::SpliceInjectPlugin::UDPListener::open()
     UDPReceiverArgs args;
     args.setUnicast(_plugin->_server_address, _plugin->_reuse_port, _plugin->_sock_buf_size);
     _client.setParameters(args);
-    return _client.open(*_plugin);
+    return _client.open();
 }
 
 // Terminate the thread.
@@ -1068,7 +1068,7 @@ void ts::SpliceInjectPlugin::UDPListener::stop()
     // Close the UDP receiver.
     // This will force the server thread to terminate.
     _terminate = true;
-    _client.close(NULLREP);
+    _client.close(true);
 
     // Wait for actual thread termination
     Thread::waitForTermination();
@@ -1086,14 +1086,17 @@ void ts::SpliceInjectPlugin::UDPListener::main()
 
     // Get receive errors in a buffer since some errors are normal.
     ReportBuffer<ThreadSafety::None> error(_plugin->maxSeverity());
+    {
+        ReporterGuard repguard(_client, &error);
 
-    // Loop on incoming messages.
-    while (_client.receive(inbuf, sizeof(inbuf), insize, sender, destination, _plugin->tsp, error)) {
-        _plugin->verbose(u"received message, %d bytes, from %s", insize, sender);
-        _plugin->processSectionMessage(inbuf, insize);
+        // Loop on incoming messages.
+        while (_client.receive(inbuf, sizeof(inbuf), insize, sender, destination, _plugin->tsp)) {
+            _plugin->verbose(u"received message, %d bytes, from %s", insize, sender);
+            _plugin->processSectionMessage(inbuf, insize);
+        }
     }
 
-    // If termination was requested, receive error is not an error.
+    // Display errors. If termination was requested, receive error is not an error.
     if (!_terminate && !error.empty()) {
         _plugin->info(error.messages());
     }

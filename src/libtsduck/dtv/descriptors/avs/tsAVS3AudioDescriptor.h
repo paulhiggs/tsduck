@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2025, Paul Higgs
+// Copyright (c) 2025-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -26,7 +26,7 @@ namespace ts {
     //! @see AVS T/AI 109.7.
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL AVS3AudioDescriptor : public AbstractDescriptor
+    class TSDUCKDLL AVS3AudioDescriptor: public AbstractDescriptor
     {
     public:
         //!

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2022-2025, Paul Higgs
+// Copyright (c) 2022-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -30,7 +30,7 @@ namespace ts {
     //! If the same media component is described at a Program Leveland an Elementary Level, then
     //! the Elementary stream media_service_kind description shall take precedence.
     //!
-    class TSDUCKDLL MediaServiceKindDescriptor : public AbstractDescriptor
+    class TSDUCKDLL MediaServiceKindDescriptor: public AbstractDescriptor
     {
     public:
         //!

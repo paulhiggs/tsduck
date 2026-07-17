@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -37,7 +37,7 @@ HLS output is possible with the help of an independent HTTP server such as Apach
 The `hls` output plugin produces the playlist and segment files.
 These files can then be served by any HTTP server.
 
-Additionally, output plugins are provided for HiDes and VATek modulator devices.
+Additionally, output plugins are provided for HiDes and AstroMeta modulator devices.
 These devices do not have input equivalent and the plugins are output only.
 
 [#ts-formats]
@@ -275,7 +275,7 @@ The four possible representations are listed below:
   But the accuracy of computations is not always preserved.
 * *64-bit fixed-point value with 1 decimal digit*:
   The underlying representation is a 64-bit integer type. The performances are correct.
-  The accurancy is better than with integers but with one decimal only.
+  The accuracy is better than with integers but with one decimal only.
   Using more than one decimal is possible but may lead to intermediate overflows.
 * *64-bit integer values*:
   This provides the best performance but no accuracy below one bit per second.
@@ -570,6 +570,15 @@ A synonym for `--isdb --abnt --time-reference UTC-3`.
 This is a handy shortcut when working on South American ISDB-Tb transport streams.
 
 [.opt]
+*--china*
+
+[.optdoc]
+A synonym for `--dtmb`.
+
+[.optdoc]
+This is a handy shortcut when working on Chinese transport streams.
+
+[.opt]
 *--default-pds* _value_
 
 [.optdoc]
@@ -679,11 +688,17 @@ This option is meaningful only when the signalization is incorrect,
 when MPEG private descriptors appear in tables without the correct preceding `registration_descriptor`.
 
 [.optdoc]
-Several options `--default-registration` can be specifed.
+Several options `--default-registration` can be specified.
 Unlike DVB private data specifiers, several MPEG registration ids can be simultaneously defined.
 When several default registration ids are specified, they are used as if they were placed in
 as many `registration_descriptor`, in the same order as the options on the command line,
 before any actual `registration_descriptor` in descriptor lists.
+
+[.opt]
+*--dtmb*
+
+[.optdoc]
+Assume that the transport stream is a DTMB one.
 
 [.opt]
 *--dvb*
@@ -777,6 +792,8 @@ Japan such as different semantics for component types.
 
 [.optdoc]
 A synonym for `--isdb --abnt --time-reference UTC+8`.
+
+[.optdoc]
 This is a handy shortcut when working on Philippines transport streams.
 
 [.opt]
@@ -1395,7 +1412,7 @@ Smaller examples are shown in the patch file below:
 In [1], any service with id 10 in any PAT is updated with attribute `program_map_PID="1000"`.
 
 In [2], in any service with id 20 in any PAT, the attribute `program_map_PID` is deleted
-(this results in an invalid PAT but this is for the demonstation only).
+(this results in an invalid PAT but this is for the demonstration only).
 
 In [3], any service with id 30 in any PAT is deleted.
 

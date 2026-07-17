@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -29,7 +29,7 @@ namespace ts {
         // Implementation of plugin API
         virtual bool getOptions() override;
         virtual bool start() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         using TSPacketPtr = std::shared_ptr<TSPacket>;
@@ -97,7 +97,7 @@ bool ts::DuplicatePlugin::start()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::DuplicatePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::DuplicatePlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     // Get old and new PID.
     const PID pid = pkt.getPID();
@@ -132,7 +132,7 @@ ts::ProcessorPlugin::Status ts::DuplicatePlugin::processPacket(TSPacket& pkt, TS
             }
         }
         // Copy the packet in the buffer with the new PID.
-        const TSPacketPtr newpkt(new TSPacket(pkt));
+        const auto newpkt = std::make_shared<TSPacket>(pkt);
         newpkt->setPID(newpid);
         _queue.push_back(newpkt);
     }

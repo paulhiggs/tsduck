@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2023-2025, Paul Higgs
+// Copyright (c) 2023-2026, Paul Higgs
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ namespace ts {
     //! @see ISO/IEC 13818-1, ITU-T Rec. H.222.0, 2.6.110.
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL MPEGH3DAudioSceneDescriptor : public AbstractDescriptor
+    class TSDUCKDLL MPEGH3DAudioSceneDescriptor: public AbstractDescriptor
     {
     public:
         //!
@@ -46,7 +46,7 @@ namespace ts {
                 //!
                 //! Default constructor.
                 //!
-                PositionInteractivityType() = default;
+                PositionInteractivityType() {}  // using "= default" breaks std::optional::emplace() with clang
                 //!
                 //! Constructor from a binary descriptor
                 //! @param [in] buf A binary descriptor to deserialize.
@@ -74,7 +74,7 @@ namespace ts {
                 //!
                 //! Default constructor.
                 //!
-                GainInteractivityType() = default;
+                GainInteractivityType() {}  // using "= default" breaks std::optional::emplace() with clang
                 //!
                 //! Constructor from a binary descriptor
                 //! @param [in] buf A binary descriptor to deserialize.
@@ -217,7 +217,7 @@ namespace ts {
         uint8_t                                  _3dAudioSceneID = 0;       //!< ID for the current audio scene, per mae_audio_SeceneInfoId in ISO/IEC 23008-03.
         std::vector<MH3D_InteractivityInfo_type> groupDefinitions {};       //!< Interactivity groups.
         std::vector<MH3D_SwitchGroup_type>       switchGroupDefinitions {}; //!< Switch groups.
-        std::vector<MH3D_PresetGroup_type>       groupPresetDefintions {};  //!< Preset groups.
+        std::vector<MH3D_PresetGroup_type>       groupPresetDefinitions {}; //!< Preset groups.
         ByteBlock                                reserved {};               //!< Reserved data.
 
         //!

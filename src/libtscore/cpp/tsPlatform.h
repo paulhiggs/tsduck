@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -664,6 +664,50 @@
 
 #endif // DOXYGEN
 
+//!
+//! Allow switch-case on enumeration values without listing all possible values.
+//!
+//! When using a switch-case on an enumeration value, the highest warning level detects missing values
+//! in the "case" alternatives. This is usually a good thing because it detects which code needs to be
+//! modified when new values are added to an enumeration type. However, there are exceptional situations
+//! where a "switch" structure only uses a subset of the declared enumeration values, on purpose. In that
+//! case, the corresponding warning must be temporarily disabled for all compilers around the "switch"
+//! structure. The macros TS_PARTIAL_SWITCH_BEGIN() and TS_PARTIAL_SWITCH_END() encapsulates this.
+//!
+//! Example:
+//! @code
+//! TS_PARTIAL_SWITCH_BEGIN()
+//! switch (value_of_an_enum_type) {
+//!     case VALUE_1:
+//!         ...
+//!     // Some enum values are omitted on purpose
+//!     default:
+//!         ...
+//! }
+//! TS_PARTIAL_SWITCH_END()
+//! @endcode
+//!
+//! @hideinitializer
+//! @ingroup cpp
+//! @see TS_PARTIAL_SWITCH_END()
+//!
+#define TS_PARTIAL_SWITCH_BEGIN() \
+    TS_PUSH_WARNING() \
+    TS_MSC_NOWARNING(4061) \
+    TS_GCC_NOWARNING(switch-default) \
+    TS_GCC_NOWARNING(switch-enum) \
+    TS_LLVM_NOWARNING(switch-default) \
+    TS_LLVM_NOWARNING(switch-enum)
+
+//!
+//! Mark the end of a switch-case on partial enumeration values.
+//! Must be preceded by TS_PARTIAL_SWITCH_BEGIN().
+//! @hideinitializer
+//! @ingroup cpp
+//! @see TS_PARTIAL_SWITCH_BEGIN()
+//!
+#define TS_PARTIAL_SWITCH_END() TS_POP_WARNING()
+
 //
 // Disable some warnings, application-wide, for various compilers.
 //
@@ -677,7 +721,7 @@ TS_LLVM_NOWARNING(unused-parameter)               // Unused parameters are frequ
 TS_LLVM_NOWARNING(global-constructors)            // Do not warn about static/global objects being constructed.
 TS_LLVM_NOWARNING(exit-time-destructors)          // Do not warn about static/global objects being destructed.
 TS_LLVM_NOWARNING(covered-switch-default)         // Allow "default" in "switch" after all enum values to catch invalid binary values.
-TS_LLVM_NOWARNING(sign-conversion)                // Too many occurences since pointer arithmetics is signed, opposite from size_t.
+TS_LLVM_NOWARNING(sign-conversion)                // Too many occurrences since pointer arithmetics is signed, opposite from size_t.
 TS_LLVM_NOWARNING(padded)                         // Do not care if padding is required between class fields.
 TS_LLVM_NOWARNING(reserved-id-macro)              // We sometimes use underscores at the beginning of identifiers.
 TS_LLVM_NOWARNING(reserved-identifier)            // Identifier '_Xxx' is reserved because it starts with '_' followed by a capital letter.
@@ -886,28 +930,27 @@ TS_MSC_NOWARNING(5045)  // Compiler will insert Spectre mitigation for memory lo
 #endif
 
 //!
-//! A macro to disable object copy in the declaration of a class.
-//! The copy and move constructors and assignments are explicitly deleted.
-//! @ingroup cpp
-//! @param classname Name of the enclosing class.
-//!
-#define TS_NOCOPY(classname)                        \
-    private:                                        \
-        classname(classname&&) = delete;            \
-        classname(const classname&) = delete;       \
-        classname& operator=(classname&&) = delete; \
-        classname& operator=(const classname&) = delete
-
-//!
 //! A macro to disable object move in the declaration of a class.
 //! The move constructor and assignment are explicitly deleted.
 //! @ingroup cpp
 //! @param classname Name of the enclosing class.
 //!
-#define TS_NOMOVE(classname)         \
-private:                             \
-    classname(classname&&) = delete; \
-    classname& operator=(classname&&) = delete
+#define TS_NOMOVE(classname)             \
+    private:                             \
+        classname(classname&&) = delete; \
+        classname& operator=(classname&&) = delete
+
+//!
+//! A macro to disable object copy in the declaration of a class.
+//! The copy and move constructors and assignments are explicitly deleted.
+//! @ingroup cpp
+//! @param classname Name of the enclosing class.
+//!
+#define TS_NOCOPY(classname)                  \
+    private:                                  \
+        TS_NOMOVE(classname);                 \
+        classname(const classname&) = delete; \
+        classname& operator=(const classname&) = delete
 
 //!
 //! A macro to disable default constructor and object copy in the declaration of a class.
@@ -915,13 +958,10 @@ private:                             \
 //! @ingroup cpp
 //! @param classname Name of the enclosing class.
 //!
-#define TS_NOBUILD_NOCOPY(classname)                \
-    private:                                        \
-        classname() = delete;                       \
-        classname(classname&&) = delete;            \
-        classname(const classname&) = delete;       \
-        classname& operator=(classname&&) = delete; \
-        classname& operator=(const classname&) = delete
+#define TS_NOBUILD_NOCOPY(classname) \
+    private:                         \
+        TS_NOCOPY(classname);        \
+        classname() = delete
 
 //!
 //! A macro to disable default constructors in the declaration of a class.
@@ -952,13 +992,12 @@ private:                             \
 //! @ingroup cpp
 //! @param classname Name of the enclosing class.
 //!
-#define TS_DEFAULT_COPY_MOVE(classname)                   \
-    public:                                               \
-        /** @cond nodoxygen */                            \
-        classname(classname&&) = default;                 \
-        classname(const classname&) = default;            \
-        classname& operator=(classname&&) = default;      \
-        classname& operator=(const classname&) = default  \
+#define TS_DEFAULT_COPY_MOVE(classname)       \
+    public:                                   \
+        TS_DEFAULT_ASSIGMENTS(classname);     \
+        /** @cond nodoxygen */                \
+        classname(classname&&) = default;     \
+        classname(const classname&) = default \
         /** @endcond */
 
 //!
@@ -968,14 +1007,11 @@ private:                             \
 //! @param classname Name of the enclosing class.
 //! @param dtor_attributes Post attributes for the destructor.
 //!
-#define TS_RULE_OF_FIVE(classname, dtor_attributes)       \
-    public:                                               \
-        /** @cond nodoxygen */                            \
-        classname(classname&&) = default;                 \
-        classname(const classname&) = default;            \
-        classname& operator=(classname&&) = default;      \
-        classname& operator=(const classname&) = default; \
-        virtual ~classname() dtor_attributes              \
+#define TS_RULE_OF_FIVE(classname, dtor_attributes) \
+    public:                                         \
+        TS_DEFAULT_COPY_MOVE(classname);            \
+        /** @cond nodoxygen */                      \
+        virtual ~classname() dtor_attributes        \
         /** @endcond */
 
 //!
@@ -983,17 +1019,28 @@ private:                             \
 //! @ingroup cpp
 //! @param classname Name of the enclosing class.
 //!
-#define TS_INTERFACE(classname)                            \
-    public:                                                \
-        /** @cond nodoxygen */                             \
-        classname() = default;                             \
-        classname(classname&&) = default;                  \
-        classname(const classname&) = default;             \
-        classname& operator=(classname&&) = default;       \
-        classname& operator=(const classname&) = default;  \
-        virtual ~classname();                              \
-        auto operator<=>(const classname&) const = default \
-        /** @endcond */
+#define TS_INTERFACE(classname)                             \
+    public:                                                 \
+        /** @cond nodoxygen */                              \
+        classname() = default;                              \
+        virtual ~classname();                               \
+        auto operator<=>(const classname&) const = default; \
+        /** @endcond */                                     \
+        TS_DEFAULT_COPY_MOVE(classname)
+
+//!
+//! A macro to declare the basic operators in the declaration of an interface class which is a subclass of another interface.
+//! @ingroup cpp
+//! @param classname Name of the enclosing class.
+//!
+#define TS_SUBINTERFACE(classname)                          \
+    public:                                                 \
+        /** @cond nodoxygen */                              \
+        classname() = default;                              \
+        virtual ~classname() override;                      \
+        auto operator<=>(const classname&) const = default; \
+        /** @endcond */                                     \
+        TS_DEFAULT_COPY_MOVE(classname)
 
 //!
 //! Singleton class declaration.
@@ -1108,7 +1155,7 @@ namespace ts {
     //! Constant meaning "no size", "not found" or "do not resize".
     //! An alternative value for the standard @c std::string::npos value.
     //! Required on Windows to avoid linking issue.
-//! @ingroup cpp
+    //! @ingroup cpp
     //!
 #if defined(TS_WINDOWS)
     constexpr size_t NPOS = size_t(-1);
@@ -1236,6 +1283,28 @@ namespace ts {
     //! @ingroup cpp
     //!
     using monotonic_time = cn::time_point<cn::steady_clock>;
+
+#if defined(TS_UNIX) || defined(DOXYGEN)
+    //!
+    //! Alias for type of @c tv_sec in @c timeval structure (not the same type on all platforms).
+    //!
+    using timeval_sec_t  = decltype(::timeval::tv_sec);
+
+    //!
+    //! Alias for type of @c tv_usec in @c timeval structure (not the same type on all platforms).
+    //!
+    using timeval_usec_t = decltype(::timeval::tv_usec);
+
+    //!
+    //! Alias for type of @c tv_sec in @c timespec structure (not the same type on all platforms).
+    //!
+    using timespec_sec_t  = decltype(::timespec::tv_sec);
+
+    //!
+    //! Alias for type of @c tv_nsec in @c timespec structure (not the same type on all platforms).
+    //!
+    using timespec_nsec_t = decltype(::timespec::tv_nsec);
+#endif
 }
 
 
@@ -1303,21 +1372,24 @@ namespace std {
 //! @endcond
 
 //!
-//! Define a static mutex inside a translation unit.
-//! Inside a source file, it is sometimes necessary to define a static mutex which controls
-//! access to resources in the module. When resources in the source file are invoked in the
-//! initializaiton phase, it is not possible to rely on the fact that the mutex object is
-//! already initialized. This macro solves this problem using an encapsulation of the mutex
-//! object inside a private function of the module.
+//! Define a static variable inside a translation unit.
+//! When a static variable in a source file are invoked in the initializaiton phase,
+//! it is not possible to rely on the fact that the object is already initialized.
+//! This macro solves this problem using an encapsulation of the object inside
+//! a private function of the module.
 //! @ingroup thread
-//! @param mutex_class Fully qualified name of the mutex class.
-//! @param function_name Name of the instance function which returns the mutex object.
+//! @param class_name Fully qualified name of the object class.
+//! @param function_name Name of the instance function which returns the object.
 //! @hideinitializer
 //!
-#define TS_STATIC_MUTEX(mutex_class, function_name)                              \
-    namespace {                                                                  \
-        mutex_class& function_name() { static mutex_class mutex; return mutex; } \
-    }                                                                            \
-    /** @cond nodoxygen */                                                       \
-    using TS_UNIQUE_NAME(for_trailing_semicolon) = int                           \
+#define TS_STATIC_VARIABLE(class_name, function_name)  \
+    namespace {                                        \
+        [[maybe_unused]] class_name& function_name()   \
+        {                                              \
+            static class_name data;                    \
+            return data;                               \
+        }                                              \
+    }                                                  \
+    /** @cond nodoxygen */                             \
+    using TS_UNIQUE_NAME(for_trailing_semicolon) = int \
     /** @endcond */

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -154,6 +154,8 @@ int MainCode(int argc, char *argv[])
     version_check.startNewVersionDetection();
 
     // And wait for TS processing termination.
+    report.debug(u"main(): wait for TSProcessor termination");
     tsproc.waitForTermination();
+    report.debug(u"main(): exit application");
     return EXIT_SUCCESS;
 }

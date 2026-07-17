@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -163,15 +163,13 @@ void ts::MPEIFECTable::buildXML(DuckContext& duck, xml::Element* root) const
 
 bool ts::MPEIFECTable::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xbr;
     bool ok = element->getIntAttribute(burst_number, u"burst_number", true) &&
-              element->getIntAttribute(IFEC_burst_size, u"IFEC_burst_size", true) &&
-              element->getChildren(xbr, u"burst", 1, 256);
+              element->getIntAttribute(IFEC_burst_size, u"IFEC_burst_size", true);
 
-    bursts.resize(xbr.size());
-    for (size_t i = 0; ok && i < xbr.size(); ++i) {
-        ok = bursts[i].rt.analyzeXML(duck, xbr[i], true) &&
-             xbr[i]->getHexaTextChild(bursts[i].IFEC_data, u"IFEC_data", true);
+    for (auto& xbr : element->children(u"burst", &ok, 1, 256)) {
+        auto& br(bursts.emplace_back());
+        ok = br.rt.analyzeXML(duck, &xbr, true) &&
+             xbr.getHexaTextChild(br.IFEC_data, u"IFEC_data", true);
     }
     return ok;
 }

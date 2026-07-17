@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -59,7 +59,7 @@ namespace ts {
         //! @param [in,out] b64 Output string. Produced characters are appended at the end of @a output.
         //! @param [in] data Address of data to encode.
         //! @param [in] size Size in bytes of data to encode.
-        //! 
+        //!
         void encodeAdd(UString& b64, const void* data, size_t size);
 
         //!

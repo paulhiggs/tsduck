@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ namespace ts {
     //! @see ATSC A/65, section 6.8.
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL DCCSCT : public AbstractLongTable
+    class TSDUCKDLL DCCSCT: public AbstractLongTable
     {
     public:
         //!
@@ -39,7 +39,7 @@ namespace ts {
         //! Description of an update.
         //! Note: by inheriting from EntryWithDescriptors, there is a public field "DescriptorList descs".
         //!
-        class TSDUCKDLL Update : public EntryWithDescriptors
+        class TSDUCKDLL Update: public EntryWithDescriptors
         {
             TS_NO_DEFAULT_CONSTRUCTORS(Update);
             TS_DEFAULT_ASSIGMENTS(Update);

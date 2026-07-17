@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ bool ts::DebugPlugin::start()
 // Packet processing.
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::DebugPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::DebugPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     if (tsp->pluginPackets() < _packet) {
         return TSP_OK; // not yet the first debugged packet

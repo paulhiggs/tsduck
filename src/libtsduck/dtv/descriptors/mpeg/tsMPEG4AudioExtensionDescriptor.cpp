@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -123,14 +123,9 @@ void ts::MPEG4AudioExtensionDescriptor::buildXML(DuckContext& duck, xml::Element
 
 bool ts::MPEG4AudioExtensionDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xlevels;
-    bool ok = element->getChildren(xlevels, u"audioProfileLevelIndication", 0, MAX_PROFILES) &&
-              element->getHexaTextChild(audioSpecificConfig, u"audioSpecificConfig", false, 0, MAX_DESCRIPTOR_SIZE - 2 - xlevels.size());
-
-    for (auto xlev : xlevels) {
-        uint8_t lev = 0;
-        ok = xlev->getIntAttribute(lev, u"value", true) && ok;
-        audioProfileLevelIndication.push_back(lev);
+    bool ok = element->getHexaTextChild(audioSpecificConfig, u"audioSpecificConfig");
+    for (auto xlev : element->children(u"audioProfileLevelIndication", &ok, 0, MAX_PROFILES)) {
+        ok = xlev.getIntAttribute(audioProfileLevelIndication.emplace_back(), u"value", true);
     }
     return ok;
 }

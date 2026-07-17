@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -180,7 +180,7 @@ bool ts::DescriptorList::merge(DuckContext& duck, const AbstractDescriptor& desc
                     const AbstractDescriptorPtr dp(_list[index]->deserialize(duck, edid));
                     if (dp != nullptr && dp->merge(desc)) {
                         // Descriptor successfully merged. Reserialize it and replace it.
-                        DescriptorPtr newdesc = std::make_shared<Descriptor>();
+                        const auto newdesc = std::make_shared<Descriptor>();
                         dp->serialize(duck, *newdesc);
                         if (newdesc->isValid()) {
                             _list[index] = std::move(newdesc);
@@ -913,24 +913,23 @@ bool ts::DescriptorList::toXML(DuckContext& duck, xml::Element* parent) const
 // These methods decode an XML list of descriptors.
 //----------------------------------------------------------------------------
 
-bool ts::DescriptorList::fromXML(DuckContext& duck, xml::ElementVector& others, const xml::Element* parent, const UString& allowedOthers)
-{
-    UStringList allowed;
-    allowedOthers.split(allowed);
-    return fromXML(duck, others, parent, allowed);
-}
-
 bool ts::DescriptorList::fromXML(DuckContext& duck, const xml::Element* parent)
 {
-    xml::ElementVector others;
-    return fromXML(duck, others, parent, UStringList());
+    static const UStringList empty;
+    return fromXML(duck, parent, empty);
 }
 
-bool ts::DescriptorList::fromXML(DuckContext& duck, xml::ElementVector& others, const xml::Element* parent, const UStringList& allowedOthers)
+bool ts::DescriptorList::fromXML(DuckContext& duck, const xml::Element* parent, const UString& allowed_others)
+{
+    UStringList allowed;
+    allowed_others.split(allowed);
+    return fromXML(duck, parent, allowed);
+}
+
+bool ts::DescriptorList::fromXML(DuckContext& duck, const xml::Element* parent, const UStringList& allowed_others)
 {
     bool success = true;
     clear();
-    others.clear();
     EDID edid;
 
     // Analyze all children nodes. Most of them are descriptors.
@@ -938,11 +937,10 @@ bool ts::DescriptorList::fromXML(DuckContext& duck, xml::ElementVector& others, 
 
         DescriptorPtr bin = std::make_shared<Descriptor>();
 
-        if (node->name().isContainedSimilarIn(allowedOthers)) {
+        if (node->name().isContainedSimilarIn(allowed_others)) {
             // The tag is not a descriptor name, this is one of the allowed other node.
-            others.push_back(node);
         }
-        else if (node->name().similar(u"metadata")) {
+        else if (node->nameMatch(u"metadata")) {
             // Always ignore <metadata> nodes.
         }
         else if (!bin->fromXML(duck, edid, node, tableId())) {

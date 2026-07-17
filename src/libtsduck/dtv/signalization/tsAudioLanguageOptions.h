@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -144,8 +144,8 @@ namespace ts {
         //! an empty string, this specifies a parameter, not an option. If the specified option
         //! was not declared in the syntax of the command or declared as a non-string type,
         //! a fatal error is reported.
-        //! @param [in] index The occurence of the option to return. Zero designates the
-        //! first occurence.
+        //! @param [in] index The occurrence of the option to return. Zero designates the
+        //! first occurrence.
         //! @return True on success, false on error.
         //!
         bool getFromArgs(Args& args, const UChar* option_name, size_t index = 0);
@@ -175,7 +175,7 @@ namespace ts {
     //!
     //! Vector of audio language options.
     //!
-    class TSDUCKDLL AudioLanguageOptionsVector : public std::vector<AudioLanguageOptions>
+    class TSDUCKDLL AudioLanguageOptionsVector: public std::vector<AudioLanguageOptions>
     {
     public:
         //!

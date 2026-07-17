@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -421,6 +421,13 @@ By default, there is no remote control.
 
 [.optdoc]
 With `--remote-tls`, path to the certificate for the remote control.
+See xref:opt-tls[xrefstyle=short] for more details.
+
+[.opt]
+*--remote-ephemeral-rsa-bits* _value_
+
+[.optdoc]
+With `--remote-tls`, create an ephemeral self-signed certificate for the remote control.
 See xref:opt-tls[xrefstyle=short] for more details.
 
 [.opt]

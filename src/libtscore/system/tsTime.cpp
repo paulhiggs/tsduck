@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -56,7 +56,7 @@ const ts::Time ts::Time::GPSEpoch(1980, 1, 6, 0, 0);
 
 
 //----------------------------------------------------------------------------
-// Constructor
+// Constructors and time set.
 //----------------------------------------------------------------------------
 
 ts::Time::Time(int year, int month, int day, int hour, int minute, int second, int millisecond) :
@@ -64,20 +64,20 @@ ts::Time::Time(int year, int month, int day, int hour, int minute, int second, i
 {
 }
 
-
-//----------------------------------------------------------------------------
-// Constructor
-//----------------------------------------------------------------------------
+void ts::Time::set(int year, int month, int day, int hour, int minute, int second, int millisecond)
+{
+    _value = ToInt64(year, month, day, hour, minute, second, millisecond);
+}
 
 ts::Time::Time(const ts::Time::Fields& f) :
     _value(ToInt64(f.year, f.month, f.day, f.hour, f.minute, f.second, f.millisecond))
 {
 }
 
-
-//----------------------------------------------------------------------------
-// Fields constructor
-//----------------------------------------------------------------------------
+void ts::Time::set(const ts::Time::Fields& f)
+{
+    _value = ToInt64(f.year, f.month, f.day, f.hour, f.minute, f.second, f.millisecond);
+}
 
 ts::Time::Fields::Fields(int year_, int month_, int day_, int hour_, int minute_, int second_, int millisecond_) :
     year(year_),
@@ -203,6 +203,24 @@ ts::UString ts::Time::format(int fields) const
 
 
 //----------------------------------------------------------------------------
+// Normalize a string. All non-digit characters are converted to space.
+// Space sequences are reduced.
+//----------------------------------------------------------------------------
+
+namespace {
+    void ReduceSpaces(ts::UString& s)
+    {
+        for (size_t i = 0; i < s.size(); ++i) {
+            if (!ts::IsDigit(s[i])) {
+                s[i] = u' ';
+            }
+        }
+        s.trim(true, true, true);
+    }
+}
+
+
+//----------------------------------------------------------------------------
 // Decode a time from a string.
 //----------------------------------------------------------------------------
 
@@ -210,14 +228,7 @@ bool ts::Time::decode(const ts::UString& str, int fields)
 {
     // Replace all non-digit character by spaces.
     UString s(str);
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (!IsDigit(s[i])) {
-            s[i] = u' ';
-        }
-    }
-
-    // Trim spaces to normalize the string.
-    s.trim(true, true, true);
+    ReduceSpaces(s);
 
     // Decode up to 7 integer fields.
     int f[7];
@@ -278,12 +289,13 @@ bool ts::Time::decode(const ts::UString& str, int fields)
 
     // Build the time value.
     try {
-        *this = Time(t);
+        set(t);
+        return true;
     }
-    catch (TimeError&) {
+    catch (...) {
+        clear();
         return false;
     }
-    return true;
 }
 
 
@@ -433,29 +445,33 @@ ts::Time ts::Time::CurrentUTC()
 
 
 //----------------------------------------------------------------------------
-// This static routine converts a Win32 FILETIME to cn::milliseconds
+// Windows time conversions
 //----------------------------------------------------------------------------
 
 #if defined(TS_WINDOWS)
+
+// Converts a Win32 FILETIME to cn::milliseconds.
 cn::milliseconds ts::Time::Win32FileTimeToMilliSecond(const ::FILETIME& ft)
 {
     FileTime ftime;
     ftime.ft = ft;
     return cn::duration_cast<cn::milliseconds>(Ticks(ftime.i));
 }
-#endif
 
-
-//----------------------------------------------------------------------------
-// This static routine converts a Win32 FILETIME to a UTC time
-//----------------------------------------------------------------------------
-
-#if defined(TS_WINDOWS)
+// Converts a Win32 FILETIME to a UTC time.
 ts::Time ts::Time::Win32FileTimeToUTC(const ::FILETIME& ft)
 {
     FileTime ftime;
     ftime.ft = ft;
     return Time(ftime.i);
+}
+
+// Convert the time to a Win32 @c FILETIME.
+void ts::Time::toWin32FileTime(::FILETIME& ft) const
+{
+    FileTime ftime;
+    ftime.i = _value;
+    ft = ftime.ft;
 }
 #endif
 
@@ -512,8 +528,8 @@ cn::nanoseconds ts::Time::UnixClockNanoSeconds(clockid_t clock, const cn::millis
 void ts::Time::GetUnixClock(::timespec& result, clockid_t clock, const cn::milliseconds& delay)
 {
     const cn::nanoseconds nanoseconds = UnixClockNanoSeconds(clock, delay);
-    result.tv_nsec = long(nanoseconds.count() % std::nano::den);
-    result.tv_sec = time_t(nanoseconds.count() / std::nano::den);
+    result.tv_nsec = timespec_nsec_t(nanoseconds.count() % std::nano::den);
+    result.tv_sec = timespec_sec_t(nanoseconds.count() / std::nano::den);
 }
 
 #endif

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -102,13 +102,9 @@ void ts::SimpleApplicationBoundaryDescriptor::buildXML(DuckContext& duck, xml::E
 
 bool ts::SimpleApplicationBoundaryDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector children;
-    bool ok = element->getChildren(children, u"prefix");
-
-    for (size_t i = 0; ok && i < children.size(); ++i) {
-        UString s;
-        ok = children[i]->getAttribute(s, u"boundary_extension", true);
-        boundary_extension.push_back(s);
+    bool ok = true;
+    for (auto& child : element->children(u"prefix", &ok)) {
+        ok = child.getAttribute(boundary_extension.emplace_back(), u"boundary_extension", true);
     }
     return ok;
 }

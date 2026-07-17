@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2025, Piotr Serafin
+// Copyright (c) 2025-2026, Piotr Serafin
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -16,6 +16,8 @@
 #include "tsDSMCC.h"
 #include "tsDSMCCTap.h"
 #include "tsDSMCCCompatibilityDescriptor.h"
+#include "tsDSMCCIOR.h"
+#include "tsDSMCCGroupInfoIndication.h"
 
 namespace ts {
     //!
@@ -34,12 +36,13 @@ namespace ts {
         class TSDUCKDLL MessageHeader
         {
             TS_DEFAULT_COPY_MOVE(MessageHeader);
+
         public:
             // DSMCCUserToNetworkMessage public members:
-            uint8_t  protocol_discriminator = DSMCC_PROTOCOL_DISCRIMINATOR;  //!< Indicates that the message is MPEG-2 DSM-CC message.
-            uint8_t  dsmcc_type = DSMCC_TYPE_DOWNLOAD_MESSAGE;               //!< Indicates type of MPEG-2 DSM-CC message.
-            uint16_t message_id = 0;                                         //!< Indicates type of message which is being passed.
-            uint32_t transaction_id = 0;                                     //!< Used for session integrity and error processing.
+            uint8_t protocol_discriminator = DSMCC_PROTOCOL_DISCRIMINATOR;  //!< Indicates that the message is MPEG-2 DSM-CC message.
+            uint8_t dsmcc_type = DSMCC_TYPE_DOWNLOAD_MESSAGE;               //!< Indicates type of MPEG-2 DSM-CC message.
+            uint16_t message_id = 0;                                        //!< Indicates type of message which is being passed.
+            uint32_t transaction_id = 0;                                    //!< Used for session integrity and error processing.
 
             //!
             //! Default constructor.
@@ -53,109 +56,113 @@ namespace ts {
         };
 
         //  *****************************************
-        //  *** DownloadServerInitiate Structures ***
+        //  *** DownloadServerInitiate Structure  ***
         //  *****************************************
-
         //!
-        //! Representation of LiteComponent structure (BIOP::Object Location, DSM::ConnBinder)
-        //! @see ETSI TR 101 202 V1.2.1 (2003-01), Table 4.5
+        //! DSM-CC DownloadServerInitiate (DSI) message body.
         //!
-        class TSDUCKDLL LiteComponent
-        {
-        public:
-            LiteComponent() = default;      //!< Default constructor.
-            uint32_t component_id_tag = 0;  //!< Component idenfitier tag (eg. TAG_ObjectLocation, TAG_ConnBinder).
+        struct TSDUCKDLL DownloadServerInitiate {
+            ByteBlock server_id {};                 //!< Field shall be set to 20 bytes with the value 0xFF.
+            DSMCCIOR ior {};                        //!< IOR structure (object carousel; populated when type_id == "srg").
+            DSMCCGroupInfoIndication group_info {}; //!< GroupInfoIndication (data carousel; populated otherwise).
 
-            // BIOPObjectLocation context
-            uint32_t  carousel_id = 0;       //!< The carouselId field provides a context for the moduleId field.
-            uint16_t  module_id = 0;         //!< Identifies the module in which the object is conveyed within the carousel.
-            uint8_t   version_major = 0x01;  //!< Fixed, BIOP protocol major version 1.
-            uint8_t   version_minor = 0x00;  //!< Fixed, BIOP protocol minor version 0.
-            ByteBlock object_key_data {};    //!< Identifies the object within the module in which it is broadcast.
-
-            // DSMConnBinder context
-            DSMCCTap tap {};                 //!< Tap structure
-
-            // UnknownComponent context
-            std::optional<ByteBlock> component_data {};  //!< Optional component data, for UnknownComponent.
-        };
-
-        //!
-        //! Representation of TaggedProfile structure (BIOP Profile Body, Lite Options Profile Body)
-        //! @see ETSI TR 101 202 V1.2.1 (2003-01), 4.7.3.2, 4.7.3.3
-        //!
-        class TSDUCKDLL TaggedProfile
-        {
-        public:
-            TaggedProfile() = default;             //!< Default constructor.
-            uint32_t profile_id_tag = 0;           //!< Profile identifier tag (eg. TAG_BIOP, TAG_LITE_OPTIONS).
-            uint8_t  profile_data_byte_order = 0;  //!< Fixed 0x00, big endian byte order.
-
-            // BIOP Profile Body context
-            std::list<LiteComponent> liteComponents {};  //!< List of LiteComponent.
-
-            // Any other profile context for now
-            std::optional<ByteBlock> profile_data {};  //!< Optional profile data, for UnknownProfile.
-        };
-
-        //!
-        //! Representation of Interoperable Object Reference (IOR) structure
-        //! @see ETSI TR 101 202 V1.2.1 (2003-01), 4.7.3.1
-        //!
-        class TSDUCKDLL IOR
-        {
-        public:
-            IOR() = default;                              //!< Default constructor.
-            ByteBlock                type_id {};          //!< U-U Objects type_id.
-            std::list<TaggedProfile> tagged_profiles {};  //!< List of tagged profiles.
+            //!
+            //! Reset the DSI body to its default state.
+            //!
+            void clear()
+            {
+                server_id.clear();
+                ior.clear();
+                group_info.clear();
+            }
         };
 
         //  *****************************************
-        //  *** DownloadInfoIndication Structures ***
+        //  *** DownloadInfoIndication Structure  ***
         //  *****************************************
+        //!
+        //! DSM-CC DownloadInfoIndication (DII) message body.
+        //!
+        struct TSDUCKDLL DownloadInfoIndication {
 
-        //!
-        //! Representation of BIOP::ModuleInfo structure
-        //! @see ETSI TR 101 202 V1.2.1 (2003-01), Table 4.14
-        //!
-        class TSDUCKDLL Module: public EntryWithDescriptors
-        {
-            TS_NO_DEFAULT_CONSTRUCTORS(Module);
-            TS_DEFAULT_ASSIGMENTS(Module);
-        public:
-            uint16_t module_id = 0;       //!< Identifies the module.
-            uint32_t module_size = 0;     //!< Length of the module in bytes.
-            uint8_t  module_version = 0;  //!< Identifies the version of the module.
-            uint32_t module_timeout = 0;  //!< Time out value in microseconds that may be used to time out the acquisition of all Blocks of the Module.
-            uint32_t block_timeout = 0;   //!< Time out value in microseconds that may be used to time out the reception of the next Block after a Block has been acquired.
-            uint32_t min_block_time = 0;  //!< Indicates the minimum time period that exists between the delivery of two subsequent Blocks of the Module.
-            std::list<DSMCCTap> taps {};  //!< List of Taps.
+            uint32_t download_id = 0;  //!< Same value as the downloadId field of the DownloadDataBlock() messages which carry the Blocks of the Module.
+            uint16_t block_size = 0;   //!< Block size of all the DownloadDataBlock() messages which convey the Blocks of the Modules.
+
+            //!
+            //! Representation of BIOP::ModuleInfo structure
+            //! @see ETSI TR 101 202 V1.2.1 (2003-01), Table 4.14
+            //!
+            class TSDUCKDLL Module: public EntryWithDescriptors
+            {
+                TS_NO_DEFAULT_CONSTRUCTORS(Module);
+                TS_DEFAULT_ASSIGMENTS(Module);
+
+            public:
+                uint16_t module_id = 0;       //!< Identifies the module.
+                uint32_t module_size = 0;     //!< Length of the module in bytes.
+                uint8_t module_version = 0;   //!< Identifies the version of the module.
+                uint32_t module_timeout = 0;  //!< Time out value in microseconds that may be used to time out the acquisition of all Blocks of the Module.
+                uint32_t block_timeout = 0;   //!< Time out value in microseconds that may be used to time out the reception of the next Block after a Block has been acquired.
+                uint32_t min_block_time = 0;  //!< Indicates the minimum time period that exists between the delivery of two subsequent Blocks of the Module.
+                std::list<DSMCCTap> taps {};  //!< List of Taps.
+
+                //!
+                //! Constructor.
+                //! @param [in] table Parent DSMCCUserToNetworkMessage Table.
+                //!
+                explicit Module(const AbstractTable* table);
+            };
+
+            //!
+            //! List of Modules
+            //!
+            using ModuleList = AttachedEntryList<Module>;
+
+            ModuleList modules;  //!< List of modules structures.
 
             //!
             //! Constructor.
-            //! @param [in] table Parent DSMCCUserToNetworkMessage Table.
+            //! @param [in] parent Parent DSMCCUserToNetworkMessage table.
             //!
-            explicit Module(const AbstractTable* table);
+            explicit DownloadInfoIndication(DSMCCUserToNetworkMessage* parent) : modules(parent) {}
+            DownloadInfoIndication(const DownloadInfoIndication&) = delete;
+            DownloadInfoIndication& operator=(const DownloadInfoIndication&) = delete;
+
+            //!
+            //! Reset the DII body to its default state.
+            //!
+            void clear()
+            {
+                download_id = 0;
+                block_size = 0;
+                modules.clear();
+            }
         };
 
         //!
-        //! List of Modules
+        //! Discriminated union holding either a DSI or a DII body.
         //!
-        using ModuleList = AttachedEntryList<Module>;
+        using MessageBody = std::variant<std::monostate, DownloadServerInitiate, DownloadInfoIndication>;
 
-        // Common fields for all DSMCCUserToNetworkMessage:
+        MessageHeader header {};                                   //!< DSM-CC Message Header.
+        DSMCCCompatibilityDescriptor compatibility_descriptor {};  //!< DSM-CC compatibilityDescriptor.
+        MessageBody body;                                          //!< Message body, either DSI or DII.
 
-        MessageHeader                header {};                     //!< DSM-CC Message Header.
-        DSMCCCompatibilityDescriptor compatibility_descriptor {};   //!< DSM-CC compatibilityDescriptor.
 
-        // These fields apply to DSI:
-        ByteBlock  server_id {};     //!< Field shall be set to 20 bytes with the value 0xFF.
-        IOR        ior {};           //!< Interoperable Object Reference (IOR) structure.
+        //! @return True if the body is a DSI.
+        bool isDSI() const { return std::holds_alternative<DownloadServerInitiate>(body); }
+        //! @return True if the body is a DII.
+        bool isDII() const { return std::holds_alternative<DownloadInfoIndication>(body); }
 
-        // These fields apply to DII:
-        uint32_t   download_id = 0;  //!< Same value as the downloadId field of the DownloadDataBlock() messages which carry the Blocks of the Module.
-        uint16_t   block_size = 0;   //!< Block size of all the DownloadDataBlock() messages which convey the Blocks of the Modules.
-        ModuleList modules;          //!< List of modules structures.
+        //! @return Pointer to the DSI body, or null if the body is not a DSI.
+        DownloadServerInitiate* toDSI() { return std::get_if<DownloadServerInitiate>(&body); }
+        //! @return Const pointer to the DSI body, or null if the body is not a DSI.
+        const DownloadServerInitiate* toDSI() const { return std::get_if<DownloadServerInitiate>(&body); }
+
+        //! @return Pointer to the DII body, or null if the body is not a DII.
+        DownloadInfoIndication* toDII() { return std::get_if<DownloadInfoIndication>(&body); }
+        //! @return Const pointer to the DII body, or null if the body is not a DII.
+        const DownloadInfoIndication* toDII() const { return std::get_if<DownloadInfoIndication>(&body); }
 
         //!
         //! Default constructor.
@@ -163,6 +170,19 @@ namespace ts {
         //! @param [in] cur True if table is current, false if table is next.
         //!
         DSMCCUserToNetworkMessage(uint8_t vers = 0, bool cur = true);
+
+        //!
+        //! Copy constructor.
+        //! @param [in] other Other table to copy.
+        //!
+        DSMCCUserToNetworkMessage(const DSMCCUserToNetworkMessage& other);
+
+        //!
+        //! Assignment operator.
+        //! @param [in] other Other table to copy.
+        //! @return A reference to this object.
+        //!
+        DSMCCUserToNetworkMessage& operator=(const DSMCCUserToNetworkMessage& other);
 
         //!
         //! Constructor from a binary table.
@@ -173,19 +193,19 @@ namespace ts {
 
         // Inherited methods
         DeclareDisplaySection();
-        virtual bool     isPrivate() const override;
+        virtual bool isPrivate() const override;
         virtual uint16_t tableIdExtension() const override;
 
     protected:
         // Inherited methods
-        virtual void   clearContent() override;
+        virtual void clearContent() override;
         virtual size_t maxPayloadSize() const override;
-        virtual void   serializePayload(BinaryTable&, PSIBuffer&) const override;
-        virtual void   deserializePayload(PSIBuffer&, const Section&) override;
-        virtual void   buildXML(DuckContext&, xml::Element*) const override;
-        virtual bool   analyzeXML(DuckContext& duck, const xml::Element* element) override;
+        virtual void serializePayload(BinaryTable&, PSIBuffer&) const override;
+        virtual void deserializePayload(PSIBuffer&, const Section&) override;
+        virtual void buildXML(DuckContext&, xml::Element*) const override;
+        virtual bool analyzeXML(DuckContext& duck, const xml::Element* element) override;
 
     private:
         static constexpr size_t MESSAGE_HEADER_SIZE = 12;  //!< DSM-CC Message Header size w/o adaptation header.
     };
-}
+}  // namespace ts

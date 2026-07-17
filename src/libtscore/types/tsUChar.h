@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -39,7 +39,7 @@ namespace ts {
     //! Bitwise combinations are allowed.
     //! @ingroup cpp
     //!
-    enum : uint32_t {
+    enum: uint32_t {
         CCHAR_LETTER   = 0x0001,  //!< The character is a letter.
         CCHAR_DIGIT    = 0x0002,  //!< The character is a digit.
         CCHAR_HEXA     = 0x0004,  //!< The character is an hexadecimal digit.

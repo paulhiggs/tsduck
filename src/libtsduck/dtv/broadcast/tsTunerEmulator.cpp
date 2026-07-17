@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //-----------------------------------------------------------------------------
@@ -89,7 +89,7 @@ bool ts::TunerEmulator::open(const UString& device_name, bool info_only)
     DeliverySystem def_delivery = DS_UNDEFINED;
     uint64_t def_bandwidth = 0;
     UString def_directory;
-    const xml::Element* def = root->findFirstChild(u"defaults", true);
+    const xml::Element* def = root->findFirstChild(u"defaults");
     bool success = true;
     if (def != nullptr) {
         success = def->getEnumAttribute(def_delivery, DeliverySystemEnum(), u"delivery", false, DS_UNDEFINED) &&
@@ -108,13 +108,11 @@ bool ts::TunerEmulator::open(const UString& device_name, bool info_only)
     }
 
     // Get all supported delivery systems (in addition to those in the various channels).
-    xml::ElementVector xtuners;
-    success = success && root->getChildren(xtuners, u"tuner");
-    for (auto it = xtuners.begin(); success && it != xtuners.end(); ++it) {
+    for (auto& xtuner : root->children(u"tuner", &success)) {
         TunerType type = TT_UNDEFINED;
         DeliverySystem sys = DS_UNDEFINED;
-        success = (*it)->getEnumAttribute(type, TunerTypeEnum(), u"type", false, TT_UNDEFINED) &&
-                  (*it)->getEnumAttribute(sys, DeliverySystemEnum(), u"delivery", false, DS_UNDEFINED);
+        success = xtuner.getEnumAttribute(type, TunerTypeEnum(), u"type", false, TT_UNDEFINED) &&
+                  xtuner.getEnumAttribute(sys, DeliverySystemEnum(), u"delivery", false, DS_UNDEFINED);
         if (type != TT_UNDEFINED) {
             _delivery_systems.insertAll(type);
         }
@@ -124,31 +122,27 @@ bool ts::TunerEmulator::open(const UString& device_name, bool info_only)
     }
 
     // Get all channel descriptions.
-    xml::ElementVector xchannels;
-    success = success && root->getChildren(xchannels, u"channel");
-    _channels.reserve(xchannels.size());
-    for (auto it = xchannels.begin(); success && it != xchannels.end(); ++it) {
-        Channel chan;
-        success = (*it)->getIntAttribute(chan.frequency, u"frequency", true) &&
-                  (*it)->getIntAttribute(chan.bandwidth, u"bandwidth", false, def_bandwidth) &&
-                  (*it)->getEnumAttribute(chan.delivery, DeliverySystemEnum(), u"delivery", false, def_delivery) &&
-                  (*it)->getOptionalEnumAttribute(chan.polarity, PolarizationEnum(), u"polarization") &&
-                  (*it)->getOptionalIntAttribute(chan.symbol_rate, u"symbol_rate") &&
-                  (*it)->getOptionalEnumAttribute(chan.inner_fec, InnerFECEnum(), u"FEC_inner") &&
-                  (*it)->getOptionalEnumAttribute(chan.modulation, ModulationEnum(), u"modulation") &&
-                  (*it)->getAttribute(chan.file, u"file", false) &&
-                  (*it)->getAttribute(chan.pipe, u"pipe", false);
+    for (auto& xchannel : root->children(u"channel", &success)) {
+        auto& chan(_channels.emplace_back());
+        success = xchannel.getIntAttribute(chan.frequency, u"frequency", true) &&
+                  xchannel.getIntAttribute(chan.bandwidth, u"bandwidth", false, def_bandwidth) &&
+                  xchannel.getEnumAttribute(chan.delivery, DeliverySystemEnum(), u"delivery", false, def_delivery) &&
+                  xchannel.getOptionalEnumAttribute(chan.polarity, PolarizationEnum(), u"polarization") &&
+                  xchannel.getOptionalIntAttribute(chan.symbol_rate, u"symbol_rate") &&
+                  xchannel.getOptionalEnumAttribute(chan.inner_fec, InnerFECEnum(), u"FEC_inner") &&
+                  xchannel.getOptionalEnumAttribute(chan.modulation, ModulationEnum(), u"modulation") &&
+                  xchannel.getAttribute(chan.file, u"file", false) &&
+                  xchannel.getAttribute(chan.pipe, u"pipe", false);
         chan.file.trim();
         chan.pipe.trim();
         if (success && (chan.file.empty() + chan.pipe.empty()) != 1) {
-            _duck.report().error(u"%s, line %d: exactly one of file or pipe must be set in <channel>", device_name, (*it)->lineNumber());
+            _duck.report().error(u"%s, line %d: exactly one of file or pipe must be set in <channel>", device_name, xchannel.lineNumber());
             success = false;
         }
         if (success && !chan.file.empty()) {
             chan.file = AbsoluteFilePath(chan.file, def_directory);
         }
         _delivery_systems.insert(chan.delivery);
-        _channels.push_back(chan);
     }
     _duck.report().debug(u"loaded %d emulated channels", _channels.size());
 
@@ -325,12 +319,12 @@ bool ts::TunerEmulator::start()
 
     const Channel& chan(_channels[_tune_index]);
     if (!chan.file.empty()) {
-        if (!_file.openRead(chan.file, 0, 0, _duck.report())) {
+        if (!_file.openRead(chan.file, 0, 0)) {
             return false;
         }
     }
     else if (!chan.pipe.empty()) {
-        if (!_pipe.open(chan.pipe, ForkPipe::SYNCHRONOUS, 0, _duck.report(), ForkPipe::STDOUT_PIPE, ForkPipe::STDIN_NONE)) {
+        if (!_pipe.open(chan.pipe, ForkPipe::SYNCHRONOUS, 0, ForkPipe::STDOUT_PIPE, ForkPipe::STDIN_NONE)) {
             return false;
         }
     }
@@ -348,10 +342,10 @@ bool ts::TunerEmulator::stop(bool silent)
 {
     // Close resources, regardless of state.
     if (_file.isOpen()) {
-        _file.close(silent ? NULLREP : _duck.report());
+        _file.close(silent);
     }
     if (_pipe.isOpen()) {
-        _pipe.close(silent ? NULLREP : _duck.report());
+        _pipe.close(silent);
     }
     // Change state only if started.
     if (_state == State::STARTED) {
@@ -371,10 +365,10 @@ size_t ts::TunerEmulator::receive(TSPacket* buffer, size_t max_packets, const Ab
         return 0;  // error
     }
     else if (_file.isOpen()) {
-        return _file.readPackets(buffer, nullptr, max_packets, _duck.report());
+        return _file.readPackets(buffer, nullptr, max_packets);
     }
     else if (_pipe.isOpen()) {
-        return _pipe.readPackets(buffer, nullptr, max_packets, _duck.report());
+        return _pipe.readPackets(buffer, nullptr, max_packets);
     }
     else {
         return 0;  // error

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -9,21 +9,23 @@
 #include "tsTCPConnection.h"
 #include "tsIPUtils.h"
 #include "tsSysUtils.h"
-#include "tsMemory.h"
-#include "tsNullReport.h"
+#include "tsInitZero.h"
 #include "tsException.h"
+#if defined(TS_WINDOWS)
+    #include "tsWinUtils.h"
+#endif
 
 
 //----------------------------------------------------------------------------
-// Default implementations of handlers.
+// Called by a server to declare that the socket has just become opened.
 //----------------------------------------------------------------------------
 
-void ts::TCPConnection::handleConnected(Report& report)
+void ts::TCPConnection::declareOpened(SysSocketType sock)
 {
-}
+    // This will be a server-side connection.
+    _is_server_side = true;
 
-void ts::TCPConnection::handleDisconnected(Report& report)
-{
+    SuperClass::declareOpened(sock);
 }
 
 
@@ -32,17 +34,23 @@ void ts::TCPConnection::handleDisconnected(Report& report)
 // has just become connected.
 //----------------------------------------------------------------------------
 
-void ts::TCPConnection::declareConnected(Report& report)
+void ts::TCPConnection::declareConnected()
 {
-    {
-        std::lock_guard<std::recursive_mutex> lock(_mutex);
-        if (_is_connected) {
-            report.fatal(u"implementation error: TCP socket already connected");
-            throw ImplementationError(u"TCP socket already connected");
-        }
-        _is_connected = true;
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    if (_is_connected) {
+        report().fatal(u"implementation error: TCP socket already connected");
+        throw ImplementationError(u"TCP socket already connected");
     }
-    handleConnected(report);
+    else {
+        // Declare the socket as connected.
+        _is_connected = true;
+
+        // Notify all subscribers that the socket is connected.
+        callSubscribers<SocketHandlerInterface>([this](SocketHandlerInterface* subs) {
+            subs->handleSocketConnected(*this);
+        });
+    }
 }
 
 
@@ -50,29 +58,34 @@ void ts::TCPConnection::declareConnected(Report& report)
 // Declare that the socket has just become disconnected.
 //----------------------------------------------------------------------------
 
-void ts::TCPConnection::declareDisconnected(Report& report)
+void ts::TCPConnection::declareDisconnected(bool silent)
 {
-    {
-        std::lock_guard<std::recursive_mutex> lock(_mutex);
-        if (_is_connected) {
-            _is_connected = false;
-        }
-        else {
-            return;
-        }
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    // Silently ignore socket already disconnected.
+    if (_is_connected) {
+        // Declare the socket as disconnected.
+        _is_connected = false;
+
+        // Notify all subscribers that the socket is disconnected.
+        callSubscribers<SocketHandlerInterface>([this, silent](SocketHandlerInterface* subs) {
+            subs->handleSocketDisconnected(*this, silent);
+        });
     }
-    handleDisconnected(report);
 }
 
 
 //----------------------------------------------------------------------------
-// Invoked when socket is closed()
+// Close the socket
 //----------------------------------------------------------------------------
 
-void ts::TCPConnection::handleClosed(Report& report)
+bool ts::TCPConnection::closeImplementation(bool silent)
 {
-    declareDisconnected(report);
-    SuperClass::handleClosed(report);
+    // Declare the socket disconnected, if not properly disconnected.
+    declareDisconnected(silent);
+
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    return SuperClass::closeImplementation(silent);
 }
 
 
@@ -80,23 +93,26 @@ void ts::TCPConnection::handleClosed(Report& report)
 // Get connected peer.
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::getPeer(IPSocketAddress& peer, Report& report) const
+bool ts::TCPConnection::getPeer(IPSocketAddress& peer)
 {
-    ::sockaddr_storage sock_addr;
-    SysSocketLengthType len = sizeof(sock_addr);
-    TS_ZERO(sock_addr);
-    if (::getpeername(getSocket(), reinterpret_cast<::sockaddr*>(&sock_addr), &len) != 0) {
-        report.error(u"error getting socket peer: %s", SysErrorCodeMessage());
+    InitZero<::sockaddr_storage> sock_addr;
+    SysSocketLengthType len = sizeof(sock_addr.data);
+    if (::getpeername(getSocket(), reinterpret_cast<::sockaddr*>(&sock_addr.data), &len) != 0) {
+        report().error(u"error getting socket peer: %s", SysErrorCodeMessage());
         return false;
     }
-    peer = IPSocketAddress(sock_addr);
+    peer = IPSocketAddress(sock_addr.data);
     return true;
 }
 
-ts::UString ts::TCPConnection::peerName() const
+ts::UString ts::TCPConnection::peerName()
 {
+    // Get peer socket without error message.
     IPSocketAddress peer;
-    return getPeer(peer, NULLREP) ? peer.toString() : u"";
+    const bool mute = muteReport(true);
+    const bool success = getPeer(peer);
+    muteReport(mute);
+    return success ? peer.toString() : u"";
 }
 
 
@@ -104,26 +120,68 @@ ts::UString ts::TCPConnection::peerName() const
 // Send data.
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::send(const void* buffer, size_t size, Report& report)
+bool ts::TCPConnection::send(const void* buffer, size_t size, IOSB* iosb)
 {
+    // Check that the application uses the right blocking mode.
+    if (!checkNonBlocking(iosb, u"TCPConnection::send")) {
+        return false;
+    }
+
+#if defined(TS_WINDOWS)
+    // On Windows with asynchronous I/O, use overlapped I/O.
+    // With standard blocking I/O, use the same standard socket calls as UNIX.
+    if (isNonBlocking()) {
+        assert(iosb != nullptr);
+
+        // The reception parameters are stored in the IOSB.
+        auto params = std::make_shared<TCPAsyncBuffers>(SocketOp::SEND);
+        TS_ZERO(params->buf);
+        params->buf.buf = reinterpret_cast<CHAR*>(const_cast<void*>(buffer));
+        params->buf.len = ::ULONG(size);
+        iosb->async_data = params;
+
+        // Start an asynchronous I/O.
+        // Consider that the I/O is pending if it immediately completed because an asynchronous I/O completion will be posted.
+        int err = SYS_SUCCESS;
+        if (::WSASend(getSocket(), &params->buf, 1, nullptr, 0, &iosb->overlap, nullptr) != 0) {
+            err = LastSysErrorCode();
+        }
+        iosb->pending = SysSuccess(err) || IsPendingStatus(err);
+        if (!iosb->pending) {
+            report().error(u"error sending data to socket: %s", SysErrorCodeMessage(err));
+        }
+        return iosb->pending;
+    }
+#endif
+
+    // Standard socket API.
     const char* data = reinterpret_cast<const char*>(buffer);
     size_t remain = size;
 
     while (remain > 0) {
         SysSocketSignedSizeType gone = ::send(getSocket(), SysSendBufferPointer(data), int(remain), 0);
+        const int err_code = LastSysErrorCode();
         if (gone > 0) {
             assert(size_t(gone) <= remain);
             data += gone;
             remain -= gone;
         }
-#if !defined(TS_WINDOWS)
-        else if (errno == EINTR) {
+#if defined(TS_UNIX)
+        else if (err_code == EINTR) {
             // Ignore signal, retry
-            report.debug(u"send() interrupted by signal, retrying");
+            report().debug(u"send() interrupted by signal, retrying");
         }
 #endif
+        else if (isNonBlocking() && IsPendingStatus(err_code)) {
+            // UNIX: Non-blocking socket with no enough available outgoing buffer space.
+            // Windows: Asynchronous I/O in progress.
+            assert(iosb != nullptr);
+            iosb->pending = true;
+            iosb->sent_size = size - remain;
+            return true;
+        }
         else {
-            report.error(u"error sending data to socket: %s", SysErrorCodeMessage());
+            report().error(u"error sending data to socket: %s", SysErrorCodeMessage(err_code));
             return false;
         }
     }
@@ -134,32 +192,71 @@ bool ts::TCPConnection::send(const void* buffer, size_t size, Report& report)
 
 //----------------------------------------------------------------------------
 // Receive data.
-// If abort interface is non-zero, invoke it when I/O is interrupted
-// (in case of user-interrupt, return, otherwise retry).
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::receive(void* data,
-                                size_t max_size,
-                                size_t& ret_size,
-                                const AbortInterface* abort,
-                                Report& report)
+bool ts::TCPConnection::receive(void* data, size_t max_size, size_t& ret_size, const AbortInterface* abort, IOSB* iosb)
 {
     // Clear returned values
     ret_size = 0;
 
+    // Check that the application uses the right blocking mode.
+    if (!checkNonBlocking(iosb, u"TCPConnection::receive")) {
+        return false;
+    }
+
+#if defined(TS_WINDOWS)
+    // On Windows with asynchronous I/O, use overlapped I/O.
+    // With standard blocking I/O, use the same standard socket calls as UNIX.
+    if (isNonBlocking()) {
+        assert(iosb != nullptr);
+
+        // The reception parameters are stored in the IOSB.
+        auto params = std::make_shared<TCPAsyncBuffers>(SocketOp::RECEIVE);
+        TS_ZERO(params->buf);
+        params->buf.buf = reinterpret_cast<CHAR*>(data);
+        params->buf.len = ::ULONG(max_size);
+        params->flags = 0;
+        iosb->async_data = params;
+
+        // Start an asynchronous I/O.
+        // Consider that the I/O is pending if it immediately completed because an asynchronous I/O completion will be posted.
+        int err = SYS_SUCCESS;
+        ::DWORD io_size = 0;
+        if (::WSARecv(getSocket(), &params->buf, 1, nullptr, &params->flags, &iosb->overlap, nullptr) != 0) {
+            err = LastSysErrorCode();
+        }
+        iosb->pending = SysSuccess(err) || IsPendingStatus(err);
+        if (!iosb->pending) {
+            static const std::set<::DWORD> eof_status {WSAEDISCON, WSAECONNRESET, WSAECONNABORTED, WSAENETRESET, WSA_OPERATION_ABORTED};
+            if (eof_status.contains(err)) {
+                // End of connection (graceful or aborted). Do not report an error.
+                declareDisconnected(true);
+                SetLastSysErrorCode(SYS_EOF);
+            }
+            else {
+                // Actual error.
+                report().error(u"error receiving data from socket: %s", SysErrorCodeMessage(err));
+            }
+        }
+        return iosb->pending;
+    }
+#endif
+
+    // Standard socket API.
     // Loop on unsollicited interrupts
     for (;;) {
         SysSocketSignedSizeType got = ::recv(getSocket(), SysRecvBufferPointer(data), int(max_size), 0);
-        const int errcode = LastSysErrorCode();
+        const int err_code = LastSysErrorCode();
         if (got > 0) {
             // Received some data
             assert(size_t(got) <= max_size);
             ret_size = size_t(got);
             return true;
         }
-        else if (got == 0 || errcode == SYS_SOCKET_ERR_RESET) {
+        else if (got == 0 || err_code == SYS_SOCKET_ERR_RESET) {
             // End of connection (graceful or aborted). Do not report an error.
-            declareDisconnected(report);
+            declareDisconnected(true);
+            SetLastSysErrorCode(SYS_EOF);
             return false;
         }
         else if (abort != nullptr && abort->aborting()) {
@@ -167,16 +264,22 @@ bool ts::TCPConnection::receive(void* data,
             return false;
         }
 #if defined(TS_UNIX)
-        else if (errcode == EINTR) {
+        else if (err_code == EINTR) {
             // Ignore signal, retry.
-            report.debug(u"recv() interrupted by signal, retrying");
+            report().debug(u"recv() interrupted by signal, retrying");
         }
 #endif
+        else if (isNonBlocking() && IsPendingStatus(err_code)) {
+            // UNIX: Non-blocking socket with no available incoming data.
+            assert(iosb != nullptr);
+            iosb->pending = true;
+            return true;
+        }
         else {
             std::lock_guard<std::recursive_mutex> lock(_mutex);
             if (isOpen()) {
                 // Report the error only if the error does not result from a close in another thread.
-                report.error(u"error receiving data from socket: %s", SysErrorCodeMessage(errcode));
+                report().error(u"error receiving data from socket: %s", SysErrorCodeMessage(err_code));
             }
             return false;
         }
@@ -188,14 +291,14 @@ bool ts::TCPConnection::receive(void* data,
 // Receive data until buffer is full.
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::receive(void* buffer, size_t size, const AbortInterface* abort, Report& report)
+bool ts::TCPConnection::receive(void* buffer, size_t size, const AbortInterface* abort)
 {
     char* data = reinterpret_cast<char*>(buffer);
     size_t remain = size;
 
     while (remain > 0) {
         size_t got;
-        if (!receive(data, remain, got, abort, report)) {
+        if (!receive(data, remain, got, abort)) {
             return false;
         }
         assert(got <= remain);
@@ -209,35 +312,88 @@ bool ts::TCPConnection::receive(void* buffer, size_t size, const AbortInterface*
 
 //----------------------------------------------------------------------------
 // Connect to a remote address and port.
-// Use this method when acting as TCP client.
-// Do not use on server side: the TCPConnection object is passed
-// to TCPServer::accept() which establishes the connection.
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::connect(const IPSocketAddress& addr, Report& report)
+bool ts::TCPConnection::connect(const IPSocketAddress& addr, IOSB* iosb)
 {
-    IPSocketAddress addr2(addr);
-    if (!convert(addr2, report)) {
+    // Check that the application uses the right blocking mode.
+    if (!checkNonBlocking(iosb, u"TCPConnection::connect")) {
         return false;
     }
 
+    // Convert server address in preferred IP generation.
+    IPSocketAddress server_addr(addr);
+    if (!convert(server_addr)) {
+        return false;
+    }
+
+    // This will be a client-side connection.
+    _is_server_side = false;
+
+#if defined(TS_WINDOWS)
+    // On Windows with asynchronous I/O, use overlapped I/O.
+    // With standard blocking I/O, use the same standard socket calls as UNIX.
+    if (isNonBlocking()) {
+        assert(iosb != nullptr);
+
+        // Get the address of ConnectEx the first time we use it.
+        // Thread-safe init-safe static data pattern.
+        static const ::GUID connect_ex_guid = WSAID_CONNECTEX;
+        static int connect_ex_error = 0;
+        static const ::LPFN_CONNECTEX connect_ex = reinterpret_cast<::LPFN_CONNECTEX>(GetWSAFunction(connect_ex_guid, connect_ex_error));
+        if (connect_ex == nullptr) {
+            report().error(u"error fetching ConnectEx: %s", SysErrorCodeMessage(connect_ex_error));
+            return false;
+        }
+
+        // The reception parameters are stored in the IOSB.
+        auto params = std::make_shared<TCPAsyncBuffers>(SocketOp::CONNECT);
+        TS_ZERO(params->peer_sock);
+        params->peer_sock_len = int(server_addr.get(params->peer_sock));
+        iosb->async_data = params;
+
+        // Start an asynchronous connect. Don't send any data with the connection.
+        // Consider that the I/O is pending if it immediately completed because an asynchronous I/O completion will be posted.
+        int err = SYS_SUCCESS;
+        if (!connect_ex(getSocket(), reinterpret_cast<::sockaddr*>(&params->peer_sock), params->peer_sock_len, nullptr, 0, nullptr, &iosb->overlap)) {
+            err = LastSysErrorCode();
+        }
+        iosb->pending = SysSuccess(err) || IsPendingStatus(err);
+        if (!iosb->pending) {
+            report().error(u"error connecting socket: %s", SysErrorCodeMessage(err));
+        }
+        return iosb->pending;
+    }
+#endif
+
+    // Standard socket API.
     // Loop on unsollicited interrupts
     for (;;) {
         ::sockaddr_storage sock_addr;
-        const size_t sock_size = addr2.get(sock_addr);
-        report.debug(u"connecting to %s", addr2);
-        if (::connect(getSocket(), reinterpret_cast<const ::sockaddr*>(&sock_addr), socklen_t(sock_size)) == 0) {
-            declareConnected(report);
+        const size_t sock_size = server_addr.get(sock_addr);
+        report().debug(u"connecting to %s", server_addr);
+        const bool success = ::connect(getSocket(), reinterpret_cast<const ::sockaddr*>(&sock_addr), socklen_t(sock_size)) == 0;
+        const int err = LastSysErrorCode();
+
+        if (success) {
+            declareConnected();
             return true;
         }
-#if !defined(TS_WINDOWS)
-        else if (errno == EINTR) {
+#if defined(TS_UNIX)
+        else if (err == EINTR) {
             // Ignore signal, retry
-            report.debug(u"connect() interrupted by signal, retrying");
+            report().debug(u"connect() interrupted by signal, retrying");
         }
 #endif
+        else if (isNonBlocking() && IsPendingStatus(err)) {
+            // UNIX: Non-blocking socket with no immediate connection.
+            // Windows: Asynchronous I/O in progress.
+            assert(iosb != nullptr);
+            iosb->pending = true;
+            return true;
+        }
         else {
-            report.error(u"error connecting socket: %s", SysErrorCodeMessage());
+            report().error(u"error connecting socket: %s", SysErrorCodeMessage(err));
             return false;
         }
     }
@@ -245,17 +401,56 @@ bool ts::TCPConnection::connect(const IPSocketAddress& addr, Report& report)
 
 
 //----------------------------------------------------------------------------
+// Update the status of an asynchronous receive().
+//----------------------------------------------------------------------------
+
+bool ts::TCPConnection::setConnectStatus(IOSB* iosb, int error_code)
+{
+#if defined(TS_WINDOWS)
+
+    std::shared_ptr<TCPAsyncBuffers> params;
+    if (iosb != nullptr) {
+        params = std::dynamic_pointer_cast<TCPAsyncBuffers>(iosb->async_data);
+    }
+    if (params == nullptr) {
+        report().error(u"asynchronous I/O not used");
+        return false;
+    }
+    else if (setsockopt(getSocket(), SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, nullptr, 0) != 0) {
+        report().error(u"setsockopt(SO_UPDATE_CONNECT_CONTEXT) failed: %s", SysErrorCodeMessage());
+        return false;
+    }
+    else {
+        declareConnected();
+        return true;
+    }
+
+#else
+
+    if (error_code == SYS_SUCCESS) {
+        declareConnected();
+        return true;
+    }
+    else {
+        return false;
+    }
+
+#endif
+}
+
+
+//----------------------------------------------------------------------------
 // Shutdown the socket.
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::shutdownSocket(int how, Report& report)
+bool ts::TCPConnection::shutdownSocket(int how, bool silent)
 {
     if (::shutdown(getSocket(), how) != 0) {
         const int errcode = LastSysErrorCode();
         std::lock_guard<std::recursive_mutex> lock(_mutex);
         // Do not report "not connected" errors since they are normal when the peer disconnects first.
         if (isOpen() && errcode != SYS_SOCKET_ERR_NOTCONN) {
-            report.error(u"error shutting down socket: %s", SysErrorCodeMessage(errcode));
+            report().log(SilentLevel(silent), u"error shutting down socket: %s", SysErrorCodeMessage(errcode));
             return false;
         }
     }
@@ -267,10 +462,10 @@ bool ts::TCPConnection::shutdownSocket(int how, Report& report)
 // Close the write direction of the connection.
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::closeWriter(Report& report)
+bool ts::TCPConnection::closeWriter(bool silent)
 {
-    report.debug(u"closing socket writer");
-    return shutdownSocket(SYS_SOCKET_SHUT_WR, report);
+    report().debug(u"closing socket writer");
+    return shutdownSocket(SYS_SOCKET_SHUT_WR, silent);
 }
 
 
@@ -278,9 +473,23 @@ bool ts::TCPConnection::closeWriter(Report& report)
 // Disconnect from remote partner.
 //----------------------------------------------------------------------------
 
-bool ts::TCPConnection::disconnect(Report& report)
+bool ts::TCPConnection::disconnect(bool silent)
 {
-    declareDisconnected(report);
-    report.debug(u"disconnecting socket");
-    return shutdownSocket(SYS_SOCKET_SHUT_RDWR, report);
+    declareDisconnected(silent);
+    report().debug(u"disconnecting socket");
+    return shutdownSocket(SYS_SOCKET_SHUT_RDWR, silent);
 }
+
+
+//----------------------------------------------------------------------------
+// Windows asynchronous I/O parameters
+//----------------------------------------------------------------------------
+
+#if defined(TS_WINDOWS)
+
+// Virtual destructor.
+ts::TCPConnection::TCPAsyncBuffers::~TCPAsyncBuffers()
+{
+}
+
+#endif

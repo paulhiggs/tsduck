@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard, Matthew Sweet
+// Copyright (c) 2005-2026, Thierry Lelegard, Matthew Sweet
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -96,7 +96,7 @@ namespace ts {
     //! a switch supporting four satellite positions 0,4,8,...,60 all alias to
     //! the same satellite.
     //!
-    class TSDUCKDLL Unicable : public StringifyInterface
+    class TSDUCKDLL Unicable: public StringifyInterface
     {
     public:
         //!

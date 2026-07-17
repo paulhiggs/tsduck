@@ -1,7 +1,7 @@
 ﻿#-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #-----------------------------------------------------------------------------
@@ -262,7 +262,7 @@ function Build-Portable([string]$BinSuffix, [string]$InstallerSuffix, [string]$V
         Copy-Item "${RootDir}\OTHERS.txt" -Destination $TempRoot
 
         $TempBin = (New-Directory "${TempRoot}\bin")
-        Copy-Item "${BinDir}\ts*.exe" -Exclude @("*_static.exe", "tsprofiling.exe", "tsmux.exe") -Destination $TempBin
+        Copy-Item "${BinDir}\ts*.exe" -Exclude @("*_static.exe") -Destination $TempBin
         Copy-Item "${BinDir}\ts*.dll" -Destination $TempBin
         Copy-Item "${BinDir}\ts*.xml" -Destination $TempBin
         Copy-Item "${BinDir}\ts*.names" -Destination $TempBin

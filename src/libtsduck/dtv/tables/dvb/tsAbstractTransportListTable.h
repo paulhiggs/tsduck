@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ namespace ts {
     //! Common code for BAT and NIT.
     //! @ingroup libtsduck table
     //!
-    class TSDUCKDLL AbstractTransportListTable : public AbstractLongTable
+    class TSDUCKDLL AbstractTransportListTable: public AbstractLongTable
     {
     public:
         //!
@@ -35,7 +35,7 @@ namespace ts {
         //! Note: by inheriting from EntryWithDescriptors, there is a
         //! public field "DescriptorList descs".
         //!
-        class TSDUCKDLL Transport : public EntryWithDescriptors
+        class TSDUCKDLL Transport: public EntryWithDescriptors
         {
             TS_NO_DEFAULT_CONSTRUCTORS(Transport);
             TS_DEFAULT_ASSIGMENTS(Transport);

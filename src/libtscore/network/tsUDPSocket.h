@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -14,10 +14,9 @@
 #pragma once
 #include "tsSocket.h"
 #include "tsIPSocketAddress.h"
-#include "tsIPUtils.h"
 #include "tsAbortInterface.h"
 #include "tsReport.h"
-#include "tsMemory.h"
+#include "tsInitZero.h"
 
 #if defined(DOXYGEN) || defined(TS_OPENBSD) || defined(TS_NETBSD) || defined(TS_DRAGONFLYBSD)
     //!
@@ -33,52 +32,42 @@ namespace ts {
     //!
     class TSCOREDLL UDPSocket: public Socket
     {
-        TS_NOCOPY(UDPSocket);
+        TS_NOBUILD_NOCOPY(UDPSocket);
     public:
         //!
+        //! Reference to the superclass.
+        //!
+        using SuperClass = Socket;
+
+        //!
         //! Constructor.
+        //! @param [in] report Where to report errors. The @a report object must remain valid as long as this object
+        //! exists or setReport() is used with another Report object. If @a report is null, log messages are discarded.
         //! @param [in] auto_open If true, call open() immediately.
         //! @param [in] gen IP generation, IPv4 or IPv6.
         //! If set to IP::Any, this socket can receive IPv4 and IPv6 datagrams.
         //! If @a gen is IP::v6, the socket is created with option IPV6_V6ONLY set.
-        //! @param [in,out] report Where to report error.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
         //!
-        UDPSocket(bool auto_open = false, IP gen = IP::Any, Report& report = CERR);
+        explicit UDPSocket(Report* report, bool auto_open = false, IP gen = IP::Any, bool non_blocking = false, Object* owner = nullptr);
+
+        //!
+        //! Constructor.
+        //! @param [in] delegate Use the report of another ReporterBase. If @a delegate is null, log messages are discarded.
+        //! @param [in] auto_open If true, call open() immediately.
+        //! @param [in] gen IP generation, IPv4 or IPv6.
+        //! If set to IP::Any, this socket can receive IPv4 and IPv6 datagrams.
+        //! If @a gen is IP::v6, the socket is created with option IPV6_V6ONLY set.
+        //! @param [in] non_blocking It true, the device is initially set in non-blocking mode.
+        //! @param [in] owner Optional address of an "owner" object, typically an instance of class containing this object.
+        //!
+        explicit UDPSocket(ReporterBase* delegate, bool auto_open = false, IP gen = IP::Any, bool non_blocking = false, Object* owner = nullptr);
 
         //!
         //! Destructor.
         //!
         virtual ~UDPSocket() override;
-
-        //!
-        //! Bind to a local address and port.
-        //!
-        //! The IP address part of the socket address must one of:
-        //! - IPAddress::AnyAddress4. Any local interface may be used
-        //!   to send or receive UDP datagrams. For each outgoing packet, the actual
-        //!   interface is selected by the kernel based on the routing rules. Incoming
-        //!   UDP packets for the selected port will be accepted from any local interface.
-        //! - The IP address of an interface of the local system. Outgoing packets will be
-        //!   unconditionally sent through this interface. Incoming UDP packets for the
-        //!   selected port will be accepted only when they arrive through the selected
-        //!   interface.
-        //!
-        //! Special note for receiving multicast on most Unix systems (at least Linux
-        //! and macOS): The IP address shall be either AnyAddress4 or the <b>multicast
-        //! group address</b>. Do not specify a local address to receive multicast on Unix.
-        //!
-        //! The port number part of the socket address must be one of:
-        //! - IPSocketAddress::AnyPort. The socket is bound to an
-        //!   arbitrary unused local UDP port.
-        //! - A specific port number. If this UDP port is already bound by another
-        //!   local UDP socket, the bind operation fails, unless the "reuse port"
-        //!   option has already been set.
-        //!
-        //! @param [in] addr Local socket address to bind to.
-        //! @param [in,out] report Where to report error.
-        //! @return True on success, false on error.
-        //!
-        bool bind(const IPSocketAddress& addr, Report& report = CERR);
 
         //!
         //! Set a default destination address and port for outgoing messages.
@@ -91,10 +80,9 @@ namespace ts {
         //! @param [in] addr Socket address of the destination.
         //! Both address and port are mandatory in the socket address, they cannot
         //! be set to IPAddress::AnyAddress4 or IPSocketAddress::AnyPort.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setDefaultDestination(const IPSocketAddress& addr, Report& report = CERR);
+        bool setDefaultDestination(const IPSocketAddress& addr);
 
         //!
         //! Set a default destination address and port for outgoing messages.
@@ -106,35 +94,32 @@ namespace ts {
         //!
         //! @param [in] name A string describing the socket address of the destination.
         //! See IPSocketAddress::resolve() for a description of the expected string format.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setDefaultDestination(const UString& name, Report& report = CERR);
+        bool setDefaultDestination(const UString& name);
 
         //!
         //! Get the default destination address and port for outgoing messages.
         //! @return The default destination address and port for outgoing messages.
         //!
-        IPSocketAddress getDefaultDestination() const {return _default_destination;}
+        IPSocketAddress getDefaultDestination() const { return _default_destination; }
 
         //!
         //! Set the outgoing local interface for multicast messages.
         //!
         //! @param [in] addr IP address of a local interface.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setOutgoingMulticast(const IPAddress& addr, Report& report = CERR);
+        bool setOutgoingMulticast(const IPAddress& addr);
 
         //!
         //! Set the outgoing local interface for multicast messages.
         //!
         //! @param [in] name A string describing the IP address of a local interface.
         //! See IPAddress::resolve() for a description of the expected string format.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setOutgoingMulticast(const UString& name, Report& report = CERR);
+        bool setOutgoingMulticast(const UString& name);
 
         //!
         //! Set the Time To Live (TTL) option.
@@ -143,10 +128,9 @@ namespace ts {
         //! routers before an IP packet is dropped.
         //! @param [in] multicast When true, set the <i>multicast TTL</i> option.
         //! When false, set the <i>unicast TTL</i> option.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setTTL(int ttl, bool multicast, Report& report = CERR);
+        bool setTTL(int ttl, bool multicast);
 
         //!
         //! Set the Time To Live (TTL) option.
@@ -156,13 +140,9 @@ namespace ts {
         //!
         //! @param [in] ttl The TTL value, ie. the maximum number of "hops" between
         //! routers before an IP packet is dropped.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setTTL(int ttl, Report& report = CERR)
-        {
-            return setTTL(ttl, _default_destination.isMulticast(), report);
-        }
+        bool setTTL(int ttl) { return setTTL(ttl, _default_destination.isMulticast()); }
 
         //!
         //! Set the Type Of Service (TOS) or Traffic Class (IPv6) option.
@@ -175,10 +155,9 @@ namespace ts {
         //! system. Typically, it never worked correctly on Windows.
         //!
         //! @param [in] tos The type of service (IPv4) or traffic class (IPv6) value.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setTOS(int tos, Report& report = CERR);
+        bool setTOS(int tos);
 
         //!
         //! Set the multicast loop option.
@@ -187,10 +166,9 @@ namespace ts {
         //! Use this to disable multicast loopback.
         //!
         //! @param [in] on It true, multicast loopback is on. When false, it is off.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setMulticastLoop(bool on, Report& report = CERR);
+        bool setMulticastLoop(bool on);
 
         //!
         //! Enable or disable the generation of receive timestamps.
@@ -199,23 +177,21 @@ namespace ts {
         //! When possible, a hardware timestamp from the NIC is received. Otherwise, a software
         //! timestamp is generated by the kernel.
         //!
-        //! When enabled, this option is a @æ request, not a requirement.
+        //! When enabled, this option is a request, not a requirement.
         //! This option is supported on Linux and macOS only. It is ignored on other systems.
         //!
         //! @param [in] on If true, receive timestamps are activated on the socket. Otherwise, they are disabled.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setReceiveTimestamps(bool on, Report& report = CERR);
+        bool setReceiveTimestamps(bool on);
 
         //!
         //! Enable or disable the broadcast option.
         //!
         //! @param [in] on If true, broadcast is activated on the socket. Otherwise, it is disabled.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setBroadcast(bool on, Report& report = CERR);
+        bool setBroadcast(bool on);
 
         //!
         //! Enable or disable the broadcast option, based on an IP address.
@@ -223,10 +199,9 @@ namespace ts {
         //! @param [in] destination An hypothetical destination address. If this address
         //! is the broadcast address of a local interface, the broadcast option is set.
         //! Otherwise, the broadcast option is unchanged.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool setBroadcastIfRequired(const IPAddress destination, Report& report = CERR);
+        bool setBroadcastIfRequired(const IPAddress destination);
 
         //!
         //! Join a multicast group.
@@ -241,12 +216,11 @@ namespace ts {
         //! If set to IPAddress::AnyAddress4, the application lets the system selects
         //! the appropriate local interface.
         //! @param [in] source Source address for SSM. Ignored on IPv6 socket.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool addMembership(const IPAddress& multicast, const IPAddress& local, const IPAddress& source = IPAddress(), Report& report = CERR)
+        bool addMembership(const IPAddress& multicast, const IPAddress& local, const IPAddress& source = IPAddress())
         {
-            return addMembershipImpl(multicast, local, -1, source, report);
+            return addMembershipImpl(multicast, local, -1, source);
         }
 
         //!
@@ -261,12 +235,11 @@ namespace ts {
         //! @param [in] interface_index Index of a local interface on which to listen.
         //! If set to zero, the application lets the system selects the appropriate local interface.
         //! @param [in] source Source address for SSM. Ignored on IPv6 socket.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool addMembership(const IPAddress& multicast, int interface_index, const IPAddress& source = IPAddress(), Report& report = CERR)
+        bool addMembership(const IPAddress& multicast, int interface_index, const IPAddress& source = IPAddress())
         {
-            return addMembershipImpl(multicast, IPAddress(), interface_index, source, report);
+            return addMembershipImpl(multicast, IPAddress(), interface_index, source);
         }
 
         //!
@@ -281,10 +254,9 @@ namespace ts {
         //! @param [in] multicast Multicast IP address to listen to.
         //! @param [in] source Source address for SSM.
         //! @param [in] link_local If true, also add membership on link-local addresses, otherwise ignore them.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool addMembershipAll(const IPAddress& multicast, const IPAddress& source = IPAddress(), bool link_local = true, Report& report = CERR);
+        bool addMembershipAll(const IPAddress& multicast, const IPAddress& source = IPAddress(), bool link_local = true);
 
         //!
         //! Join a multicast group.
@@ -298,20 +270,18 @@ namespace ts {
         //!
         //! @param [in] multicast Multicast IP address to listen to.
         //! @param [in] source Source address for SSM.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool addMembershipDefault(const IPAddress& multicast, const IPAddress& source = IPAddress(), Report& report = CERR)
+        bool addMembershipDefault(const IPAddress& multicast, const IPAddress& source = IPAddress())
         {
-            return addMembershipImpl(multicast, IPAddress(), -1, source, report);
+            return addMembershipImpl(multicast, IPAddress(), -1, source);
         }
 
         //!
         //! Drop all multicast membership requests, including source-specific multicast.
-        //! @param [in,out] report Where to report error.
         //! @return True on success, false on error.
         //!
-        bool dropMembership(Report& report = CERR);
+        bool dropMembership();
 
         //!
         //! Send a message to a destination address and port.
@@ -321,20 +291,28 @@ namespace ts {
         //! @param [in] destination Socket address of the destination.
         //! Both address and port are mandatory in the socket address, they cannot
         //! be set to IPAddress::AnyAddress4 or IPSocketAddress::AnyPort.
-        //! @param [in,out] report Where to report error.
-        //! @return True on success, false on error.
+        //! @param [in,out] iosb Address of an IOSB structure. If non-null, the socket must be in non-blocking mode.
+        //! When null, the socket must be in blocking mode (the default). See the description of IOSB.
+        //! Important: The parameter @a iosb should not be used by applications. It should be used only by
+        //! "reactive classes", which work in combination with a Reactor.
+        //! @return True on success, false on error. In case of non-blocking mode, if the I/O is successfully started
+        //! but still pending, iosb->pending is set to true and the method returns true.
         //!
-        virtual bool send(const void* data, size_t size, const IPSocketAddress& destination, Report& report = CERR);
+        virtual bool send(const void* data, size_t size, const IPSocketAddress& destination, IOSB* iosb = nullptr);
 
         //!
         //! Send a message to the default destination address and port.
         //!
         //! @param [in] data Address of the message to send.
         //! @param [in] size Size in bytes of the message to send.
-        //! @param [in,out] report Where to report error.
-        //! @return True on success, false on error.
+        //! @param [in,out] iosb Address of an IOSB structure. If non-null, the socket must be in non-blocking mode.
+        //! When null, the socket must be in blocking mode (the default). See the description of IOSB.
+        //! Important: The parameter @a iosb should not be used by applications. It should be used only by
+        //! "reactive classes", which work in combination with a Reactor.
+        //! @return True on success, false on error. In case of non-blocking mode, if the I/O is successfully started
+        //! but still pending, iosb->pending is set to true and the method returns true.
         //!
-        virtual bool send(const void* data, size_t size, Report& report = CERR);
+        virtual bool send(const void* data, size_t size, IOSB* iosb = nullptr);
 
         //!
         //! Type of timestamp which is returned by receive().
@@ -353,16 +331,19 @@ namespace ts {
         //! @param [out] ret_size Size in bytes of the received message.
         //! Will never be larger than @a max_size.
         //! @param [out] sender Socket address of the sender.
-        //! @param [out] destination Socket address of the packet destination.
-        //! Can be useful to check in multicast packets.
+        //! @param [out] destination Socket address of the packet destination. Can be useful to check in multicast packets.
         //! @param [in] abort If non-zero, invoked when I/O is interrupted
         //! (in case of user-interrupt, return, otherwise retry).
-        //! @param [in,out] report Where to report error.
         //! @param [out] timestamp When not null, return the receive timestamp in micro-seconds.
         //! Use setReceiveTimestamps() to enable the generation of receive timestamps.
         //! If the returned value is negative, no timestamp is available.
         //! @param [out] timestamp_type When not null, return the type of receive timestamp.
-        //! @return True on success, false on error.
+        //! @param [in,out] iosb Address of an IOSB structure. If non-null, the socket must be in non-blocking mode.
+        //! When null, the socket must be in blocking mode (the default). See the description of IOSB.
+        //! Important: The parameter @a iosb should not be used by applications. It should be used only by
+        //! "reactive classes", which work in combination with a Reactor.
+        //! @return True on success, false on error. In case of non-blocking mode, if the I/O is successfully started
+        //! but still pending, iosb->pending is set to true and the method returns true.
         //!
         virtual bool receive(void* data,
                              size_t max_size,
@@ -370,54 +351,52 @@ namespace ts {
                              IPSocketAddress& sender,
                              IPSocketAddress& destination,
                              const AbortInterface* abort = nullptr,
-                             Report& report = CERR,
                              cn::microseconds* timestamp = nullptr,
-                             TimeStampType* timestamp_type = nullptr);
+                             TimeStampType* timestamp_type = nullptr,
+                             IOSB* iosb = nullptr);
 
+        //!
+        //! Get the result of an asynchronous receive().
+        //! This method shall be used with asynchronous I/O only. It returns an error when the system
+        //! uses non-blocking I/O instead of asynchronous I/O.
+        //! @param [in,out] iosb Address of the IOSB structure which was used when receive() was called.
+        //! @param [out] sender Socket address of the sender.
+        //! @param [out] destination Socket address of the packet destination. Can be useful to check in multicast packets.
+        //! @param [out] timestamp When not null, return the receive timestamp in micro-seconds.
+        //! Use setReceiveTimestamps() to enable the generation of receive timestamps.
+        //! If the returned value is negative, no timestamp is available.
+        //! @param [out] timestamp_type When not null, return the type of receive timestamp.
+        //! @return True on success, false on error.
+        //!
+        bool getReceiveStatus(IOSB* iosb,
+                              IPSocketAddress& sender,
+                              IPSocketAddress& destination,
+                              cn::microseconds* timestamp = nullptr,
+                              TimeStampType* timestamp_type = nullptr) const;
+
+    protected:
         // Implementation of Socket interface.
-        virtual bool open(IP gen, Report& report = CERR) override;
-        virtual bool close(Report& report = CERR) override;
+        virtual bool openImplementation(IP gen) override;
+        virtual bool closeImplementation(bool silent) override;
 
     private:
-        // Encapsulate a Plain Old C Structure.
-        template <typename STRUCT>
-        struct POCS
-        {
-            // Encapsulated structure
-            STRUCT data;
-
-            // Default constructor, zeroe the C structure.
-            POCS() : data()
-            {
-                TS_ZERO(data);
-            }
-
-            // Comparator for containers, no real semantic
-            bool operator<(const POCS<STRUCT>& other) const
-            {
-                return MemCompare(&data, &other.data, sizeof(data)) < 0;
-            }
-        };
-
         // Encapsulate an ip_mreq
-        struct MReq : public POCS<::ip_mreq>
+        struct MReq: public InitZero<::ip_mreq>
         {
-            using SuperClass = POCS<::ip_mreq>;
             MReq() = default;
-            MReq(const IPAddress& multicast, const IPAddress& interface) : SuperClass()
+            MReq(const IPAddress& mcast, const IPAddress& iface)
             {
-                multicast.getAddress4(data.imr_multiaddr);
-                interface.getAddress4(data.imr_interface);
+                mcast.getAddress4(data.imr_multiaddr);
+                iface.getAddress4(data.imr_interface);
             }
         };
         using MReqSet = std::set<MReq>;
 
         // Encapsulate an ipv6_mreq
-        struct MReq6 : public POCS<::ipv6_mreq>
+        struct MReq6: public InitZero<::ipv6_mreq>
         {
-            using SuperClass = POCS<::ipv6_mreq>;
             MReq6() = default;
-            MReq6(const IPAddress& multicast, int interface_index) : SuperClass()
+            MReq6(const IPAddress& multicast, int interface_index) : InitZero<::ipv6_mreq>()
             {
                 multicast.getAddress6(data.ipv6mr_multiaddr);
                 data.ipv6mr_interface = static_cast<unsigned int>(interface_index);
@@ -427,11 +406,10 @@ namespace ts {
 
         // Encapsulate an ip_mreq_source
 #if !defined(TS_NO_SSM)
-        struct SSMReq : public POCS<::ip_mreq_source>
+        struct SSMReq: public InitZero<::ip_mreq_source>
         {
-            using SuperClass = POCS<::ip_mreq_source>;
             SSMReq() = default;
-            SSMReq(const IPAddress& multicast_, const IPAddress& interface_, const IPAddress& source_) : SuperClass()
+            SSMReq(const IPAddress& multicast_, const IPAddress& interface_, const IPAddress& source_) : InitZero<::ip_mreq_source>()
             {
                 multicast_.getAddress4(data.imr_multiaddr);
                 interface_.getAddress4(data.imr_interface);
@@ -442,7 +420,6 @@ namespace ts {
 #endif
 
         // Private members
-        IPSocketAddress _local_address {};
         IPSocketAddress _default_destination {};
         MReqSet         _mcast {};    // Current set of IPv4 multicast memberships
         MReq6Set        _mcast6 {};   // Current set of IPv6 multicast memberships
@@ -452,9 +429,40 @@ namespace ts {
 
         // Perform one receive operation. Hide the system mud. Return a system socket error code.
         int receiveOne(void* data, size_t max_size, size_t& ret_size, IPSocketAddress& sender, IPSocketAddress& destination,
-                       Report& report, cn::microseconds* timestamp, TimeStampType* timestamp_type);
+                       cn::microseconds* timestamp, TimeStampType* timestamp_type, IOSB* iosb);
 
         // Add multicast membership common code, local interface by index or by address.
-        bool addMembershipImpl(const IPAddress& multicast, const IPAddress& local, int interface_index, const IPAddress& source, Report& report);
+        bool addMembershipImpl(const IPAddress& multicast, const IPAddress& local, int interface_index, const IPAddress& source);
+
+#if defined(TS_WINDOWS)
+        // The functions WSASendTo and WSARecvMsg use complex structures of buffers.
+        // For asynchronous I/O, we need to keep everything in one single structure
+        // which lives during the I/O. This structure must be non-copyable because
+        // it contains pointers to its own fields.
+        // See https://learn.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms741687(v=vs.85)
+        class TSCOREDLL UDPAsyncBuffers: public Object
+        {
+            TS_NOCOPY(UDPAsyncBuffers);
+        public:
+            ::WSAMSG msg {};                  // Reception parameters, contain pointers to subsequent fields.
+            ::WSABUF buf {};                  // Pointer to user's buffer.
+            ::sockaddr_storage peer_sock {};  // Send: destination socket address. Receive: receive the sender's socket address.
+            int peer_sock_len = 0;            // Send: destination socket address length.
+            ::CHAR ancil_data[1024] {};       // Receive: other reception data (destination socket, timestamp).
+
+            // Constructor.
+            UDPAsyncBuffers() = default;
+            virtual ~UDPAsyncBuffers() override;
+
+            // Before send: Initializes all internal structures and set the address and size of the user's send buffer.
+            void setSendBuffer(const void* address, size_t size, const IPSocketAddress& dest);
+
+            // Before receive: Initializes all internal structures and set the address and size of the user's reception buffer.
+            void setReceiveBuffer(void* address, size_t size);
+
+            // After receive: Extract the message characteristics.
+            void getReceiveResult(const UDPSocket& socket, IPSocketAddress& sender, IPSocketAddress& destination, cn::microseconds* timestamp, TimeStampType* timestamp_type);
+        };
+#endif
     };
 }

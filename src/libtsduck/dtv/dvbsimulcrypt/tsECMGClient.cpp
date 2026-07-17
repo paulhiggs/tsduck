@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -14,8 +14,9 @@
 // Constructor
 //----------------------------------------------------------------------------
 
-ts::ECMGClient::ECMGClient(const ecmgscs::Protocol& protocol, size_t extra_handler_stack_size) :
+ts::ECMGClient::ECMGClient(tlv::Logger& logger, const ecmgscs::Protocol& protocol, size_t extra_handler_stack_size) :
     Thread(ThreadAttributes().setStackSize(RECEIVER_STACK_SIZE + extra_handler_stack_size)),
+    _logger(logger),
     _protocol(protocol)
 {
 }
@@ -32,9 +33,8 @@ ts::ECMGClient::~ECMGClient()
 
         // Break connection, if not already done
         _abort = nullptr;
-        _logger.setReport(&NULLREP);
-        _connection.disconnect(NULLREP);
-        _connection.close(NULLREP);
+        _connection.disconnect(true);
+        _connection.close(true);
 
         // Notify receiver thread to terminate
         _state = DESTRUCTING;
@@ -56,11 +56,10 @@ bool ts::ECMGClient::abortConnection(const UString& message)
 
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     _state = DISCONNECTED;
-    _connection.disconnect(_logger.report());
-    _connection.close(_logger.report());
+    _connection.disconnect();
+    _connection.close();
     _work_to_do.notify_one();
 
-    _logger.setReport(&NULLREP);
     return false;
 }
 
@@ -72,8 +71,7 @@ bool ts::ECMGClient::abortConnection(const UString& message)
 bool ts::ECMGClient::connect(const ECMGClientArgs& args,
                              ecmgscs::ChannelStatus& channel_status,
                              ecmgscs::StreamStatus& stream_status,
-                             const AbortInterface* abort,
-                             const tlv::Logger& logger)
+                             const AbortInterface* abort)
 {
     // Initial state check
     {
@@ -84,21 +82,19 @@ bool ts::ECMGClient::connect(const ECMGClientArgs& args,
             Thread::start();
         }
         if (_state != DISCONNECTED) {
-            tlv::Logger log(logger);
-            log.report().error(u"ECMG client already connected");
+            _logger.report().error(u"ECMG client already connected");
             return false;
         }
         _abort = abort;
-        _logger = logger;
     }
 
     // Perform TCP connection to ECMG server
     // Flawfinder: ignore: this is our open(), not ::open().
-    if (!_connection.open(args.ecmg_address.generation(), _logger.report())) {
+    if (!_connection.open(args.ecmg_address.generation())) {
         return false;
     }
-    if (!_connection.connect(args.ecmg_address, _logger.report())) {
-        _connection.close(_logger.report());
+    if (!_connection.connect(args.ecmg_address)) {
+        _connection.close();
         return false;
     }
 
@@ -106,7 +102,7 @@ bool ts::ECMGClient::connect(const ECMGClientArgs& args,
     ecmgscs::ChannelSetup channel_setup(_protocol);
     channel_setup.channel_id = args.ecm_channel_id;
     channel_setup.Super_CAS_id = args.super_cas_id;
-    if (!_connection.sendMessage(channel_setup, _logger)) {
+    if (!_connection.sendMessage(channel_setup)) {
         return abortConnection();
     }
 
@@ -125,7 +121,7 @@ bool ts::ECMGClient::connect(const ECMGClientArgs& args,
     if (msg->tag() != ecmgscs::Tags::channel_status) {
         return abortConnection(u"unexpected response from ECMG (expected channel_status):\n" + msg->dump(4));
     }
-    ecmgscs::ChannelStatus* const csp = dynamic_cast<ecmgscs::ChannelStatus*>(msg.get());
+    const auto csp = std::dynamic_pointer_cast<ecmgscs::ChannelStatus>(msg);
     assert(csp != nullptr);
     channel_status = _channel_status = *csp;
 
@@ -135,7 +131,7 @@ bool ts::ECMGClient::connect(const ECMGClientArgs& args,
     stream_setup.stream_id = args.ecm_stream_id;
     stream_setup.ECM_id = args.ecm_id;
     stream_setup.nominal_CP_duration = uint16_t(args.cp_duration.count()); // unit is 1/10 second
-    if (!_connection.sendMessage(stream_setup, _logger)) {
+    if (!_connection.sendMessage(stream_setup)) {
         return abortConnection();
     }
 
@@ -146,7 +142,7 @@ bool ts::ECMGClient::connect(const ECMGClientArgs& args,
     if (msg->tag() != ecmgscs::Tags::stream_status) {
         return abortConnection(u"unexpected response from ECMG (expected stream_status):\n" + msg->dump(4));
     }
-    ecmgscs::StreamStatus* const ssp = dynamic_cast<ecmgscs::StreamStatus*>(msg.get());
+    const auto ssp = std::dynamic_pointer_cast<ecmgscs::StreamStatus>(msg);
     assert(ssp != nullptr);
     stream_status = _stream_status = *ssp;
 
@@ -197,14 +193,14 @@ bool ts::ECMGClient::disconnect()
         tlv::MessagePtr resp;
         // Politely send a stream_close_request
         // and wait for a stream_close_response
-        ok = _connection.sendMessage(req, _logger) &&
-            _response_queue.dequeue(resp, RESPONSE_TIMEOUT) &&
-            resp->tag() == ecmgscs::Tags::stream_close_response;
+        ok = _connection.sendMessage(req) &&
+             _response_queue.dequeue(resp, RESPONSE_TIMEOUT) &&
+             resp->tag() == ecmgscs::Tags::stream_close_response;
         // If we get a polite reply, send a channel_close
         if (ok) {
             ecmgscs::ChannelClose cc(_protocol);
             cc.channel_id = _channel_status.channel_id;
-            ok = _connection.sendMessage(cc, _logger);
+            ok = _connection.sendMessage(cc);
         }
     }
 
@@ -212,8 +208,8 @@ bool ts::ECMGClient::disconnect()
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     if (previous_state == CONNECTING || previous_state == CONNECTED) {
         _state = DISCONNECTED;
-        ok = _connection.disconnect(_logger.report()) && ok;
-        ok = _connection.close(_logger.report()) && ok;
+        ok = _connection.disconnect() && ok;
+        ok = _connection.close() && ok;
         _work_to_do.notify_one();
     }
 
@@ -267,7 +263,7 @@ bool ts::ECMGClient::generateECM(uint16_t cp_number,
     buildCWProvision(msg, cp_number, current_cw, next_cw, ac, cp_duration);
 
     // Send the CW_provision message
-    if (!_connection.sendMessage(msg, _logger)) {
+    if (!_connection.sendMessage(msg)) {
         return false;
     }
 
@@ -284,7 +280,7 @@ bool ts::ECMGClient::generateECM(uint16_t cp_number,
         return false;
     }
     if (resp->tag() == ecmgscs::Tags::ECM_response) {
-        ecmgscs::ECMResponse* const ep = dynamic_cast <ecmgscs::ECMResponse*>(resp.get());
+        const auto ep = std::dynamic_pointer_cast<ecmgscs::ECMResponse>(resp);
         assert(ep != nullptr);
         if (ep->CP_number == cp_number) {
             // This is our ECM
@@ -324,7 +320,7 @@ bool ts::ECMGClient::submitECM(uint16_t cp_number,
     }
 
     // Send the CW_provision message
-    bool ok = _connection.sendMessage(msg, _logger);
+    bool ok = _connection.sendMessage(msg);
 
     // Clear asynchronous request on error
     if (!ok) {
@@ -368,21 +364,21 @@ void ts::ECMGClient::main()
         // Loop on message reception
         tlv::MessagePtr msg;
         bool ok = true;
-        while (ok && _connection.receiveMessage(msg, abort, _logger)) {
+        while (ok && _connection.receiveMessage(msg, abort)) {
             switch (msg->tag()) {
                 case ecmgscs::Tags::channel_test: {
                     // Automatic reply to channel_test
-                    ok = _connection.sendMessage(_channel_status, _logger);
+                    ok = _connection.sendMessage(_channel_status);
                     break;
                 }
                 case ecmgscs::Tags::stream_test: {
                     // Automatic reply to stream_test
-                    ok = _connection.sendMessage(_stream_status, _logger);
+                    ok = _connection.sendMessage(_stream_status);
                     break;
                 }
                 case ecmgscs::Tags::ECM_response: {
                     // Check if this is an asynchronous ECM response
-                        ecmgscs::ECMResponse* const resp = dynamic_cast <ecmgscs::ECMResponse*>(msg.get());
+                    const auto resp = std::dynamic_pointer_cast<ecmgscs::ECMResponse>(msg);
                     assert(resp != nullptr);
                     ECMGClientHandlerInterface* handler = nullptr;
                     {
@@ -419,8 +415,8 @@ void ts::ECMGClient::main()
             }
             if (_state != DISCONNECTED) {
                 _state = DISCONNECTED;
-                _connection.disconnect(NULLREP);
-                _connection.close(NULLREP);
+                _connection.disconnect(true);
+                _connection.close(true);
             }
         }
     }

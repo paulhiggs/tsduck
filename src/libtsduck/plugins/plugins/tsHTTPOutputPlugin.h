@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -40,8 +40,8 @@ namespace ts {
         size_t          _tcp_buffer_size = 0;
 
         // Working data:
-        TCPServer     _server {};
-        TCPConnection _client {};
+        TCPServer     _server {this};
+        TCPConnection _client {this};
 
         // Process request headers from new client, send response headers.
         bool startSession();

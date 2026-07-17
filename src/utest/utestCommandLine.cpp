@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -32,7 +32,7 @@ TSUNIT_REGISTER(CommandLineTest);
 //----------------------------------------------------------------------------
 
 namespace {
-    class TestCommand : public ts::CommandLineHandler
+    class TestCommand: public ts::CommandLineHandler
     {
         TS_NOBUILD_NOCOPY(TestCommand);
     public:

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -122,16 +122,11 @@ void ts::ApplicationSharedLibrary::GetSearchPath(UStringList& directories, const
         directories.push_back(u"/usr/lib64");
     }
 #endif
-#if defined(TS_MAC) && defined(TS_X86_64)
-    directories.push_back(u"/usr/local/lib/tsduck");
-    directories.push_back(u"/usr/local/lib");
-#elif defined(TS_MAC) && defined(TS_ARM64)
-    directories.push_back(u"/opt/homebrew/lib/tsduck");
-    directories.push_back(u"/opt/homebrew/lib");
-#else
-    directories.push_back(u"/usr/lib/tsduck");
-    directories.push_back(u"/usr/lib");
-#endif
+    // Add default system locations of the TSDuck plugins. This is useful when the
+    // application is not a TSDuck one but a third-party application which uses the
+    // TSDuck library. In that case, relative paths from the executables are useless.
+    directories.push_back(DefaultPackageInstallationRoot() + u"/lib/tsduck");
+    directories.push_back(DefaultPackageInstallationRoot() + u"/lib");
 #endif // TS_UNIX
 
     // On Windows system, try the PATH.

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -90,7 +90,7 @@ bool ts::PcapStream::Stream::dataAvailable() const
 void ts::PcapStream::Stream::store(const IPPacket& pkt, cn::microseconds tstamp)
 {
     // Allocate a new data block.
-    const DataBlockPtr ptr(new DataBlock(pkt, tstamp));
+    const DataBlockPtr ptr(std::make_shared<DataBlock>(pkt, tstamp));
 
     // Resolve wrap-up of TCP sequence number at 2^32.
     // Use the 32 upper bits of first queued block to get the order of magnitude.

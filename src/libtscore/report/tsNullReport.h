@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -19,7 +19,7 @@ namespace ts {
     //! A singleton implementing Report which drops all messages.
     //! @ingroup libtscore log
     //!
-    class TSCOREDLL NullReport : public Report
+    class TSCOREDLL NullReport: public Report
     {
         TS_SINGLETON(NullReport);
     protected:

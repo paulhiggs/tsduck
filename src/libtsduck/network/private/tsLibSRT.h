@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2020-2025, Thierry Lelegard
+// Copyright (c) 2020-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -23,6 +23,7 @@
     TS_GCC_NOWARNING(effc++)
     TS_MSC_NOWARNING(4005)  // 'xxx' : macro redefinition
     TS_MSC_NOWARNING(4668)  // 'xxx' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+    TS_MSC_NOWARNING(4865)  // 'xxx' : the underlying type will change from 'int' to 'unsigned int' when '/Zc:enumTypes' is specified on the command line
 
     // Bug in GCC: "#if __APPLE__" triggers -Werror=undef despite TS_GCC_NOWARNING(undef)
     // This is a known GCC bug since 2012, never fixed: #if is too early in lex analysis and #pragma are not yet parsed.

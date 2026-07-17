@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -95,11 +95,11 @@ void ts::CarouselCompatibleCompositeDescriptor::buildXML(DuckContext& duck, xml:
 
 bool ts::CarouselCompatibleCompositeDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xsub;
-    bool ok = element->getChildren(xsub, u"subdescriptor");
-    for (size_t i = 0; ok && i < xsub.size(); ++i) {
-        subdescs.emplace_back();
-        ok = xsub[i]->getIntAttribute(subdescs.back().type, u"type", true) && xsub[i]->getHexaText(subdescs.back().payload);
+    bool ok = true;
+    for (auto& xsub : element->children(u"subdescriptor", &ok)) {
+        auto& sub(subdescs.emplace_back());
+        ok = xsub.getIntAttribute(sub.type, u"type", true) &&
+             xsub.getHexaText(sub.payload);
     }
     return ok;
 }

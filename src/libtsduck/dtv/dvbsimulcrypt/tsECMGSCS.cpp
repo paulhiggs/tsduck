@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -165,8 +165,8 @@ ts::UString ts::ecmgscs::Errors::Name(uint16_t status)
 
 void ts::ecmgscs::Protocol::buildErrorResponse(const tlv::MessageFactory& fact, tlv::MessagePtr& msg) const
 {
-    // Create a channel_error message
-    std::shared_ptr<ChannelError> errmsg(new ChannelError(version()));
+    // Create a channel_error message.
+    std::shared_ptr<ChannelError> errmsg = std::make_shared<ChannelError>(version());
 
     // Try to get an ECM_channel_id from the incoming message.
     try {

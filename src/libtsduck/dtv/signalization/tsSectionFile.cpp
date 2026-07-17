@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -10,12 +10,10 @@
 #include "tsSection.h"
 #include "tsBinaryTable.h"
 #include "tsPSIRepository.h"
-#include "tsDuckContext.h"
 #include "tsxmlElement.h"
 #include "tsxmlJSONConverter.h"
 #include "tsjsonNull.h"
 #include "tsEIT.h"
-#include "tsFatal.h"
 
 
 //----------------------------------------------------------------------------
@@ -23,8 +21,7 @@
 //----------------------------------------------------------------------------
 
 ts::SectionFile::SectionFile(DuckContext& duck) :
-    _duck(duck),
-    _report(duck.report())
+    _duck(duck)
 {
 }
 
@@ -37,7 +34,7 @@ void ts::SectionFile::clear()
 {
     _tables.clear();
     _sections.clear();
-    _orphanSections.clear();
+    _orphan_sections.clear();
 }
 
 
@@ -48,7 +45,7 @@ void ts::SectionFile::clear()
 void ts::SectionFile::add(const AbstractTablePtr& table)
 {
     if (table != nullptr && table->isValid()) {
-        BinaryTablePtr bin(new BinaryTable);
+        auto bin = std::make_shared<BinaryTable>();
         table->serialize(_duck, *bin);
         if (bin->isValid()) {
             add(bin);
@@ -106,7 +103,7 @@ void ts::SectionFile::add(const SectionPtr& section)
         // Make the section part of the global list of sections.
         _sections.push_back(section);
         // Temporary push this section in the orphan list.
-        _orphanSections.push_back(section);
+        _orphan_sections.push_back(section);
         // Try to build a table from the list of orphans.
         collectLastTable();
     }
@@ -122,7 +119,7 @@ size_t ts::SectionFile::packOrphanSections()
     size_t createCount = 0;
 
     // Loop on all orphan sections, locating sets of sections from the same table.
-    for (auto first = _orphanSections.begin(); first != _orphanSections.end(); ) {
+    for (auto first = _orphan_sections.begin(); first != _orphan_sections.end(); ) {
         assert(*first != nullptr);
         assert((*first)->isValid());
 
@@ -134,14 +131,13 @@ size_t ts::SectionFile::packOrphanSections()
         if ((*first)->isLongSection()) {
             const TID tid = (*first)->tableId();
             const uint16_t tidExt = (*first)->tableIdExtension();
-            while (end != _orphanSections.end() && (*end)->tableId() == tid && (*end)->tableIdExtension() == tidExt) {
+            while (end != _orphan_sections.end() && (*end)->tableId() == tid && (*end)->tableIdExtension() == tidExt) {
                 ++end;
             }
         }
 
         // Build a binary table from orphan sections.
-        BinaryTablePtr table(new BinaryTable);
-        CheckNonNull(table.get());
+        BinaryTablePtr table = std::make_shared<BinaryTable>();
         table->addSections(first, end, true, true);
 
         // Compress all sections to make a valid table.
@@ -157,25 +153,25 @@ size_t ts::SectionFile::packOrphanSections()
     }
 
     // Clear the list of orphan sections, they are now in tables.
-    _orphanSections.clear();
+    _orphan_sections.clear();
 
     return createCount;
 }
 
 
 //----------------------------------------------------------------------------
-// Check it a table can be formed using the last sections in _orphanSections.
+// Check it a table can be formed using the last sections in _orphan_sections.
 //----------------------------------------------------------------------------
 
 void ts::SectionFile::collectLastTable()
 {
     // If there is no orphan section, nothing to do.
-    if (_orphanSections.empty()) {
+    if (_orphan_sections.empty()) {
         return;
     }
 
     // Get a iterator to last section.
-    auto first = _orphanSections.end();
+    auto first = _orphan_sections.end();
     --first;
     assert(*first != nullptr);
     assert((*first)->isValid());
@@ -208,7 +204,7 @@ void ts::SectionFile::collectLastTable()
             }
 
             // Move to previous section.
-            if (first == _orphanSections.begin()) {
+            if (first == _orphan_sections.begin()) {
                 return; // beginning of the table is missing.
             }
             else {
@@ -218,16 +214,15 @@ void ts::SectionFile::collectLastTable()
     }
 
     // We have now identified sections for a complete table.
-    BinaryTablePtr table(new BinaryTable);
-    CheckNonNull(table.get());
-    if (!table->addSections(first, _orphanSections.end(), false, false) || !table->isValid()) {
+    BinaryTablePtr table = std::make_shared<BinaryTable>();
+    if (!table->addSections(first, _orphan_sections.end(), false, false) || !table->isValid()) {
         // Invalid table after all.
         return;
     }
 
     // Built a valid table.
     _tables.push_back(table);
-    _orphanSections.erase(first, _orphanSections.end());
+    _orphan_sections.erase(first, _orphan_sections.end());
 }
 
 
@@ -243,14 +238,14 @@ void ts::SectionFile::reorganizeEITs(const ts::Time& reftime, EITOptions options
 
 
 //----------------------------------------------------------------------------
-// Rebuild _tables and _orphanSections from _sections.
+// Rebuild _tables and _orphan_sections from _sections.
 //----------------------------------------------------------------------------
 
 void ts::SectionFile::rebuildTables()
 {
     // Restart from scratch.
     _tables.clear();
-    _orphanSections.clear();
+    _orphan_sections.clear();
 
     // Rebuild tables from consecutive sections.
     for (size_t i = 0; i < _sections.size(); ++i) {
@@ -263,7 +258,7 @@ void ts::SectionFile::rebuildTables()
         }
         else if (_sections[i]->sectionNumber() != 0 || i + _sections[i]->lastSectionNumber() >= _sections.size()) {
             // Orphan section, not preceded by logically adjacent sections or section #0 without enough following sections.
-            _orphanSections.push_back(_sections[i]);
+            _orphan_sections.push_back(_sections[i]);
         }
         else {
             // We have a long section #0, try to match all following sections.
@@ -285,7 +280,7 @@ void ts::SectionFile::rebuildTables()
             }
             else {
                 // Cannot find a complete table. Push first section as orphan.
-                _orphanSections.push_back(_sections[i]);
+                _orphan_sections.push_back(_sections[i]);
             }
         }
     }
@@ -300,32 +295,32 @@ bool ts::SectionFile::loadBinary(const fs::path& file_name)
 {
     // Separately process standard input.
     if (file_name.empty() || file_name == u"-") {
-        return loadBinary(std::cin, _report);
+        return loadBinary(std::cin);
     }
 
     // Open the input file.
     std::ifstream strm(file_name, std::ios::in | std::ios::binary);
     if (!strm.is_open()) {
-        _report.error(u"cannot open %s", file_name);
+        _duck.report().error(u"cannot open %s", file_name);
         return false;
     }
 
     // Load the section file.
-    const UString prefix(_report.reportPrefix());
-    _report.setReportPrefix(prefix + file_name + u": ");
-    const bool success = loadBinary(strm, _report);
-    _report.setReportPrefix(prefix);
+    const UString prefix(_duck.report().reportPrefix());
+    _duck.report().setReportPrefix(prefix + file_name + u": ");
+    const bool success = loadBinary(strm);
+    _duck.report().setReportPrefix(prefix);
     strm.close();
 
     return success;
 }
 
-bool ts::SectionFile::loadBinary(std::istream& strm, Report& report)
+bool ts::SectionFile::loadBinary(std::istream& strm)
 {
     // Read all binary sections one by one.
     for (;;) {
-        SectionPtr sp(new Section);
-        if (sp->read(strm, _crc_op, report)) {
+        auto sp = std::make_shared<Section>();
+        if (sp->read(strm, _crc_op, _duck.report())) {
             add(sp);
         }
         else {
@@ -346,31 +341,31 @@ bool ts::SectionFile::saveBinary(const fs::path& file_name) const
 {
     // Separately process standard output.
     if (file_name.empty() || file_name == u"-") {
-        return saveBinary(std::cout, _report);
+        return saveBinary(std::cout);
     }
 
     // Create the output file.
     std::ofstream strm(file_name, std::ios::out | std::ios::binary);
     if (!strm.is_open()) {
-        _report.error(u"error creating %s", file_name);
+        _duck.report().error(u"error creating %s", file_name);
         return false;
     }
 
     // Save sections.
-    const UString prefix(_report.reportPrefix());
-    _report.setReportPrefix(prefix + file_name + u": ");
-    const bool success = saveBinary(strm, _report);
-    _report.setReportPrefix(prefix);
+    const UString prefix(_duck.report().reportPrefix());
+    _duck.report().setReportPrefix(prefix + file_name + u": ");
+    const bool success = saveBinary(strm);
+    _duck.report().setReportPrefix(prefix);
     strm.close();
 
     return success;
 }
 
-bool ts::SectionFile::saveBinary(std::ostream& strm, Report& report) const
+bool ts::SectionFile::saveBinary(std::ostream& strm) const
 {
     for (size_t i = 0; i < _sections.size() && strm.good(); ++i) {
         if (_sections[i] != nullptr && _sections[i]->isValid()) {
-            _sections[i]->write(strm, report);
+            _sections[i]->write(strm, _duck.report());
         }
     }
     return strm.good();
@@ -390,7 +385,7 @@ bool ts::SectionFile::loadBuffer(const void* buffer, size_t size)
         if (section_size > size) {
             break;
         }
-        SectionPtr sp(new Section(data, section_size, PID_NULL, CRC32::CHECK));
+        auto sp = std::make_shared<Section>(data, section_size, PID_NULL, CRC32::CHECK);
         if (sp != nullptr && sp->isValid()) {
             add(sp);
         }
@@ -533,21 +528,21 @@ bool ts::SectionFile::LoadModel(xml::Document& doc, bool load_extensions)
 
 bool ts::SectionFile::loadXML(const UString& file_name)
 {
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
     return doc.load(file_name, false) && parseDocument(doc);
 }
 
 bool ts::SectionFile::loadXML(std::istream& strm)
 {
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
     return doc.load(strm) && parseDocument(doc);
 }
 
 bool ts::SectionFile::parseXML(const UString& xml_content)
 {
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
     return doc.parse(xml_content) && parseDocument(doc);
 }
@@ -570,8 +565,7 @@ bool ts::SectionFile::parseDocument(const xml::Document& doc)
 
     // Analyze all tables in the document.
     for (const xml::Element* node = root == nullptr ? nullptr : root->firstChildElement(); node != nullptr; node = node->nextSiblingElement()) {
-        BinaryTablePtr bin(new BinaryTable);
-        CheckNonNull(bin.get());
+        BinaryTablePtr bin = std::make_shared<BinaryTable>();
         if (bin->fromXML(_duck, node) && bin->isValid()) {
             add(bin);
         }
@@ -590,14 +584,14 @@ bool ts::SectionFile::parseDocument(const xml::Document& doc)
 
 bool ts::SectionFile::saveXML(const UString& file_name) const
 {
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
     return generateDocument(doc) && doc.save(file_name);
 }
 
 ts::UString ts::SectionFile::toXML() const
 {
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
     return generateDocument(doc) ? doc.toString() : UString();
 }
@@ -610,11 +604,11 @@ ts::UString ts::SectionFile::toXML() const
 bool ts::SectionFile::loadJSON(const UString& file_name)
 {
     json::ValuePtr root;
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
 
     return loadThisModel() &&
-           json::LoadFile(root, file_name, _report) &&
+           json::LoadFile(root, file_name, _duck.report()) &&
            _model.convertToXML(*root, doc, true) &&
            parseDocument(doc);
 }
@@ -622,11 +616,11 @@ bool ts::SectionFile::loadJSON(const UString& file_name)
 bool ts::SectionFile::loadJSON(std::istream& strm)
 {
     json::ValuePtr root;
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
 
     return loadThisModel() &&
-           json::LoadStream(root, strm, _report) &&
+           json::LoadStream(root, strm, _duck.report()) &&
            _model.convertToXML(*root, doc, true) &&
            parseDocument(doc);
 }
@@ -634,11 +628,11 @@ bool ts::SectionFile::loadJSON(std::istream& strm)
 bool ts::SectionFile::parseJSON(const UString& json_content)
 {
     json::ValuePtr root;
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
 
     return loadThisModel() &&
-           json::Parse(root, json_content, _report) &&
+           json::Parse(root, json_content, _duck.report()) &&
            _model.convertToXML(*root, doc, true) &&
            parseDocument(doc);
 }
@@ -650,7 +644,7 @@ bool ts::SectionFile::parseJSON(const UString& json_content)
 
 ts::json::ValuePtr ts::SectionFile::convertToJSON()
 {
-    xml::Document doc(_report);
+    xml::Document doc(_duck.report());
     doc.setTweaks(_xmlTweaks);
 
     // Load the XML model, generate the initial XML document, convert XML into JSON.
@@ -665,7 +659,7 @@ ts::json::ValuePtr ts::SectionFile::convertToJSON()
 bool ts::SectionFile::saveJSON(const UString& file_name)
 {
     const json::ValuePtr root(convertToJSON());
-    return !root->isNull() && root->save(file_name, 2, true, _report);
+    return !root->isNull() && root->save(file_name, 2, true, _duck.report());
 }
 
 ts::UString ts::SectionFile::toJSON()
@@ -674,7 +668,7 @@ ts::UString ts::SectionFile::toJSON()
     if (root->isNull()) {
         return UString();
     }
-    TextFormatter text(_report);
+    TextFormatter text(_duck.report());
     text.setString();
     root->print(text);
     return text.toString();
@@ -701,8 +695,8 @@ bool ts::SectionFile::generateDocument(xml::Document& doc) const
     }
 
     // Issue a warning if incomplete tables were not saved.
-    if (!_orphanSections.empty()) {
-        doc.report().warning(u"%d orphan sections not saved in XML document (%d tables saved)", _orphanSections.size(), _tables.size());
+    if (!_orphan_sections.empty()) {
+        doc.report().warning(u"%d orphan sections not saved in XML document (%d tables saved)", _orphan_sections.size(), _tables.size());
     }
 
     return true;
@@ -724,7 +718,7 @@ bool ts::SectionFile::load(const UString& file_name, SectionFormat type)
             return loadJSON(file_name);
         case SectionFormat::UNSPECIFIED:
         default:
-            _report.error(u"unknown file type for %s", file_name);
+            _duck.report().error(u"unknown file type for %s", file_name);
             return false;
     }
 }
@@ -740,7 +734,7 @@ bool ts::SectionFile::load(std::istream& strm, SectionFormat type)
             return loadJSON(strm);
         case SectionFormat::UNSPECIFIED:
         default:
-            _report.error(u"unknown input file type");
+            _duck.report().error(u"unknown input file type");
             return false;
     }
 }

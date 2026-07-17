@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -120,17 +120,13 @@ void ts::SIParameterDescriptor::buildXML(DuckContext& duck, xml::Element* root) 
 
 bool ts::SIParameterDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xtables;
-    bool ok =
-        element->getIntAttribute(parameter_version, u"parameter_version", true) &&
-        element->getDateAttribute(update_time, u"update_time", true) &&
-        element->getChildren(xtables, u"table");
+    bool ok = element->getIntAttribute(parameter_version, u"parameter_version", true) &&
+              element->getDateAttribute(update_time, u"update_time", true);
 
-    for (auto it = xtables.begin(); ok && it != xtables.end(); ++it) {
-        Entry entry;
-        ok = (*it)->getIntAttribute(entry.table_id, u"id", true) &&
-             (*it)->getHexaText(entry.table_description, 0, 255);
-        entries.push_back(entry);
+    for (auto& child : element->children(u"table", &ok)) {
+        auto& entry(entries.emplace_back());
+        ok = child.getIntAttribute(entry.table_id, u"id", true) &&
+             child.getHexaText(entry.table_description, 0, 255);
     }
     return ok;
 }

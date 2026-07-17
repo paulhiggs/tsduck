@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -40,6 +40,13 @@ namespace ts {
             EVENT,    //!< Event media playlist, reference media segments, can grow.
             LIVE,     //!< Live media playlist, reference media segments, sliding window.
         };
+
+        //!
+        //! Enumeration description of ts::hls::PlayListType.
+        //! @ingroup hls
+        //! @return A constant reference to the enumeration description.
+        //!
+        TSDUCKDLL const Names& PlayListTypeNames();
 
         //!
         //! Tags to be used in the .M3U8 playlists.

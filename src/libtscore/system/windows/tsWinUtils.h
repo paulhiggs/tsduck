@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //-----------------------------------------------------------------------------
@@ -26,6 +26,18 @@ namespace ts {
     //! Standard Windows language code for US-English.
     //!
     constexpr ::DWORD US_ENGLISH_CODE = 0x0409;
+
+    //!
+    //! Check if a Windows handle is valid (Windows-specific).
+    //! The Win32 API is full of inconsistencies. One of them is the way to indicate errors in Win32 functions
+    //! which return a handle. Sometimes, the documented return value for error is NULL and sometimes it is
+    //! INVALID_HANDLE_VALUE. It is easy to test the wrong value in application code and fail to detect an
+    //! error. This inline function checks all documented invalid handle values.
+    //! @param [in] h The handle to check.
+    //! @return True if @a h seems a valid handle.
+    //! False if @a h is one of the documented invalid handle values.
+    //!
+    TSCOREDLL inline bool WinHandleValid(::HANDLE h) { return h != nullptr && h != INVALID_HANDLE_VALUE; }
 
     //!
     //! Format a Windows error message (Windows-specific).
@@ -135,7 +147,7 @@ namespace ts {
     //! Get the handle of a COM object (Windows-specific).
     //! @param [in] obj COM object.
     //! @param [in,out] report Where to report errors.
-    //! @return The handle or INVALID_HANDLE_VALUE on error.
+    //! @return The handle or nullptr on error.
     //!
     TSCOREDLL ::HANDLE GetHandleFromObject(::IUnknown* obj, Report& report);
 
@@ -145,6 +157,28 @@ namespace ts {
     //! @return The device name or an empty string on error.
     //!
     TSCOREDLL UString WinDeviceName(::HANDLE handle);
+
+    //!
+    //! Search a function in a list of DLL's (Windows-specific).
+    //! This function is typically used in "static const" declarations to find functions once.
+    //! @param [in] function Name of the function to find.
+    //! @param [in] dll List of DLL to search. Each DLL is search until the function is found.
+    //! The DLL is first searched in the process memory (GetModuleHandle) and then loaded if
+    //! necessary (LoadLibrary). Once a library is loaded, we don't unload it to keep access to
+    //! the function.
+    //! @return The address of the function or a null pointer if not found.
+    //!
+    TSCOREDLL void* GetFunctionFromDLL(const char* function, std::initializer_list<const char*> dll);
+
+    //!
+    //! Search a Windows Socket extension function (Windows-specific).
+    //! This kind of function is not exported by any DLL and should be retrieved using WSAIoctl().
+    //! This function is typically used in "static const" declarations to find functions once.
+    //! @param [in] guid Identity of the function to get.
+    //! @param [out] error Error code if the function is not found. Zero on success.
+    //! @return The address of the function or a null pointer if not found.
+    //!
+    TSCOREDLL void* GetWSAFunction(const ::GUID& guid, int& error);
 
     //!
     //! Start an application with elevated privileges (Windows-specific).

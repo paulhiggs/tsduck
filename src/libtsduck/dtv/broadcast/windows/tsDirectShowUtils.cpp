@@ -1,7 +1,7 @@
 //-----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //-----------------------------------------------------------------------------
@@ -427,15 +427,15 @@ bool ts::CreateLocatorDVBS(DuckContext& duck, ComPtr<::IDigitalLocator>& locator
     // The DirectShow classes have not evolve and are still stuck with the legacy
     // model of low/high/switch frequencies. We try to emulate this with new LNB's.
 
-    uint64_t low_freq = params.lnb.value().legacyLowOscillatorFrequency();
-    uint64_t high_freq = params.lnb.value().legacyHighOscillatorFrequency();
-    uint64_t switch_freq = params.lnb.value().legacySwitchFrequency();
+    uint64_t low_freq = params.lnb->legacyLowOscillatorFrequency();
+    uint64_t high_freq = params.lnb->legacyHighOscillatorFrequency();
+    uint64_t switch_freq = params.lnb->legacySwitchFrequency();
 
     if (low_freq == 0) {
         // Cannot even find a low oscillator frequency. Get the local oscillator
         // frequency for this particular tune and pretend it is the low oscillator.
         LNB::Transposition tr;
-        if (params.lnb.value().transpose(tr, params.frequency.value(), params.polarity.value(), NULLREP)) {
+        if (params.lnb->transpose(tr, params.frequency.value(), params.polarity.value(), NULLREP)) {
             low_freq = tr.oscillator_frequency;
         }
     }

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -29,9 +29,9 @@ namespace ts {
         virtual bool start() override;
         virtual bool stop() override;
         virtual bool isRealTime() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
-        TSDatagramOutput _datagram {TSDatagramOutputOptions::ALLOW_RTP | TSDatagramOutputOptions::ALLOW_RS204 | TSDatagramOutputOptions::ALWAYS_BURST};
+        TSDatagramOutput _datagram {*this, TSDatagramOutputOptions::ALLOW_RTP | TSDatagramOutputOptions::ALLOW_RS204 | TSDatagramOutputOptions::ALWAYS_BURST};
     };
 }

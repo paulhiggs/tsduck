@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -118,16 +118,13 @@ void ts::AreaBroadcastingInformationDescriptor::buildXML(DuckContext& duck, xml:
 
 bool ts::AreaBroadcastingInformationDescriptor::analyzeXML(DuckContext& duck, const xml::Element* element)
 {
-    xml::ElementVector xstation;
-    bool ok = element->getChildren(xstation, u"station");
-
-    for (auto it = xstation.begin(); ok && it != xstation.end(); ++it) {
-        Station st;
-        ok = (*it)->getIntAttribute(st.station_id, u"station_id", true, 0, 0, 0x00FFFFFF) &&
-             (*it)->getIntAttribute(st.location_code, u"location_code", true) &&
-             (*it)->getIntAttribute(st.broadcast_signal_format, u"broadcast_signal_format", true) &&
-             (*it)->getHexaTextChild(st.additional_station_info, u"additional_station_info", false);
-        stations.push_back(st);
+    bool ok = true;
+    for (auto& child : element->children(u"station", &ok)) {
+        auto& st(stations.emplace_back());
+        ok = child.getIntAttribute(st.station_id, u"station_id", true, 0, 0, 0x00FFFFFF) &&
+             child.getIntAttribute(st.location_code, u"location_code", true) &&
+             child.getIntAttribute(st.broadcast_signal_format, u"broadcast_signal_format", true) &&
+             child.getHexaTextChild(st.additional_station_info, u"additional_station_info", false);
     }
     return ok;
 }

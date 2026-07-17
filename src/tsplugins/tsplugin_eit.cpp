@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -42,7 +42,7 @@ namespace ts {
         virtual bool getOptions() override;
         virtual bool start() override;
         virtual bool stop() override;
-        virtual Status processPacket(TSPacket&, TSPacketMetadata&) override;
+        virtual PacketProcessStatus processPacket(TSPacket&, TSPacketMetadata&) override;
 
     private:
         // Description of one event (for full EPG dump).
@@ -232,7 +232,7 @@ bool ts::EITPlugin::stop()
 // Packet processing method
 //----------------------------------------------------------------------------
 
-ts::ProcessorPlugin::Status ts::EITPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
+ts::PacketProcessStatus ts::EITPlugin::processPacket(TSPacket& pkt, TSPacketMetadata& pkt_data)
 {
     _sig_demux.feedPacket(pkt);
     _sec_demux.feedPacket(pkt);
@@ -544,7 +544,7 @@ void ts::EITPlugin::handleSection(SectionDemux& demux, const Section& sect)
     }
 
     // Use the section as if it was a complete table, to deserialize it as an EIT.
-    SectionPtr newsec(new Section(sect, ShareMode::COPY));
+    const auto newsec = std::make_shared<Section>(sect, ShareMode::COPY);
     newsec->setSectionNumber(0, false);
     newsec->setLastSectionNumber(0, true);
     BinaryTable table;

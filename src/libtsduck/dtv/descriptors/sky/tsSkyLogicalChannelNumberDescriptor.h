@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2019-2025, Lola Delannoy
+// Copyright (c) 2019-2026, Lola Delannoy
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ namespace ts {
     //! This is a private descriptor, must be preceded by the BskyB PDS.
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL SkyLogicalChannelNumberDescriptor : public AbstractDescriptor
+    class TSDUCKDLL SkyLogicalChannelNumberDescriptor: public AbstractDescriptor
     {
     public:
         //!

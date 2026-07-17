@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -34,18 +34,18 @@ namespace {
     public:
         Options(int argc, char *argv[]);
 
-        ts::DuckContext     duck {this};         // TSDuck context
-        bool                raw_file = false;    // Raw dump of file, not TS packets
-        bool                udp_dump = false;    // Dump UDP packets, not TS packets
-        uint32_t            raw_flags = 0;       // Raw dump flags
-        size_t              raw_bpl = 0;         // Bytes per line in raw mode.
-        uint64_t            start_offset = 0;    // Start offset in bytes
-        ts::PacketCounter   max_packets = 0;     // Maximum number of packets to dump per file
-        ts::UStringVector   infiles {};          // Input file names
-        ts::TSPacketFormat  format = ts::TSPacketFormat::AUTODETECT;  // Input file format
-        ts::TSDumpArgs      dump {};             // Packet dump options
-        ts::PagerArgs       pager {true, true};  // Output paging options
-        ts::UDPReceiverArgs udp {};              // UDP options
+        ts::DuckContext       duck {this};               // TSDuck context
+        bool                  raw_file = false;          // Raw dump of file, not TS packets
+        bool                  udp_dump = false;          // Dump UDP packets, not TS packets
+        uint32_t              raw_flags = 0;             // Raw dump flags
+        size_t                raw_bpl = 0;               // Bytes per line in raw mode.
+        uint64_t              start_offset = 0;          // Start offset in bytes
+        ts::PacketCounter     max_packets = 0;           // Maximum number of packets to dump per file
+        std::vector<fs::path> infiles {};                // Input file names
+        ts::TSPacketFormat    format = ts::TSPacketFormat::AUTODETECT;  // Input file format
+        ts::TSDumpArgs        dump {};                   // Packet dump options
+        ts::PagerArgs         pager {this, true, true};  // Output paging options
+        ts::UDPReceiverArgs   udp {};                    // UDP options
     };
 }
 
@@ -87,7 +87,7 @@ Options::Options(int argc, char *argv[]) :
     dump.loadArgs(duck, *this);
     pager.loadArgs(*this);
 
-    getValues(infiles);
+    getPathValues(infiles);
     raw_file = present(u"raw-file");
     start_offset = intValue<uint64_t>(u"byte-offset", intValue<uint64_t>(u"packet-offset", 0) * ts::PKT_SIZE);
     getIntValue(max_packets, u"max-packets", std::numeric_limits<ts::PacketCounter>::max());
@@ -125,15 +125,15 @@ Options::Options(int argc, char *argv[]) :
 //----------------------------------------------------------------------------
 
 namespace {
-    void DumpTSFile(Options& opt, const ts::UString& filename, std::ostream& out)
+    void DumpTSFile(Options& opt, const fs::path& filename, std::ostream& out)
     {
         if (opt.infiles.size() > 1 && !opt.dump.log) {
             out << "* File " << filename << std::endl;
         }
 
         // Open the TS file.
-        ts::TSFile file;
-        if (!file.openRead(filename, 1, opt.start_offset, opt, opt.format)) {
+        ts::TSFile file(&opt);
+        if (!file.openRead(filename, 1, opt.start_offset, opt.format)) {
             return;
         }
 
@@ -141,7 +141,7 @@ namespace {
         // Stop on output error (typically 'quit' in the pager).
         ts::TSPacket pkt;
         ts::TSPacketMetadata mdata;
-        for (ts::PacketCounter packet_index = 0; out && packet_index < opt.max_packets && file.readPackets(&pkt, &mdata, 1, opt) > 0; packet_index++) {
+        for (ts::PacketCounter packet_index = 0; out && packet_index < opt.max_packets && file.readPackets(&pkt, &mdata, 1) > 0; packet_index++) {
             if (opt.dump.pids.test(pkt.getPID())) {
                 if (!opt.dump.log) {
                     out << std::endl << "* Packet " << ts::UString::Decimal(packet_index) << std::endl;
@@ -149,7 +149,7 @@ namespace {
                 opt.dump.dump(opt.duck, out, pkt, &mdata);
             }
         }
-        file.close(opt);
+        file.close();
 
         if (!opt.dump.log) {
             out << std::endl;
@@ -163,7 +163,7 @@ namespace {
 //----------------------------------------------------------------------------
 
 namespace {
-    void DumpRawFile(Options& opt, const ts::UString& filename, std::ostream& out)
+    void DumpRawFile(Options& opt, const fs::path& filename, std::ostream& out)
     {
         std::istream* in = nullptr;
         std::ifstream file;
@@ -178,7 +178,7 @@ namespace {
         else {
             // Dump named files. Open the file in binary mode. Will be closed by destructor.
             in = &file;
-            file.open(filename.toUTF8().c_str(), std::ios::binary);
+            file.open(filename, std::ios::binary);
             if (!file) {
                 opt.error(u"cannot open file %s", filename);
                 return;
@@ -210,9 +210,9 @@ namespace {
     void DumpRawUDP(Options& opt, std::ostream& out)
     {
         // Initializ◊e the UDP reception.
-        ts::UDPReceiver sock(opt);
+        ts::UDPReceiver sock(&opt);
         sock.setParameters(opt.udp);
-        if (!sock.open(opt)) {
+        if (!sock.open()) {
             return;
         }
 
@@ -225,7 +225,7 @@ namespace {
         const bool headers = opt.dump.dump_flags & ts::TSPacket::DUMP_TS_HEADER;
 
         for (ts::PacketCounter packet_index = 0;
-             out && packet_index < opt.max_packets && sock.receive(buffer.data(), buffer.size(), size, sender, destination, nullptr, opt);
+             out && packet_index < opt.max_packets && sock.receive(buffer.data(), buffer.size(), size, sender, destination);
              packet_index++)
         {
             if (headers) {
@@ -237,13 +237,13 @@ namespace {
             }
             out << ts::UString::Dump(buffer.data(), size, opt.raw_flags, 0, opt.raw_bpl);
         }
-        sock.close(opt);
+        sock.close();
     }
 }
 
 
 //----------------------------------------------------------------------------
-//  Program entry point
+// Program entry point
 //----------------------------------------------------------------------------
 
 int MainCode(int argc, char *argv[])
@@ -252,7 +252,7 @@ int MainCode(int argc, char *argv[])
     Options opt(argc, argv);
 
     // Setup an output pager if necessary.
-    std::ostream& out(opt.pager.output(opt));
+    std::ostream& out(opt.pager.output());
 
     if (opt.udp_dump) {
         // Dump UDP packets.

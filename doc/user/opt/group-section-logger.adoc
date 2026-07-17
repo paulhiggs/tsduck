@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 // Documentation for options in class ts::TablesLogger.
@@ -346,6 +346,12 @@ The default is 8 bytes.
 Log each table as one single XML line in the message logger instead of an output file.
 The optional string parameter specifies a prefix to prepend on the log line before the XML text
 to facilitate the filtering of the appropriate line in the logs.
+
+[.opt]
+*--meta-base64-sections*
+
+[.optdoc]
+Add a Base-64 dump of each section in the XML and JSON metadata.
 
 [.opt]
 *--meta-sections*

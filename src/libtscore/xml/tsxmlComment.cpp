@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -43,7 +43,7 @@ ts::UString ts::xml::Comment::typeName() const
 // Print the node.
 //----------------------------------------------------------------------------
 
-void ts::xml::Comment::print(TextFormatter& output, bool keepNodeOpen) const
+void ts::xml::Comment::print(TextFormatter& output, bool keep_node_open) const
 {
     output << "<!--" << value() << "-->";
 }

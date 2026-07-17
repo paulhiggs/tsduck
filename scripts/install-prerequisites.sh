@@ -2,7 +2,7 @@
 #-----------------------------------------------------------------------------
 #
 #  TSDuck - The MPEG Transport Stream Toolkit
-#  Copyright (c) 2005-2025, Thierry Lelegard
+#  Copyright (c) 2005-2026, Thierry Lelegard
 #  BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 #
 #  This script installs all pre-requisites packages to build TSDuck,
@@ -184,14 +184,16 @@ elif [[ "$SYSTEM" == "DragonFly" ]]; then
 
 elif [[ "$SYSTEM" == "OpenBSD" ]]; then
 
+    # Get the package name of the latest version of a package for which several versions exist at the same time.
     disamb_pkg() { pkg_info -Q $1 | grep "^$1-[0-9]" | grep -v -e -static | sort | tail -1 | sed -e 's/ .*//'; }
 
-    PKGLIST+=(git curl zip bash gsed ggrep gmake $(disamb_pkg gtar) dos2unix coreutils $(disamb_pkg python))
-    [[ -z $NOPCSC    ]] && PKGLIST+=(pcsc-lite)
-    [[ -z $NOJAVA    ]] && PKGLIST+=($(disamb_pkg jdk))
-    [[ -z $NODOXYGEN ]] && PKGLIST+=(doxygen graphviz)
-    [[ -z $NODOC     ]] && PKGLIST+=($(disamb_pkg ruby) ruby-shims asciidoctor qpdf)
-    [[ -z $NODOC     ]] && GEMLIST+=(asciidoctor-pdf rouge)
+    PKGLIST+=(git curl zip bash gsed ggrep gmake $(disamb_pkg gtar) dos2unix coreutils base64 $(disamb_pkg python))
+    [[ -z $NOOPENSSL  ]] && PKGLIST+=($(disamb_pkg openssl))
+    [[ -z $NOPCSC     ]] && PKGLIST+=(pcsc-lite)
+    [[ -z $NOJAVA     ]] && PKGLIST+=($(disamb_pkg jdk))
+    [[ -z $NODOXYGEN  ]] && PKGLIST+=(doxygen graphviz)
+    [[ -z $NODOC      ]] && PKGLIST+=($(disamb_pkg ruby) ruby-shims asciidoctor qpdf)
+    [[ -z $NODOC      ]] && GEMLIST+=(asciidoctor-pdf rouge)
 
     echo "Packages: ${PKGLIST[*]}"
     $DRYRUN && exit 0
@@ -247,7 +249,7 @@ elif [[ "$DISTRO" == "Ubuntu" ]]; then
     [[ -z $NOVATEK                                         ]] && PKGLIST+=(libusb-1.0-0-dev)
     [[ -z $NOJAVA                                          ]] && PKGLIST+=(default-jdk)
     [[ -z $NODOXYGEN                                       ]] && PKGLIST+=(doxygen graphviz)
-    [[ -z $NODOC                                           ]] && PKGLIST+=(asciidoctor qpdf)
+    [[ -z $NODOC                                           ]] && PKGLIST+=(ruby-dev asciidoctor qpdf)
     [[ -z $NODOC                                           ]] && GEMLIST+=(asciidoctor-pdf rouge)
 
     # On Ubuntu 22.04, the default clang is clang-14. There is a bug which prevents C++20
@@ -281,7 +283,7 @@ elif [[ "$DISTRO" == "Linuxmint" ]]; then
     [[ -z $NOVATEK                                 ]] && PKGLIST+=(libusb-1.0-0-dev)
     [[ -z $NOJAVA                                  ]] && PKGLIST+=(default-jdk)
     [[ -z $NODOXYGEN                               ]] && PKGLIST+=(doxygen graphviz)
-    [[ -z $NODOC                                   ]] && PKGLIST+=(asciidoctor qpdf)
+    [[ -z $NODOC                                   ]] && PKGLIST+=(ruby-dev asciidoctor qpdf)
     [[ -z $NODOC                                   ]] && GEMLIST+=(asciidoctor-pdf rouge)
 
     echo "Packages: ${PKGLIST[*]}"
@@ -319,7 +321,7 @@ elif [[ "$DISTRO" = "Debian" || "$DISTRO" = "Raspbian" ]]; then
     [[ -z $NOVATEK                 ]] && PKGLIST+=(libusb-1.0-0-dev)
     [[ -z $NOJAVA                  ]] && PKGLIST+=(default-jdk)
     [[ -z $NODOXYGEN               ]] && PKGLIST+=(doxygen graphviz)
-    [[ -z $NODOC                   ]] && PKGLIST+=(asciidoctor qpdf)
+    [[ -z $NODOC                   ]] && PKGLIST+=(ruby-dev asciidoctor qpdf)
     [[ -z $NODOC                   ]] && GEMLIST+=(asciidoctor-pdf rouge)
 
     echo "Packages: ${PKGLIST[*]}"
@@ -340,6 +342,9 @@ elif [[ -f /etc/fedora-release ]]; then
 
     FC=$(grep " release " /etc/fedora-release 2>/dev/null | sed -e 's/^.* release \([0-9\.]*\) .*$/\1/')
 
+    # Note: Starting with Fedora 43 (?), the package java-latest-openjdk-devel still exists but no longer
+    # install java and javac (don't know what's its value then). Need to install a precise version.
+
     PKGLIST+=(git gcc-c++ make cmake which hostname glibc-langpack-en flex bison dos2unix curl tar zip kernel-headers libatomic rpmdevtools python3)
     [[ -z $NOOPENSSL            ]] && PKGLIST+=(openssl openssl-devel)
     [[ -z $NOEDITLINE           ]] && PKGLIST+=(libedit-devel)
@@ -349,10 +354,10 @@ elif [[ -f /etc/fedora-release ]]; then
     [[ -z $NOSRT && $FC -ge 31  ]] && PKGLIST+=(srt-devel)
     [[ -z $NOCURL               ]] && PKGLIST+=(libcurl libcurl-devel)
     [[ -z $NOVATEK              ]] && PKGLIST+=(libusb1-devel)
-    [[ -z $NOJAVA               ]] && PKGLIST+=(java-latest-openjdk-devel)
+    [[ -z $NOJAVA               ]] && PKGLIST+=(java-25-openjdk-devel)
     [[ -z $NODOXYGEN            ]] && PKGLIST+=(doxygen graphviz)
     [[ -n $STATIC               ]] && PKGLIST+=(glibc-static libstdc++-static)
-    [[ -z $NODOC                ]] && PKGLIST+=(rubygem-asciidoctor qpdf)
+    [[ -z $NODOC                ]] && PKGLIST+=(ruby-devel rubygem-asciidoctor qpdf)
     [[ -z $NODOC                ]] && GEMLIST+=(asciidoctor-pdf rouge)
 
     echo "Packages: ${PKGLIST[*]}"

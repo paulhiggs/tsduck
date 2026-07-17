@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -291,6 +291,30 @@ Already up to date.
 ----  test-179: Test test-179.tstabdump.log passed
 ----  ALL 2545 tests passed
 $
+------
+
+[#testsionly]
+===== Running PSI/SI tests only
+
+Some tests scripts in the suite are dedicated to some PSI/SI tables or descriptors.
+The scripts for such tests are usually simple and only invoke the standard script `standard-si-test.sh`
+using a specific XML input file which contains the PSI/SI tables or descriptors to test.
+
+Running the complete test suite takes time.
+In some cases, when modifying code which may affect all PSI/SI, it is useful to run all related tests,
+without running the complete test suite.
+This can be done using option `--si-only`.
+
+[source,shell]
+------
+$ ./run-all-tests.sh --si-only
+------
+
+On {unix}, in the `tsduck` project, the `make` target `si-test-suite` runs that subset of the test suite.
+
+[source,shell]
+------
+$ make si-test-suite
 ------
 
 [#testlargefiles]

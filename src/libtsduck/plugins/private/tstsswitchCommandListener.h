@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ namespace ts {
         //! Input switch (tsswitch) remote control command receiver.
         //! @ingroup libtsduck plugin
         //!
-        class CommandListener : private Thread
+        class CommandListener: private Thread
         {
             TS_NOBUILD_NOCOPY(CommandListener);
         public:
@@ -59,9 +59,9 @@ namespace ts {
             Report&       _log;
             Core&         _core;
             const InputSwitcherArgs& _opt;
-            UDPReceiver   _udp_server {_log};
-            TLSServer     _tls_server {_opt.remote_control};
-            TLSConnection _tls_client {_opt.remote_control};
+            UDPReceiver   _udp_server {&_log};
+            TLSServer     _tls_server {&_log, _opt.remote_control};
+            TLSConnection _tls_client {&_log, _opt.remote_control};
             volatile bool _terminate = false;
 
             // Implementation of Thread.

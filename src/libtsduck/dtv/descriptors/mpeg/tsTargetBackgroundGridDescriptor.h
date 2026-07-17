@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------
 //
 // TSDuck - The MPEG Transport Stream Toolkit
-// Copyright (c) 2005-2025, Thierry Lelegard
+// Copyright (c) 2005-2026, Thierry Lelegard
 // BSD-2-Clause license, see LICENSE.txt file or https://tsduck.io/license
 //
 //----------------------------------------------------------------------------
@@ -20,7 +20,7 @@ namespace ts {
     //! @see ISO/IEC 13818-1, ITU-T Rec. H.222.0, 2.6.12.
     //! @ingroup libtsduck descriptor
     //!
-    class TSDUCKDLL TargetBackgroundGridDescriptor : public AbstractDescriptor
+    class TSDUCKDLL TargetBackgroundGridDescriptor: public AbstractDescriptor
     {
     public:
         // TargetBackgroundGridDescriptor public members:
